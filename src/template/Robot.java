@@ -5,6 +5,7 @@ import battlecode.common.*;
 import java.util.Random;
 
 import static template.Debug.*;
+import static template.Map.*;
 
 
 public abstract class Robot extends Constants {
@@ -58,17 +59,19 @@ public abstract class Robot extends Constants {
 
     public static int roundNum;
 
+    public static boolean[] isDirMoveable = new boolean[8];
+
     public static void updateTurnInfo() throws GameActionException {
         here = rc.getLocation();
 
         roundNum = rc.getRoundNum();
+
+        printMyInfo();
+
+        updateIsDirMoveable();
     }
 
-    // run once at the beginning (before turn 1)
-    public static void firstTurnSetup() throws GameActionException {}
-
-    // run each turn
-    public static void turn() throws GameActionException {}
+    public static boolean noTurnLog = false;
 
     /*
     Run at the end of each turn
@@ -78,13 +81,31 @@ public abstract class Robot extends Constants {
         // check if we went over the bytecode limit
         int endTurn = rc.getRoundNum();
         if (roundNum != endTurn) {
-//            printMyInfo();
+            printMyInfo();
             logi("BYTECODE LIMIT EXCEEDED");
             int bytecodeOver = Clock.getBytecodeNum();
             int turns = endTurn - roundNum;
             tlogi("Overused bytecode: " + (bytecodeOver + (turns - 1) * myType.bytecodeLimit));
             tlogi("Skipped turns: " + turns);
         }
+        if(!noTurnLog) {
+            log("------------------------------\n");
+            log("END TURN");
+            log("Bytecode left: " + Clock.getBytecodesLeft());
+            log("------------------------------\n");
+        }
         Clock.yield();
     }
+
+    public static void printMyInfo () {
+        if(noTurnLog) return;
+        log("------------------------------\n");
+        log("Robot: " + myType);
+        log("roundNum: " + roundNum);
+        log("ID: " + myID);
+        log("*Location: " + here);
+        log("*Cooldown: " + rc.getCooldownTurns());
+        log("------------------------------\n");
+    }
+
 }

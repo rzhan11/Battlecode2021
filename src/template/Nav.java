@@ -4,6 +4,8 @@ import battlecode.common.*;
 
 
 import static template.Robot.*;
+import static template.Debug.*;
+import static template.Utils.*;
 
 public class Nav {
 
@@ -234,7 +236,7 @@ public class Nav {
                 return bugTraceMove(true);
             }
             if (checkDirMoveable(curDir)) {
-                Actions.doMove(curDir);
+//                Actions.doMove(curDir); // move(curDir);
                 if (inArray(bugVisitedLocations, curDest, bugVisitedLocationsLength)) {
                     log("Resetting bugTracing");
                     bugTracing = false;

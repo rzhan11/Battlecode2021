@@ -18,6 +18,8 @@ public abstract class Robot extends Constants {
     final public static Direction[] CARD_DIRS = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST}; // four cardinal directions
     final public static Direction[] DIAG_DIRS = {Direction.NORTHEAST, Direction.SOUTHEAST, Direction.SOUTHWEST, Direction.NORTHWEST}; // four diagonals
 
+    final public static Team neutral = Team.NEUTRAL;
+
     /*
     Variables that will never change (once set)
     */
@@ -56,22 +58,35 @@ public abstract class Robot extends Constants {
      */
 
     public static MapLocation here;
-
     public static int roundNum;
+    public static double myPassability;
+
+    public static RobotInfo[] sensedAllies;
+    public static RobotInfo[] sensedEnemies;
+    public static RobotInfo[] sensedNeutrals;
 
     public static boolean[] isDirMoveable = new boolean[8];
 
     public static void updateTurnInfo() throws GameActionException {
-        here = rc.getLocation();
-
-        roundNum = rc.getRoundNum();
+        updateBasicInfo();
 
         printMyInfo();
 
         updateIsDirMoveable();
     }
 
-    public static boolean noTurnLog = false;
+    /*
+    These updates should be cheap and independent of other updates
+     */
+    public static void updateBasicInfo() throws GameActionException {
+        here = rc.getLocation();
+        roundNum = rc.getRoundNum();
+        myPassability = rc.sensePassability(here);
+
+        sensedAllies = rc.senseNearbyRobots(-1, us);
+        sensedEnemies = rc.senseNearbyRobots(-1, them);
+        sensedNeutrals = rc.senseNearbyRobots(-1, neutral);
+    }
 
     /*
     Run at the end of each turn
@@ -88,7 +103,7 @@ public abstract class Robot extends Constants {
             tlogi("Overused bytecode: " + (bytecodeOver + (turns - 1) * myType.bytecodeLimit));
             tlogi("Skipped turns: " + turns);
         }
-        if(!noTurnLog) {
+        if (!NO_TURN_LOGS) {
             log("------------------------------\n");
             log("END TURN");
             log("Bytecode left: " + Clock.getBytecodesLeft());
@@ -98,7 +113,7 @@ public abstract class Robot extends Constants {
     }
 
     public static void printMyInfo () {
-        if(noTurnLog) return;
+        if (NO_TURN_LOGS) return;
         log("------------------------------\n");
         log("Robot: " + myType);
         log("roundNum: " + roundNum);

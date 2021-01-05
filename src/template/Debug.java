@@ -6,7 +6,9 @@ import static template.Robot.*;
 
 public class Debug {
 
-    public static boolean SILENCE_LOGS = false;
+    final public static boolean SILENCE_LOGS = false;
+
+    final public static boolean NO_TURN_LOGS = false;
 
     /*
     Selectively turn off print logs for certain units

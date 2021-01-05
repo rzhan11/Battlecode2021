@@ -2,6 +2,7 @@ package template;
 
 import battlecode.common.*;
 
+import static template.Debug.*;
 import static template.Map.*;
 
 public class EnlightenmentCenter extends Robot {
@@ -45,6 +46,10 @@ public class EnlightenmentCenter extends Robot {
 
     // code run each turn
     public static void turn() throws GameActionException {
+
+        for (int i = 0; i < scoutCount; i++) {
+            log("Flag of " + scoutIDs[i] + ": " + rc.getFlag(scoutIDs[i]));
+        }
 
         if (!rc.isReady()) {
             return;

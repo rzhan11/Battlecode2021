@@ -76,6 +76,10 @@ public class Muckraker extends Robot {
         updateEnemySlanderers();
         updateExploreLoc();
 
+        int flag = (int) (Math.random() * 3000);
+        rc.setFlag(flag);
+        log("my flag " + flag);
+
         if (!rc.isReady()) {
             return;
         }

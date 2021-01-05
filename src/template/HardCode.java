@@ -17,7 +17,7 @@ public class HardCode {
                 initBFS25();
                 break;
             case SLANDERER:
-                initBFS20();
+//                initBFS20();
                 break;
             case MUCKRAKER:
                 initBFS30();

@@ -56,13 +56,12 @@ public class EnlightenmentCenter extends Robot {
                 MapLocation adjLoc = here.add(dir);
                 if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
                     rc.setFlag(scoutCount);
-                    rc.buildRobot(RobotType.MUCKRAKER, dir, 1);
+                    Actions.doBuildRobot(RobotType.MUCKRAKER, dir, 1);
                     scoutIDs[scoutCount] = rc.senseRobotAtLocation(adjLoc).getID();
                     scoutCount++;
                     return;
                 }
             }
-
             return;
         }
 
@@ -71,7 +70,7 @@ public class EnlightenmentCenter extends Robot {
                 MapLocation adjLoc = here.add(dir);
                 if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
                     int cost = rc.getInfluence() / MIN_SLANDERER_COST * MIN_SLANDERER_COST;
-                    rc.buildRobot(RobotType.SLANDERER, dir, cost);
+                    Actions.doBuildRobot(RobotType.SLANDERER, dir, cost);
                     return;
                 }
             }

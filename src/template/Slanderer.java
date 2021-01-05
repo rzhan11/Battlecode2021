@@ -2,6 +2,7 @@ package template;
 
 import battlecode.common.*;
 
+import static template.Map.*;
 
 public class Slanderer extends Robot {
 
@@ -43,7 +44,17 @@ public class Slanderer extends Robot {
 
     // code run each turn
     public static void turn() throws GameActionException {
+        if (!rc.isReady()) {
+            return;
+        }
 
-
+        int randomDir = (int) (Math.random() * 8);
+        for (int i = 0; i < 8; i++) {
+            int j = (i + randomDir) % 8;
+            if (isDirMoveable[j]) {
+                Actions.doMove(DIRS[j]);
+                return;
+            }
+        }
     }
 }

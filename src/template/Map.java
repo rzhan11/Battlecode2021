@@ -46,7 +46,7 @@ public class Map {
     }
 
     public static void updateMapBounds() throws GameActionException {
-        int maxRadius = (int) Math.sqrt(myType.actionRadiusSquared);
+        int maxRadius = (int) Math.sqrt(mySensorRadius);
         MapLocation loc;
 
         if (XMIN == -1) {
@@ -59,6 +59,7 @@ public class Map {
                         if (XMAX != -1) {
                             XLEN = XMAX - XMIN + 1;
                         }
+                        break;
                     }
                 }
             }
@@ -73,6 +74,7 @@ public class Map {
                         if (YMAX != -1) {
                             YLEN = YMAX - YMIN + 1;
                         }
+                        break;
                     }
                 }
             }
@@ -87,6 +89,7 @@ public class Map {
                         if (XMIN != -1) {
                             XLEN = XMAX - XMIN + 1;
                         }
+                        break;
                     }
                 }
             }
@@ -101,6 +104,7 @@ public class Map {
                         if (YMIN != -1) {
                             YLEN = YMAX - YMIN + 1;
                         }
+                        break;
                     }
                 }
             }
@@ -111,7 +115,7 @@ public class Map {
         // add information about if direction is moveable
         for (int i = 0; i < DIRS.length; i++) {
             MapLocation adjLoc = rc.adjacentLocation(DIRS[i]);
-            isDirMoveable[i] = rc.onTheMap(adjLoc) && rc.isLocationOccupied(adjLoc);
+            isDirMoveable[i] = rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc);
         }
     }
 

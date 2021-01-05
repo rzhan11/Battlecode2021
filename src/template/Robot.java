@@ -28,6 +28,10 @@ public abstract class Robot extends Constants {
     public static int myID;
     public static RobotType myType;
 
+    public static int myActionRadius;
+    public static int mySensorRadius;
+    public static int myDetectionRadius;
+
     public static Team us;
     public static Team them;
 
@@ -50,6 +54,10 @@ public abstract class Robot extends Constants {
         myID = rc.getID();
         myType = rc.getType();
 
+        myActionRadius = myType.actionRadiusSquared;
+        mySensorRadius = myType.sensorRadiusSquared;
+        myDetectionRadius = myType.detectionRadiusSquared;
+
         us = rc.getTeam();
         them = us.opponent();
 
@@ -58,7 +66,9 @@ public abstract class Robot extends Constants {
 
         rand = new Random(myID);
 
+        logByte("check");
         HardCode.initHardCode();
+        logByte("check");
     }
 
     /*
@@ -67,6 +77,7 @@ public abstract class Robot extends Constants {
 
     public static MapLocation here;
     public static int roundNum;
+
     public static double myPassability;
 
     public static RobotInfo[] sensedAllies;
@@ -81,6 +92,8 @@ public abstract class Robot extends Constants {
         printMyInfo();
 
         updateMapBounds();
+        log("bounds: " + XMIN + " " + XMAX + " || " + YMIN + " " + YMAX);
+
         updateIsDirMoveable();
     }
 
@@ -128,6 +141,8 @@ public abstract class Robot extends Constants {
         log("roundNum: " + roundNum);
         log("ID: " + myID);
         log("*Location: " + here);
+        log("*Influence: " + rc.getInfluence());
+        log("*Conviction: " + rc.getConviction());
         log("*Cooldown: " + rc.getCooldownTurns());
         log("------------------------------\n");
     }

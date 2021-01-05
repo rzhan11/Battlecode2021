@@ -6,6 +6,7 @@ import battlecode.common.*;
 import static template.Robot.*;
 import static template.Debug.*;
 import static template.Utils.*;
+import static template.Map.*;
 
 public class Nav {
 
@@ -24,25 +25,7 @@ public class Nav {
     public static boolean checkDirMoveable(Direction dir) throws GameActionException {
 //		MapLocation loc = rc.adjacentLocation(dir);
 //		return rc.onTheMap(loc) && rc.canMove(dir);
-        switch (dir) {
-            case NORTH:
-                return isDirMoveable[0];
-            case NORTHEAST:
-                return isDirMoveable[1];
-            case EAST:
-                return isDirMoveable[2];
-            case SOUTHEAST:
-                return isDirMoveable[3];
-            case SOUTH:
-                return isDirMoveable[4];
-            case SOUTHWEST:
-                return isDirMoveable[5];
-            case WEST:
-                return isDirMoveable[6];
-            case NORTHWEST:
-                return isDirMoveable[7];
-        }
-        return false;
+        return isDirMoveable[dir2int(dir)];
     }
 
     /*
@@ -52,7 +35,7 @@ public class Nav {
     */
     public static Direction tryMove(Direction dir) throws GameActionException {
         if (checkDirMoveable(dir)) {
-//            Actions.doMove(dir); // move(dir);
+            Actions.doMove(dir);
             return dir;
         }
         return null;
@@ -65,17 +48,17 @@ public class Nav {
     */
     public static Direction tryMoveApprox (Direction dir) throws GameActionException {
         if (checkDirMoveable(dir)) {
-//            Actions.doMove(dir); // move(dir);
+            Actions.doMove(dir);
             return dir;
         }
         Direction leftDir = dir.rotateLeft();
         if (checkDirMoveable(leftDir)) {
-//            Actions.doMove(leftDir); // move(leftDir);
+            Actions.doMove(leftDir);
             return leftDir;
         }
         Direction rightDir = dir.rotateRight();
         if (checkDirMoveable(rightDir)) {
-//            Actions.doMove(rightDir); // move(rightDir)
+            Actions.doMove(rightDir);
             return rightDir;
         }
         return null;
@@ -244,7 +227,7 @@ public class Nav {
                 return bugTraceMove(true);
             }
             if (checkDirMoveable(curDir)) {
-//                Actions.doMove(curDir); // move(curDir);
+                Actions.doMove(curDir);
                 if (inArray(bugVisitedLocations, curDest, bugVisitedLocationsLength)) {
                     log("Resetting bugTracing");
                     bugTracing = false;

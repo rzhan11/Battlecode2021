@@ -2,6 +2,8 @@ package template;
 
 import battlecode.common.*;
 
+import static template.Debug.*;
+
 public strictfp class RobotPlayer {
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {

@@ -2,6 +2,8 @@ package template;
 
 import battlecode.common.*;
 
+import static template.Robot.*;
+
 public class Debug {
 
     public static boolean SILENCE_LOGS = false;

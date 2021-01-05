@@ -4,6 +4,8 @@ import battlecode.common.*;
 
 import java.util.Random;
 
+import static template.Debug.*;
+
 
 public abstract class Robot extends Constants {
 
@@ -27,8 +29,8 @@ public abstract class Robot extends Constants {
     public static Team them;
 
 //    public static int[][] senseDirections = null; // stores (dx, dy, magnitude) of locations that can be sensed
-    public static int mapWidth;
-    public static int mapHeight;
+//    public static int mapWidth;
+//    public static int mapHeight;
 
     public static Random rand;
 
@@ -42,8 +44,8 @@ public abstract class Robot extends Constants {
         us = rc.getTeam();
         them = us.opponent();
 
-        mapWidth = rc.getMapWidth();
-        mapHeight = rc.getMapHeight();
+//        mapWidth = rc.getMapWidth();
+//        mapHeight = rc.getMapHeight();
 
         rand = new Random(myID);
     }
@@ -54,15 +56,19 @@ public abstract class Robot extends Constants {
 
     public static MapLocation here;
 
+    public static int roundNum;
+
     public static void updateTurnInfo() throws GameActionException {
         here = rc.getLocation();
+
+        roundNum = rc.getRoundNum();
     }
 
     // run once at the beginning (before turn 1)
-    public abstract static void firstTurnSetup() throws GameActionException;
+    public static void firstTurnSetup() throws GameActionException {}
 
     // run each turn
-    public abstract static void turn() throws GameActionException;
+    public static void turn() throws GameActionException {}
 
     /*
     Run at the end of each turn
@@ -72,7 +78,7 @@ public abstract class Robot extends Constants {
         // check if we went over the bytecode limit
         int endTurn = rc.getRoundNum();
         if (roundNum != endTurn) {
-            printMyInfo();
+//            printMyInfo();
             logi("BYTECODE LIMIT EXCEEDED");
             int bytecodeOver = Clock.getBytecodeNum();
             int turns = endTurn - roundNum;
@@ -80,28 +86,5 @@ public abstract class Robot extends Constants {
             tlogi("Skipped turns: " + turns);
         }
         Clock.yield();
-    }
-
-    public static void run() throws GameActionException {
-        // turn 1
-        try {
-            updateTurnInfo();
-            firstTurnSetup();
-            r.turn();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        r.endTurn();
-
-        // turn 2+
-        while (true) {
-            try {
-                r.updateTurnInfo();
-                r.turn();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            r.endTurn();
-        }
     }
 }

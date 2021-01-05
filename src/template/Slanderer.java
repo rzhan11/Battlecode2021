@@ -5,6 +5,29 @@ import battlecode.common.*;
 
 public class Slanderer extends Robot {
 
+    public static void run() throws GameActionException {
+        // turn 1
+        try {
+            updateTurnInfo();
+            firstTurnSetup();
+            turn();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        endTurn();
+
+        // turn 2+
+        while (true) {
+            try {
+                updateTurnInfo();
+                turn();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            endTurn();
+        }
+    }
+
     // final constants
 
     final public static int A_CONSTANT = 1;

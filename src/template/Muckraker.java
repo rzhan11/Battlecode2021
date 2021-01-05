@@ -2,6 +2,9 @@ package template;
 
 import battlecode.common.*;
 
+import static template.Map.*;
+import static template.Nav.*;
+
 
 public class Muckraker extends Robot {
 
@@ -34,16 +37,38 @@ public class Muckraker extends Robot {
 
     // variables
 
+    public static MapLocation spawnLoc;
+
+    // only contains information about detected locations that it cannot sense
     public static MapLocation[] detectedLocs;
+
+    public static Direction exploreDir;
+    public static MapLocation exploreLoc;
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
+        spawnLoc = here;
 
+        // default exploreDir is randomized
+        exploreDir = DIRS[myID % 8];
+        for (Direction dir: DIRS) {
+            MapLocation adjLoc = here.add(dir);
+            RobotInfo ri = rc.senseRobotAtLocation(adjLoc);
+            if (ri != null) {
+                if (ri.getType() == RobotType.ENLIGHTENMENT_CENTER && ri.getTeam() == us) {
+                    exploreDir = DIRS[rc.getFlag(ri.getID())];
+                    break;
+                }
+            }
+        }
+
+        exploreLoc = addDir(spawnLoc, exploreDir, MAX_MAP_SIZE);
     }
 
     // code run each turn
     public static void turn() throws GameActionException {
         updateDetectedLocs();
+        updateExploreLoc();
 
         if (!rc.isReady()) {
             return;
@@ -57,7 +82,8 @@ public class Muckraker extends Robot {
             return;
         }
 
-
+        // move towards explore loc
+        Direction moveDir = moveLog(exploreLoc);
     }
 
     public static MapLocation getBestExpose() {
@@ -83,16 +109,24 @@ public class Muckraker extends Robot {
         MapLocation[] allDetectedLocs = rc.detectNearbyRobots();
         int count = 0;
         for (MapLocation loc: allDetectedLocs) {
-            if (here.distanceSquaredTo(loc) > RobotType.MUCKRAKER.sensorRadiusSquared) {
+            if (!rc.canSenseLocation(loc)) {
                 count++;
             }
         }
         detectedLocs = new MapLocation[count];
         count = 0;
         for (MapLocation loc: allDetectedLocs) {
-            if (here.distanceSquaredTo(loc) > RobotType.MUCKRAKER.sensorRadiusSquared) {
+            if (!rc.canSenseLocation(loc)) {
                 detectedLocs[count++] = loc;
             }
+        }
+    }
+
+    public static void updateExploreLoc() {
+        exploreLoc = convertToKnownBounds(exploreLoc);
+        if (rc.canSenseLocation(exploreLoc)) {
+            exploreDir = exploreDir.rotateLeft();
+            exploreLoc = convertToKnownBounds(addDir(spawnLoc, exploreDir, MAX_MAP_SIZE));
         }
     }
 }

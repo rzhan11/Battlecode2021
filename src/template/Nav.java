@@ -9,6 +9,14 @@ import static template.Utils.*;
 
 public class Nav {
 
+    public static Direction moveLog(MapLocation loc) throws GameActionException {
+        Direction move = bugNavigate(loc);
+        if (move == null) {
+            tlog("But no move found");
+        }
+        return move;
+    }
+
     /*
     Returns true if we can move in a direction to a tile
     Returns false otherwise

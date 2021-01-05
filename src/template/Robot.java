@@ -24,7 +24,7 @@ public abstract class Robot extends Constants {
     Variables that will never change (once set)
     */
     public static RobotController rc;
-//    public static int spawnRound; // the first round this robot was called through RobotPlayer.java
+    public static int spawnRound; // the first round this robot was called through RobotPlayer.java
     public static int myID;
     public static RobotType myType;
 
@@ -34,12 +34,18 @@ public abstract class Robot extends Constants {
 //    public static int[][] senseDirections = null; // stores (dx, dy, magnitude) of locations that can be sensed
 //    public static int mapWidth;
 //    public static int mapHeight;
+    public static int XMIN = -1;
+    public static int YMIN = -1;
+    public static int XMAX = -1;
+    public static int YMAX = -1;
+    public static int XLEN = -1;
+    public static int YLEN = -1;
 
     public static Random rand;
 
-    public static void init(RobotController theRC) {
+    public static void init(RobotController theRC) throws GameActionException {
         rc = theRC;
-//        spawnRound = rc.getRoundNum();
+        spawnRound = rc.getRoundNum();
 
         myID = rc.getID();
         myType = rc.getType();
@@ -51,6 +57,8 @@ public abstract class Robot extends Constants {
 //        mapHeight = rc.getMapHeight();
 
         rand = new Random(myID);
+
+        HardCode.initHardCode();
     }
 
     /*
@@ -72,6 +80,7 @@ public abstract class Robot extends Constants {
 
         printMyInfo();
 
+        updateMapBounds();
         updateIsDirMoveable();
     }
 

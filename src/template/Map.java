@@ -20,7 +20,7 @@ public class Map {
         if (XMAX != -1 && x > XMAX) {
             x = XMAX;
         }
-        if (YMIN != -1 && y < YMAX) {
+        if (YMIN != -1 && y < YMIN) {
             y = YMIN;
         }
         if (YMAX != -1 && y > YMAX) {

@@ -187,6 +187,10 @@ public class Muckraker extends Robot {
         exploreLoc = convertToKnownBounds(exploreLoc);
         if (rc.canSenseLocation(exploreLoc)) {
             exploreDir = exploreDir.rotateLeft();
+            if ((rc.getID()&8) == 1) { //initial directions is ID%8, so this is independent
+                exploreDir = exploreDir.rotateLeft();
+                exploreDir = exploreDir.rotateLeft();
+            }
             exploreLoc = convertToKnownBounds(addDir(spawnLoc, exploreDir, MAX_MAP_SIZE));
         }
     }

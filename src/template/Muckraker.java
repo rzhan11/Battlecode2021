@@ -76,7 +76,10 @@ public class Muckraker extends Robot {
         updateEnemySlanderers();
         updateExploreLoc();
 
-        int flag = (int) (Math.random() * 3000);
+        int flag = getInfoFlag();
+        //sanity check that the extracted coordinate will be correct:
+        //MapLocation sentLoc = Utils.getMessageLocation(flag, here);
+        //Debug.drawDot(sentLoc, BLACK);
         rc.setFlag(flag);
         log("my flag " + flag);
 
@@ -105,6 +108,16 @@ public class Muckraker extends Robot {
 //        rc.setIndicatorLine(here, exploreLoc, PURPLE[0], PURPLE[1], PURPLE[2]);
         Direction moveDir = moveLog(exploreLoc);
         log("exploreLoc: " + exploreLoc.x + " " + exploreLoc.y);
+    }
+
+    //returns the int flag to be shown.
+    public static int getInfoFlag() {
+        for (RobotInfo ri:sensedEnemies) {
+            if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
+                return Utils.packMessage(ri.location, Utils.enemyHQMessageType, 0);
+            }
+        }
+        return 0;
     }
 
     public static MapLocation getBestExpose() {
@@ -187,7 +200,8 @@ public class Muckraker extends Robot {
         exploreLoc = convertToKnownBounds(exploreLoc);
         if (rc.canSenseLocation(exploreLoc)) {
             exploreDir = exploreDir.rotateLeft();
-            if ((rc.getID()&8) == 1) { //initial directions is ID%8, so this is independent
+            //this if makes som mucks cross the center instead of sticking to the outside
+            if ((rc.getID()&8) == 0) { //initial directions is ID%8, so this is independent
                 exploreDir = exploreDir.rotateLeft();
                 exploreDir = exploreDir.rotateLeft();
             }

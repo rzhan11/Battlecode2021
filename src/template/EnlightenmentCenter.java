@@ -48,7 +48,11 @@ public class EnlightenmentCenter extends Robot {
     public static void turn() throws GameActionException {
 
         for (int i = 0; i < scoutCount; i++) {
-            log("Flag of " + scoutIDs[i] + ": " + rc.getFlag(scoutIDs[i]));
+            int flag = -1;
+            if (rc.canGetFlag(scoutIDs[i])) {
+                flag = rc.getFlag(scoutIDs[i]);
+            }
+            log("Flag of " + scoutIDs[i] + ": " + flag);
         }
 
         if (!rc.isReady()) {

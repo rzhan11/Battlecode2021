@@ -102,7 +102,7 @@ public class Muckraker extends Robot {
 
 
         // move towards explore loc
-        rc.setIndicatorLine(here, exploreLoc, PURPLE[0], PURPLE[1], PURPLE[2]);
+//        rc.setIndicatorLine(here, exploreLoc, PURPLE[0], PURPLE[1], PURPLE[2]);
         Direction moveDir = moveLog(exploreLoc);
         log("exploreLoc: " + exploreLoc.x + " " + exploreLoc.y);
     }

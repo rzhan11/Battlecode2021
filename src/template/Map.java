@@ -111,14 +111,6 @@ public class Map {
         }
     }
 
-    public static void updateIsDirMoveable() throws GameActionException {
-        // add information about if direction is moveable
-        for (int i = 0; i < DIRS.length; i++) {
-            MapLocation adjLoc = rc.adjacentLocation(DIRS[i]);
-            isDirMoveable[i] = rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc);
-        }
-    }
-
     public static int dir2int(Direction dir) {
         switch (dir) {
             case NORTH:
@@ -138,34 +130,18 @@ public class Map {
             case NORTHWEST:
                 return 7;
             case CENTER:
-                return 8;
+                logi("ERROR: CENTER used in 'dirt2int'");
+                return -1;
             default:
                 logi("ERROR: Sanity check failed in 'dir2int'");
-                return 0;
+                return -1;
         }
     }
 
+    /*
+    Does not support dir = CENTER
+     */
     public static Direction[] getClosestDirs(Direction dir) {
-        switch (dir) {
-            case NORTH:
-                return HardCode.CLOSEST_DIRS[0];
-            case NORTHEAST:
-                return HardCode.CLOSEST_DIRS[1];
-            case EAST:
-                return HardCode.CLOSEST_DIRS[2];
-            case SOUTHEAST:
-                return HardCode.CLOSEST_DIRS[3];
-            case SOUTH:
-                return HardCode.CLOSEST_DIRS[4];
-            case SOUTHWEST:
-                return HardCode.CLOSEST_DIRS[5];
-            case WEST:
-                return HardCode.CLOSEST_DIRS[6];
-            case NORTHWEST:
-                return HardCode.CLOSEST_DIRS[7];
-            default: // only triggered if 'dir' == CENTER
-                return DIRS;
-        }
+        return HardCode.CLOSEST_DIRS[dir2int(dir)];
     }
-
 }

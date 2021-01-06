@@ -6,6 +6,7 @@ import java.util.Random;
 
 import static template.Debug.*;
 import static template.Map.*;
+import static template.Nav.*;
 
 
 public abstract class Robot extends Constants {
@@ -66,9 +67,9 @@ public abstract class Robot extends Constants {
 
         rand = new Random(myID);
 
-        logByte("check");
         HardCode.initHardCode();
-        logByte("check");
+
+        Nav.resetHistory();
     }
 
     /*

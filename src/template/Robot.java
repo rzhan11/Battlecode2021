@@ -80,6 +80,25 @@ public abstract class Robot extends Constants {
 //        Nav.resetHistory();
     }
 
+    public static int myMaster = -1;
+    public static MapLocation myMasterLoc = null;
+
+    /*
+    Performs updates for first turn that must be done after 'updateTurnInfo'
+     */
+    public static void postUpdateInit() {
+        // find master
+        if (myType != RobotType.ENLIGHTENMENT_CENTER) {
+            RobotInfo[] adjAllies = rc.senseNearbyRobots(2, us);
+            for (RobotInfo ri: adjAllies) {
+                if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
+                    myMaster = ri.getID();
+                    myMasterLoc = ri.location;
+                }
+            }
+        }
+    }
+
     /*
     Variables that (may) change each turn
      */
@@ -99,6 +118,7 @@ public abstract class Robot extends Constants {
     public static MapLocation[] enemyHQLocs = new MapLocation[MAX_HQ_COUNT];
     public static int enemyHQCount = 0;
 
+
     public static void updateTurnInfo() throws GameActionException {
         updateBasicInfo();
 
@@ -112,6 +132,9 @@ public abstract class Robot extends Constants {
         tlog("Y " + YMIN + " " + YMAX);
 
         updateIsDirMoveable();
+
+        updateMaster();
+        readMasterComms();
     }
 
     /*
@@ -126,6 +149,32 @@ public abstract class Robot extends Constants {
         sensedAllies = rc.senseNearbyRobots(-1, us);
         sensedEnemies = rc.senseNearbyRobots(-1, them);
         sensedNeutrals = rc.senseNearbyRobots(-1, neutral);
+    }
+
+    public static void updateMaster() throws GameActionException {
+        if (!rc.canGetFlag(myMaster)) {
+            myMaster = -1;
+            myMasterLoc = null;
+        }
+        if (myMaster == -1) {
+            // try to find a new master
+            for (RobotInfo ri: sensedAllies) {
+                if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
+                    myMaster = ri.getID();
+                    myMasterLoc = ri.location;
+                    return;
+                }
+            }
+        }
+    }
+
+    public static void readMasterComms() throws GameActionException {
+        if (myType == RobotType.ENLIGHTENMENT_CENTER) {
+            return;
+        }
+        if (myMaster != -1) {
+            Comms.readMessage(myMaster);
+        }
     }
 
     /*
@@ -158,11 +207,10 @@ public abstract class Robot extends Constants {
         log("Robot: " + myType);
         log("roundNum: " + roundNum);
         log("ID: " + myID);
+        log("Master: " + myMaster + "@" + myMasterLoc);
         log("*Location: " + here);
-        log("*Influence: " + rc.getInfluence());
-        log("*Conviction: " + rc.getConviction());
+        log("*Conv/Infl: " + rc.getInfluence() + "/" + rc.getConviction());
         log("*Cooldown: " + rc.getCooldownTurns());
         log("------------------------------\n");
     }
-
 }

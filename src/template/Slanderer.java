@@ -13,6 +13,7 @@ public class Slanderer extends Robot {
         // turn 1
         try {
             updateTurnInfo();
+            postUpdateInit();
             firstTurnSetup();
             turn();
         } catch (Exception e) {
@@ -55,6 +56,10 @@ public class Slanderer extends Robot {
 
     // code run each turn
     public static void turn() throws GameActionException {
+        if (age == 0) {
+            return;
+        }
+
         if (age >= GameConstants.CAMOUFLAGE_NUM_ROUNDS) {
             log("CAMO ACTIVE");
             log("Type: " + rc.getType());

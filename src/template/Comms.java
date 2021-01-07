@@ -45,7 +45,9 @@ public class Comms {
 
     // add message types here
     static final int BLANK_MESSAGE_TYPE = 0;
-    static final int ENEMY_HQ_MESSAGE_TYPE = 1;
+    static final int FOUND_ENEMY_HQ_MSG = 1;
+    static final int ALL_TARGET_LOC_MSG = 2;
+    static final int MUCKRAKER_TARGET_LOC_MSG = 3;
 
 
     // constants for coordinates
@@ -149,8 +151,14 @@ public class Comms {
             case BLANK_MESSAGE_TYPE:
                 readBlank(msgInfo, id);
                 break;
-            case ENEMY_HQ_MESSAGE_TYPE:
+            case FOUND_ENEMY_HQ_MSG:
                 readFoundEnemyHQ(msgInfo, id);
+                break;
+            case ALL_TARGET_LOC_MSG:
+                readAllTargetLoc(msgInfo, id);
+                break;
+            case MUCKRAKER_TARGET_LOC_MSG:
+                readMuckrakerTargetLoc(msgInfo, id);
                 break;
             default:
                 logi("ERROR: Unknown messageType of " + msgType + " from id " + id);
@@ -168,7 +176,7 @@ public class Comms {
     public static void writeFoundEnemyHQ(MapLocation loc) throws GameActionException {
         log("Writing 'Found Enemy HQ' message");
         tlog("Loc: " + loc);
-        myMessageType = ENEMY_HQ_MESSAGE_TYPE;
+        myMessageType = FOUND_ENEMY_HQ_MSG;
 
         myMessageInfo = loc2bits(loc);
 
@@ -205,17 +213,63 @@ public class Comms {
     /*
     14 | ENEMY HQ LOC
      */
-//    public static void writeMuckrakerTargetEnemyHQ(MapLocation loc) throws GameActionException {
-//        log("Writing 'Muckraker Target Enemy HQ' message");
-//        tlog("Loc: " + loc);
-//        myMessageType = ENEMY_HQ_MESSAGE_TYPE;
-//
-//        myMessageInfo = loc2bits(loc);
-//
-//        updateFlag();
-//    }
-//
-//    public static void readMuckrakerAttackHQ(MapLocation loc) throws GameActionException {
-//
-//    }
+    public static void writeAllTargetEnemyHQ(MapLocation loc) throws GameActionException {
+        log("Writing 'All Target Enemy HQ' message");
+        tlog("Loc: " + loc);
+
+        myMessageType = ALL_TARGET_LOC_MSG;
+
+        myMessageInfo = loc2bits(loc);
+
+        updateFlag();
+    }
+
+    public static void readAllTargetLoc(int msgInfo, int id) throws GameActionException {
+        log("Reading 'All Target Enemy HQ' message from " + id);
+
+        switch (myType) {
+            case MUCKRAKER: break;
+            case POLITICIAN: break;
+            default: return;
+        }
+
+        MapLocation loc = bits2loc(msgInfo);
+        tlog("Target HQ loc: " + loc);
+
+        switch (myType) {
+            case MUCKRAKER:
+                Muckraker.targetEnemyHQ = loc;
+                break;
+            case POLITICIAN:
+                Politician.target_initial_location = loc;
+                break;
+        }
+    }
+
+    /*
+    14 | ENEMY HQ LOC
+     */
+    public static void writeMuckrakerTargetEnemyHQ(MapLocation loc) throws GameActionException {
+        log("Writing 'Muckraker Target Enemy HQ' message");
+        tlog("Loc: " + loc);
+
+        myMessageType = MUCKRAKER_TARGET_LOC_MSG;
+
+        myMessageInfo = loc2bits(loc);
+
+        updateFlag();
+    }
+
+    public static void readMuckrakerTargetLoc(int msgInfo, int id) throws GameActionException {
+        log("Reading 'Muckraker Target Enemy HQ' message from " + id);
+
+        if (myType != RobotType.MUCKRAKER) {
+            return;
+        }
+
+        MapLocation loc = bits2loc(msgInfo);
+        tlog("Target HQ loc: " + loc);
+
+        Muckraker.targetEnemyHQ = loc;
+    }
 }

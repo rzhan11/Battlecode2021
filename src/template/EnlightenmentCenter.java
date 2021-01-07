@@ -11,6 +11,7 @@ public class EnlightenmentCenter extends Robot {
         // turn 1
         try {
             updateTurnInfo();
+            postUpdateInit();
             firstTurnSetup();
             turn();
         } catch (Exception e) {
@@ -39,6 +40,8 @@ public class EnlightenmentCenter extends Robot {
     public static int[] scoutIDs = new int[MAX_SCOUTS];
     public static int scoutCount = 0;
 
+//    public static int enemyHQIndex = 0;
+
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
 
@@ -47,16 +50,31 @@ public class EnlightenmentCenter extends Robot {
     // code run each turn
     public static void turn() throws GameActionException {
 
-        if (age == 0) {
+        // make a slanderer on the first turn
+        if (roundNum == 1) {
             makeSlanderer();
             return;
         }
 
+        // read messages from scouts
         for (int i = 0; i < scoutCount; i++) {
             int id = scoutIDs[i];
             if (rc.canGetFlag(id)) {
                 Comms.readMessage(id);
+            } else { // delete scout
+                // swap with last
+                scoutIDs[i] = scoutIDs[scoutCount - 1];
+                scoutIDs[scoutCount - 1] = 0;
+                // decrement indices
+                i--;
+                scoutCount--;
             }
+        }
+
+        // broadcast enemy HQ locations
+        if (enemyHQCount > 0) {
+            // broadcast first enemy hq loc
+            Comms.writeAllTargetEnemyHQ(enemyHQLocs[0]);
         }
 
         if (!rc.isReady()) {

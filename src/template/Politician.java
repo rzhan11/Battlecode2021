@@ -13,6 +13,7 @@ public class Politician extends Robot {
         // turn 1
         try {
             updateTurnInfo();
+            postUpdateInit();
             firstTurnSetup();
             turn();
         } catch (Exception e) {
@@ -64,6 +65,11 @@ public class Politician extends Robot {
     // code run each turn
     public static void turn() throws GameActionException {
         turn_setup();
+
+        if (!rc.isReady()) {
+            return;
+        }
+
         if(role == ROLE_TARGET) {
             if (target_initial_location == null) {
                 log("No target_initial_location");
@@ -71,7 +77,9 @@ public class Politician extends Robot {
             }
             int distance_to_target = target_initial_location.distanceSquaredTo(rc.getLocation());
             if(rc.canEmpower(distance_to_target)) {
-                if(estimated_target_id == -1 || !rc.canSenseRobot(estimated_target_id)) {
+                rc.empower(distance_to_target);
+                return;
+                /*if(estimated_target_id == -1 || !rc.canSenseRobot(estimated_target_id)) {
                     // Search for Good Target
                     int curmax = -1;
                     int curid = -1;
@@ -90,15 +98,16 @@ public class Politician extends Robot {
                 // TODO: IMPROVE THIS BASIC FUNCTIONALITY
                 if(rc.canEmpower(rc.getLocation().distanceSquaredTo(estimated_target_location))) {
                     rc.empower(rc.getLocation().distanceSquaredTo(estimated_target_location));
+                    return;
                 }
                 else {
-                    Direction dir = Nav.moveLog(estimated_target_location);
-                    if(rc.canMove(dir)) rc.move(dir);
-                }
+                    moveLog(estimated_target_location);
+                    return;
+                }*/
             }
             else {
-                Direction dir = Nav.moveLog(target_initial_location);
-                if(rc.canMove(dir)) rc.move(dir);
+                moveLog(target_initial_location);
+                return;
             }
         }
         else if (role == ROLE_BOMB) {

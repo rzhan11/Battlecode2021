@@ -13,6 +13,7 @@ public class Muckraker extends Robot {
         // turn 1
         try {
             updateTurnInfo();
+            postUpdateInit();
             firstTurnSetup();
             turn();
         } catch (Exception e) {
@@ -34,7 +35,8 @@ public class Muckraker extends Robot {
 
     // final constants
 
-    final public static int A_CONSTANT = 1;
+    // max distance from an hq, such that we can kill all slanderers spawned by it
+    final public static int GOOD_DIST_TO_ENEMY_HQ = 4;
 
     // variables
 
@@ -48,8 +50,11 @@ public class Muckraker extends Robot {
     public static Direction exploreDir;
     public static MapLocation exploreLoc;
 
+    public static MapLocation targetEnemyHQ;
+
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
+
         // default exploreDir is randomized
         exploreDir = DIRS[myID % 8];
         for (Direction dir: DIRS) {
@@ -72,21 +77,15 @@ public class Muckraker extends Robot {
         updateEnemySlanderers();
         updateExploreLoc();
 
+        // notify master of hqs
         MapLocation enemyHQ = findEnemyHQ();
         if (enemyHQ != null) {
             Comms.writeFoundEnemyHQ(enemyHQ);
         }
-//        int flag = getInfoFlag();
-        // sanity check that the extracted coordinate will be correct:
-        // MapLocation sentLoc = Utils.getMessageLocation(flag, here);
-        // Debug.drawDot(sentLoc, BLACK);
-//        rc.setFlag(flag);
-//        log("my flag " + flag);
 
         if (!rc.isReady()) {
             return;
         }
-
 
         // expose an enemy slanderer if possible
         MapLocation exposeLoc = getBestExpose();
@@ -99,15 +98,45 @@ public class Muckraker extends Robot {
         chaseLoc = getBestChase();
         if (chaseLoc != null) {
             drawLine(here, chaseLoc, PINK);
-            Direction moveDir = moveLog(exploreLoc);
+            log("Chasing slanderer " + chaseLoc);
+            moveLog(exploreLoc);
             return;
+        }
+
+        // move towards targetEnemyHQ
+        if (targetEnemyHQ != null) {
+            if (here.isWithinDistanceSquared(targetEnemyHQ, GOOD_DIST_TO_ENEMY_HQ)) {
+                log("Close to targetEnemyHQ");
+                // check directions to find more passable tile
+                Direction bestDir = null;
+                double bestPass = myPassability;
+                for (int i = 0; i < 8; i++) {
+                    MapLocation adjLoc = rc.adjacentLocation(DIRS[i]);
+                    if (isDirMoveable[i] && adjLoc.isWithinDistanceSquared(targetEnemyHQ, GOOD_DIST_TO_ENEMY_HQ) && rc.sensePassability(adjLoc) > bestPass) {
+                        bestDir = DIRS[i];
+                        bestPass = rc.sensePassability(adjLoc);
+                    }
+                }
+                if (bestDir == null) {
+                    tlog("Best local position");
+                    return;
+                } else {
+                    tlog("Moving to better position");
+                    Actions.doMove(bestDir);
+                    return;
+                }
+            } else {
+                log("Moving towards targetEnemyHQ");
+                moveLog(targetEnemyHQ);
+                return;
+            }
         }
 
 
         // move towards explore loc
-//        rc.setIndicatorLine(here, exploreLoc, PURPLE[0], PURPLE[1], PURPLE[2]);
-        Direction moveDir = moveLog(exploreLoc);
-        log("exploreLoc: " + exploreLoc.x + " " + exploreLoc.y);
+        rc.setIndicatorLine(here, exploreLoc, PURPLE[0], PURPLE[1], PURPLE[2]);
+        log("Exploring: " + exploreLoc);
+        moveLog(exploreLoc);
     }
 
     public static MapLocation findEnemyHQ() {

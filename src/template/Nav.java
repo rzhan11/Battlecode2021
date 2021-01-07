@@ -202,6 +202,7 @@ public class Nav {
 
         updateHistory();
 
+        turnsWithoutCloser++;
         updateMinPassability();
         drawCheckDirMoveable();
 
@@ -313,9 +314,29 @@ public class Nav {
         return null;
     }
 
-    public static void updateMinPassability() {
+    public static void updateMinPassability() throws GameActionException {
+        // check if all adj tiles are low passability
+        double bestPass = 0.0;
+        double avgPass = 0.0;
+        int count = 0;
+        for (Direction dir: DIRS) {
+            MapLocation adjLoc = rc.adjacentLocation(dir);
+            if (rc.onTheMap(adjLoc)) {
+                double pass = rc.sensePassability(adjLoc);
+                bestPass = Math.max(bestPass, pass);
+                avgPass += pass;
+                count++;
+            }
+        }
+        avgPass /= count;
+        if (bestPass < minPassability) {
+            minPassability = avgPass;
+        }
+
+        // updates based on patience factor
         if (turnsWithoutCloser > 0 && turnsWithoutCloser % PATIENCE == 0) {
             minPassability *= PATIENCE_FACTOR;
         }
+        tlog("minPassability " + minPassability);
     }
 }

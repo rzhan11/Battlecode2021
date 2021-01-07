@@ -47,6 +47,11 @@ public class EnlightenmentCenter extends Robot {
     // code run each turn
     public static void turn() throws GameActionException {
 
+        if (age == 0) {
+            makeSlanderer();
+            return;
+        }
+
         for (int i = 0; i < scoutCount; i++) {
             int flag = -1;
             if (rc.canGetFlag(scoutIDs[i])) {
@@ -75,14 +80,19 @@ public class EnlightenmentCenter extends Robot {
         }
 
         if (rc.getInfluence() >= MIN_SLANDERER_COST) {
-            for (Direction dir: DIRS) {
-                MapLocation adjLoc = here.add(dir);
-                if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
-                    int cost = rc.getInfluence() / MIN_SLANDERER_COST * MIN_SLANDERER_COST;
-                    Actions.doBuildRobot(RobotType.SLANDERER, dir, cost);
-                    return;
-                }
+            makeSlanderer();
+        }
+    }
+
+    public static Direction makeSlanderer() throws GameActionException {
+        for (Direction dir: DIRS) {
+            MapLocation adjLoc = here.add(dir);
+            if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
+                int cost = rc.getInfluence() / MIN_SLANDERER_COST * MIN_SLANDERER_COST;
+                Actions.doBuildRobot(RobotType.SLANDERER, dir, cost);
+                return dir;
             }
         }
+        return null;
     }
 }

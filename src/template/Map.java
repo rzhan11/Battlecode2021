@@ -130,8 +130,7 @@ public class Map {
             case NORTHWEST:
                 return 7;
             case CENTER:
-                logi("ERROR: CENTER used in 'dirt2int'");
-                return -1;
+                return 8;
             default:
                 logi("ERROR: Sanity check failed in 'dir2int'");
                 return -1;

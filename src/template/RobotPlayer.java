@@ -22,6 +22,8 @@ public strictfp class RobotPlayer {
                 break;
             case SLANDERER:
                 Slanderer.run();
+                // if this is reached, then convert to politician
+                Politician.run();
                 break;
             case MUCKRAKER:
                 Muckraker.run();

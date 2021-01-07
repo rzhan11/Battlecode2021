@@ -15,7 +15,7 @@ public abstract class Robot extends Constants {
     True constants
      */
     final public static Direction[] DIRS = {Direction.NORTH, Direction.NORTHEAST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, Direction.WEST, Direction.NORTHWEST}; // 8 directions
-    final public static Direction[] ALL_DIRS = {Direction.CENTER, Direction.NORTH, Direction.NORTHEAST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, Direction.WEST, Direction.NORTHWEST}; // includes center
+    final public static Direction[] ALL_DIRS = {Direction.NORTH, Direction.NORTHEAST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, Direction.WEST, Direction.NORTHWEST, Direction.CENTER}; // includes center
     final public static Direction[] CARD_DIRS = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST}; // four cardinal directions
     final public static Direction[] DIAG_DIRS = {Direction.NORTHEAST, Direction.SOUTHEAST, Direction.SOUTHWEST, Direction.NORTHWEST}; // four diagonals
 
@@ -25,9 +25,12 @@ public abstract class Robot extends Constants {
     Variables that will never change (once set)
     */
     public static RobotController rc;
-    public static int spawnRound; // the first round this robot was called through RobotPlayer.java
+
     public static int myID;
     public static RobotType myType;
+
+    public static int spawnRound; // the first round this robot was called through RobotPlayer.java
+    public static MapLocation spawnLoc;
 
     public static int myActionRadius;
     public static int mySensorRadius;
@@ -50,10 +53,12 @@ public abstract class Robot extends Constants {
 
     public static void init(RobotController theRC) throws GameActionException {
         rc = theRC;
-        spawnRound = rc.getRoundNum();
 
         myID = rc.getID();
         myType = rc.getType();
+
+        spawnRound = rc.getRoundNum();
+        spawnLoc = rc.getLocation();
 
         myActionRadius = myType.actionRadiusSquared;
         mySensorRadius = myType.sensorRadiusSquared;
@@ -69,7 +74,7 @@ public abstract class Robot extends Constants {
 
         HardCode.initHardCode();
 
-        Nav.resetHistory();
+//        Nav.resetHistory();
     }
 
     /*
@@ -78,6 +83,7 @@ public abstract class Robot extends Constants {
 
     public static MapLocation here;
     public static int roundNum;
+    public static int age;
 
     public static double myPassability;
 
@@ -104,6 +110,7 @@ public abstract class Robot extends Constants {
     public static void updateBasicInfo() throws GameActionException {
         here = rc.getLocation();
         roundNum = rc.getRoundNum();
+        age = roundNum - spawnRound;
         myPassability = rc.sensePassability(here);
 
         sensedAllies = rc.senseNearbyRobots(-1, us);

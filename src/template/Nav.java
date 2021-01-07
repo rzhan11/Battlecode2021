@@ -136,7 +136,7 @@ public class Nav {
     }
 
     public static void resetHistory() {
-//        log("Resetting history");
+        log("Resetting history");
         historyIndex = 0;
         for (int i = 0; i < MAX_HISTORY_LENGTH; i++) {
             history[i] = null;
@@ -148,9 +148,9 @@ public class Nav {
     /*
     Called during "bug" method to reset certain variables
      */
-    public static void resetTracing(MapLocation loc) {
-//        log("Resetting bug tracing");
-        bugClosestDistance = bugTarget.distanceSquaredTo(loc);
+    public static void resetTracing() {
+        log("Resetting bug tracing");
+        bugClosestDistance = bugTarget.distanceSquaredTo(here);
         bugTracing = false;
         bugWallLoc = null;
     }
@@ -164,10 +164,10 @@ public class Nav {
     Only called when the target is actually changing
      */
     public static void setTarget(MapLocation target) {
-//        log("Setting target " + target);
+        log("Setting target " + target);
         bugTarget = target;
         resetMinPassability();
-        resetTracing(here);
+        resetTracing();
         resetHistory();
     }
 
@@ -183,7 +183,7 @@ public class Nav {
     public static Direction navigate(int speculation) throws GameActionException {
         if (historyFreq.getOrDefault(here, 0) >= 3) {
             logi("Been here too many times " + historyFreq.getOrDefault(here, 0));
-            resetTracing(here);
+            resetTracing();
             resetHistory();
         }
         if (speculation == 1) {
@@ -202,10 +202,10 @@ public class Nav {
         updateHistory();
 
         updateMinPassability();
-//        drawCheckDirMoveable();
+        drawCheckDirMoveable();
 
-//        log("Starting wall loc " + bugWallLoc);
-//        log("bugTracing " + bugTracing);
+        log("Starting wall loc " + bugWallLoc);
+        log("bugTracing " + bugTracing);
 
         Direction targetDir = here.directionTo(bugTarget);
 
@@ -228,17 +228,18 @@ public class Nav {
 
         // check if best current move would get us to location closer than ever before
         if (bestDist < bugClosestDistance) {
-//            log("Best distance");
+            log("Best distance");
             if (bugTracing) {
-                resetTracing(here.add(bestDir));
+                resetTracing();
             }
             Actions.doMove(bestDir);
+            bugClosestDistance = rc.getLocation().distanceSquaredTo(bugTarget);
             return bestDir;
         }
 
         // find initial tracing direction
         if (!bugTracing) {
-//            log("Starting tracing");
+            log("Starting tracing");
             bugTracing = true;
             bugWallLoc = here.add(targetDir);
             // find closest left/right directions
@@ -256,7 +257,7 @@ public class Nav {
                 bugRotateLeft = false;
             };
         } else {
-//            log("Continuing tracing");
+            log("Continuing tracing");
         }
 
         return followWall(false);
@@ -284,13 +285,13 @@ public class Nav {
         }
         // update bugWallLoc
         Direction newWallDir = bugRotateLeft ? dir.rotateRight() : dir.rotateLeft();
-//        MapLocation oldWallLoc = bugWallLoc;
+        MapLocation oldWallLoc = bugWallLoc;
         bugWallLoc = here.add(newWallDir);
-//        drawLine(here, oldWallLoc, BROWN);
-//        drawLine(here, bugWallLoc, BLACK);
-//        log("bugRotateLeft " + bugRotateLeft);
-//        log("oldWallLoc " + oldWallLoc);
-//        log("newWallLoc " + bugWallLoc);
+        drawLine(here, oldWallLoc, BROWN);
+        drawLine(here, bugWallLoc, BLACK);
+        log("bugRotateLeft " + bugRotateLeft);
+        log("oldWallLoc " + oldWallLoc);
+        log("newWallLoc " + bugWallLoc);
         // actually move
         Actions.doMove(dir);
         return dir;

@@ -2,7 +2,7 @@ package template;
 
 import battlecode.common.*;
 
-
+import static template.Robot.*;
 import static template.Nav.*;
 
 public class Utils {
@@ -24,6 +24,11 @@ public class Utils {
         }
         return false;
     }
+
+    public static Direction getRandomDir() {
+        return DIRS[(int)(Math.random() * 8)];
+    }
+
     //format: [location y][location x][message type][status]
     //full loc:   7           7            6           4
     static final int statusBits = 4;

@@ -136,7 +136,7 @@ public class Nav {
     }
 
     public static void resetHistory() {
-        log("Resetting history");
+        tlog("Resetting history");
         historyIndex = 0;
         for (int i = 0; i < MAX_HISTORY_LENGTH; i++) {
             history[i] = null;
@@ -149,7 +149,7 @@ public class Nav {
     Called during "bug" method to reset certain variables
      */
     public static void resetTracing() {
-        log("Resetting bug tracing");
+        tlog("Resetting bug tracing");
         bugClosestDistance = bugTarget.distanceSquaredTo(here);
         bugTracing = false;
         bugWallLoc = null;
@@ -164,7 +164,7 @@ public class Nav {
     Only called when the target is actually changing
      */
     public static void setTarget(MapLocation target) {
-        log("Setting target " + target);
+        tlog("Setting target " + target);
         bugTarget = target;
         resetMinPassability();
         resetTracing();
@@ -172,9 +172,10 @@ public class Nav {
     }
 
     public static Direction path(MapLocation target) throws GameActionException {
+        log("Pathing to " + target);
         // reset bug
         if (!target.equals(bugTarget)) {
-            logi("Pathing to new target " + target);
+            tlog("New target " + target);
             setTarget(target);
         }
         return navigate(1);
@@ -182,7 +183,7 @@ public class Nav {
 
     public static Direction navigate(int speculation) throws GameActionException {
         if (historyFreq.getOrDefault(here, 0) >= 3) {
-            logi("Been here too many times " + historyFreq.getOrDefault(here, 0));
+            tlog("Been here too many times " + historyFreq.getOrDefault(here, 0));
             resetTracing();
             resetHistory();
         }
@@ -204,8 +205,8 @@ public class Nav {
         updateMinPassability();
         drawCheckDirMoveable();
 
-        log("Starting wall loc " + bugWallLoc);
-        log("bugTracing " + bugTracing);
+//        tlog("Starting wall loc " + bugWallLoc);
+//        tlog("bugTracing " + bugTracing);
 
         Direction targetDir = here.directionTo(bugTarget);
 
@@ -228,7 +229,7 @@ public class Nav {
 
         // check if best current move would get us to location closer than ever before
         if (bestDist < bugClosestDistance) {
-            log("Best distance");
+//            tlog("Best distance");
             if (bugTracing) {
                 resetTracing();
             }
@@ -239,7 +240,7 @@ public class Nav {
 
         // find initial tracing direction
         if (!bugTracing) {
-            log("Starting tracing");
+            tlog("Starting tracing");
             bugTracing = true;
             bugWallLoc = here.add(targetDir);
             // find closest left/right directions
@@ -257,7 +258,7 @@ public class Nav {
                 bugRotateLeft = false;
             };
         } else {
-            log("Continuing tracing");
+//            tlog("Continuing tracing");
         }
 
         return followWall(false);
@@ -289,9 +290,9 @@ public class Nav {
         bugWallLoc = here.add(newWallDir);
         drawLine(here, oldWallLoc, BROWN);
         drawLine(here, bugWallLoc, BLACK);
-        log("bugRotateLeft " + bugRotateLeft);
-        log("oldWallLoc " + oldWallLoc);
-        log("newWallLoc " + bugWallLoc);
+//        tlog("bugRotateLeft " + bugRotateLeft);
+//        tlog("oldWallLoc " + oldWallLoc);
+//        tlog("newWallLoc " + bugWallLoc);
         // actually move
         Actions.doMove(dir);
         return dir;

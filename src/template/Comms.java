@@ -142,9 +142,9 @@ public class Comms {
         int flag = rc.getFlag(id);
         int msgType = getMessageType(flag);
         int msgInfo = getMessageInfo(flag);
-        tlog("flag " + flag);
-        tlog("type " + msgType);
-        tlog("info " + msgInfo);
+//        tlog("flag " + flag);
+//        tlog("type " + msgType);
+//        tlog("info " + msgInfo);
         switch(msgType) {
             case BLANK_MESSAGE_TYPE:
                 readBlank(msgInfo, id);
@@ -159,7 +159,7 @@ public class Comms {
     }
 
     public static void readBlank(int info, int id) {
-        log("Reading 'Blank' message from " + id);
+//        log("Reading 'Blank' message from " + id);
     }
 
     /*

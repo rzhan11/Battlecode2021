@@ -38,8 +38,6 @@ public class Muckraker extends Robot {
 
     // variables
 
-    public static MapLocation spawnLoc;
-
     // only contains information about detected locations that it cannot sense
     public static MapLocation[] detectedLocs;
     public static RobotInfo[] enemySlanderers;
@@ -52,8 +50,6 @@ public class Muckraker extends Robot {
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
-        spawnLoc = here;
-
         // default exploreDir is randomized
         exploreDir = DIRS[myID % 8];
         for (Direction dir: DIRS) {
@@ -61,7 +57,7 @@ public class Muckraker extends Robot {
             RobotInfo ri = rc.senseRobotAtLocation(adjLoc);
             if (ri != null) {
                 if (ri.getType() == RobotType.ENLIGHTENMENT_CENTER && ri.getTeam() == us) {
-                    exploreDir = DIRS[rc.getFlag(ri.getID())];
+                    exploreDir = DIRS[rc.getFlag(ri.getID()) % 8];
                     break;
                 }
             }
@@ -76,12 +72,16 @@ public class Muckraker extends Robot {
         updateEnemySlanderers();
         updateExploreLoc();
 
-        int flag = getInfoFlag();
-        //sanity check that the extracted coordinate will be correct:
-        //MapLocation sentLoc = Utils.getMessageLocation(flag, here);
-        //Debug.drawDot(sentLoc, BLACK);
-        rc.setFlag(flag);
-        log("my flag " + flag);
+        MapLocation enemyHQ = findEnemyHQ();
+        if (enemyHQ != null) {
+            Comms.writeFoundEnemyHQ(enemyHQ);
+        }
+//        int flag = getInfoFlag();
+        // sanity check that the extracted coordinate will be correct:
+        // MapLocation sentLoc = Utils.getMessageLocation(flag, here);
+        // Debug.drawDot(sentLoc, BLACK);
+//        rc.setFlag(flag);
+//        log("my flag " + flag);
 
         if (!rc.isReady()) {
             return;
@@ -110,14 +110,13 @@ public class Muckraker extends Robot {
         log("exploreLoc: " + exploreLoc.x + " " + exploreLoc.y);
     }
 
-    //returns the int flag to be shown.
-    public static int getInfoFlag() {
-        for (RobotInfo ri:sensedEnemies) {
+    public static MapLocation findEnemyHQ() {
+        for (RobotInfo ri: sensedEnemies) {
             if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
-                return Utils.packMessage(ri.location, Utils.enemyHQMessageType, 0);
+                return ri.location;
             }
         }
-        return 0;
+        return null;
     }
 
     public static MapLocation getBestExpose() {

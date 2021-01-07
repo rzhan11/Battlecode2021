@@ -53,11 +53,10 @@ public class EnlightenmentCenter extends Robot {
         }
 
         for (int i = 0; i < scoutCount; i++) {
-            int flag = -1;
-            if (rc.canGetFlag(scoutIDs[i])) {
-                flag = rc.getFlag(scoutIDs[i]);
+            int id = scoutIDs[i];
+            if (rc.canGetFlag(id)) {
+                Comms.readMessage(id);
             }
-            log("Flag of " + scoutIDs[i] + ": " + flag);
         }
 
         if (!rc.isReady()) {

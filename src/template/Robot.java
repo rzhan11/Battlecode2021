@@ -21,6 +21,8 @@ public abstract class Robot extends Constants {
 
     final public static Team neutral = Team.NEUTRAL;
 
+    final public static int MAX_HQ_COUNT = 32;
+
     /*
     Variables that will never change (once set)
     */
@@ -74,6 +76,7 @@ public abstract class Robot extends Constants {
 
         HardCode.initHardCode();
 
+        Comms.initBaseCoords(rc.getLocation());
 //        Nav.resetHistory();
     }
 
@@ -93,13 +96,20 @@ public abstract class Robot extends Constants {
 
     public static boolean[] isDirMoveable = new boolean[8];
 
+    public static MapLocation[] enemyHQLocs = new MapLocation[MAX_HQ_COUNT];
+    public static int enemyHQCount = 0;
+
     public static void updateTurnInfo() throws GameActionException {
         updateBasicInfo();
+
+        Comms.resetFlag();
 
         printMyInfo();
 
         updateMapBounds();
-        log("bounds: " + XMIN + " " + XMAX + " || " + YMIN + " " + YMAX);
+        log("Bounds:");
+        tlog("X " + XMIN + " " + XMAX);
+        tlog("Y " + YMIN + " " + YMAX);
 
         updateIsDirMoveable();
     }

@@ -150,9 +150,9 @@ public class Muckraker extends Robot {
 
     public static MapLocation getBestExpose() {
         RobotInfo bestExpose = null;
-        double bestValue = -1;
+        int bestValue = -1;
         for (RobotInfo ri: closeEnemySlanderers) {
-            double value = GameConstants.PASSIVE_INFLUENCE_RATIO_SLANDERER * ri.getInfluence();
+            int value = ri.getInfluence();
             if (value > bestValue) {
                 bestExpose = ri;
                 bestValue = value;
@@ -167,9 +167,9 @@ public class Muckraker extends Robot {
 
     public static MapLocation getBestChase() {
         RobotInfo bestExpose = null;
-        double bestValue = -1;
+        int bestValue = -1;
         for (RobotInfo ri: enemySlanderers) {
-            double value = GameConstants.PASSIVE_INFLUENCE_RATIO_SLANDERER * ri.getInfluence();
+            int value = ri.getInfluence();
             if (value > bestValue) {
                 bestExpose = ri;
                 bestValue = value;

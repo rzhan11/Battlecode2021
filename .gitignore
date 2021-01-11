@@ -12,3 +12,5 @@ matches/
 test/
 version.txt
 access.txt
+package-lock.json
+

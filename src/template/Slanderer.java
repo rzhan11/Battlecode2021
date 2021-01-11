@@ -9,34 +9,6 @@ import static template.Utils.*;
 
 public class Slanderer extends Robot {
 
-    public static void run() throws GameActionException {
-        // turn 1
-        try {
-            updateTurnInfo();
-            firstTurnSetup();
-            loghalf(); turn(); loghalf();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        endTurn();
-
-        // turn 2+
-        while (true) {
-            // if turned into a politician
-            if (rc.getType() == RobotType.POLITICIAN) {
-                Robot.init(rc);
-                return;
-            }
-            try {
-                updateTurnInfo();
-                loghalf(); turn(); loghalf();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            endTurn();
-        }
-    }
-
     // final constants
 
     final public static int FLEE_MEMORY = 50;

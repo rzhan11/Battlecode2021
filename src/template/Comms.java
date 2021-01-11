@@ -293,6 +293,9 @@ public class Comms {
                     writeEnemyHQID(hqid, true);
                 }
                 return;
+            } else if (enemyHQIDs[i] == hqid) {
+                tlog("Already updated");
+                return;
             }
         }
 
@@ -320,14 +323,7 @@ public class Comms {
         MapLocation loc = bits2loc(msgInfo);
         tlog("Target HQ loc: " + loc);
 
-        switch (myType) {
-            case MUCKRAKER:
-                Muckraker.targetEnemyHQLoc = loc;
-                break;
-            case POLITICIAN:
-                Politician.target_initial_location = loc;
-                break;
-        }
+        Robot.targetEnemyHQLoc = loc;
     }
 
     /*

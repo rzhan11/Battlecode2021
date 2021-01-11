@@ -11,29 +11,6 @@ import static template.Utils.getClosest;
 
 public class Politician extends Robot {
 
-    public static void run() throws GameActionException {
-        // turn 1
-        try {
-            updateTurnInfo();
-            firstTurnSetup();
-            loghalf(); turn(); loghalf();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        endTurn();
-
-        // turn 2+
-        while (true) {
-            try {
-                updateTurnInfo();
-                loghalf(); turn(); loghalf();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            endTurn();
-        }
-    }
-
     // Final Constants
 
     final public static int MAX_EMPOWER = RobotType.POLITICIAN.actionRadiusSquared;
@@ -44,18 +21,22 @@ public class Politician extends Robot {
     final public static int ROLE_ATTACK = 1;
     final public static int ROLE_DEFEND = 2;
 
-    // Variables
     // Global Variables
-    public static int role;
-
+    public static int myRole;
     public static int myDamage;
 
-    public static MapLocation closestEnemyMuckraker;
+    public static int killHungryTarget; // if i can kill this enemy, then i will explode
+    public static boolean extremeAggression; // if i can hit an enemy, then i will explode
 
-    // Role-Specific Variables
-    public static MapLocation target_initial_location;
-    public static int estimated_target_id = -1;
-    public static MapLocation estimated_target_location;
+
+    // attacker variables
+    public static int noEnemyHQTimer;
+
+
+    // defender variables
+    public static MapLocation closestEnemyMuckraker;
+    public static MapLocation closestEnemy;
+
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
@@ -64,57 +45,78 @@ public class Politician extends Robot {
             int status = Comms.getStatusFromFlag(rc.getFlag(myMaster));
             boolean bit3 = (status & (1 << 3)) != 0;
             if (bit3) {
-                role = ROLE_DEFEND;
+                myRole = ROLE_DEFEND;
             } else {
-                role = ROLE_ATTACK;
+                myRole = ROLE_ATTACK;
             }
         } else { // default to attacker role
-            role = ROLE_ATTACK;
+            myRole = ROLE_ATTACK;
         }
 
         initExploreLoc();
-
     }
 
     // code run each turn
     public static void turn() throws GameActionException {
+        killHungryTarget = -1;
+        extremeAggression = false;
+
         updateExploreLoc();
         updateEnemies();
 
+        if (myRole == ROLE_ATTACK) {
+            log("[ROLE_ATTACK]");
+        } else if (myRole == ROLE_DEFEND) {
+            log("[ROLE_DEFEND]");
+        }
+
         // update damage
         myDamage = (int) (myConviction * rc.getEmpowerFactor(us, 0) - GameConstants.EMPOWER_TAX);
-
-        target_initial_location = targetEnemyHQLoc;
 
         if (!rc.isReady()) {
             return;
         }
 
-        if(role == ROLE_ATTACK) {
-            if (target_initial_location != null) {
-                int ed = tryAttack(closestEnemyMuckraker);
-                if (ed != -1) {
-                    return;
-                } else {
-                    // did not atk
-                    tryChase(closestEnemyMuckraker);
-                    return;
-                }
+        if(myRole == ROLE_ATTACK) {
+            // target enemy hq
+            if (targetEnemyHQLoc != null) {
+                noEnemyHQTimer = 0;
+                tryAttackChase(targetEnemyHQLoc);
+                return;
             }
+
+            noEnemyHQTimer++;
+
+            log("Aggression timer " + noEnemyHQTimer);
+            if (noEnemyHQTimer >= 25) {
+                tlog("EXTREME AGGRESSION");
+                extremeAggression = true;
+            }
+
+            // target enemy muckrakers
+            if (closestEnemyMuckraker != null) {
+                tryAttackChase(closestEnemyMuckraker);
+                return;
+            } else {
+                noEnemyHQTimer++;
+            }
+
+            // target any enemies
+            if (noEnemyHQTimer > 10 && closestEnemy != null) {
+                extremeAggression = true;
+                tryAttackChase(closestEnemy);
+                return;
+            }
+
             // if no target
             explore();
             return;
         }
-        else if (role == ROLE_DEFEND) {
+        else if (myRole == ROLE_DEFEND) {
             if (closestEnemyMuckraker != null) {
-                int ed = tryAttack(closestEnemyMuckraker);
-                if (ed != -1) {
-                    return;
-                } else {
-                    // did not atk
-                    tryChase(closestEnemyMuckraker);
-                    return;
-                }
+                killHungryTarget = rc.senseRobotAtLocation(closestEnemyMuckraker).getID();
+                tryAttackChase(closestEnemyMuckraker);
+                return;
             }
             // no seen muckrakers
             explore();
@@ -130,37 +132,62 @@ public class Politician extends Robot {
             closestEnemyMuckraker = null;
         }
         log("Closest muck: " + closestEnemyMuckraker);
+
+        ri = getClosest(here, sensedEnemies, sensedEnemies.length);
+        if (ri != null) {
+            closestEnemy = ri.location;
+        } else {
+            closestEnemy = null;
+        }
+        log("Closest enemy: " + closestEnemy);
+    }
+
+    public static void tryAttackChase(MapLocation targetLoc) throws GameActionException {
+        if (tryAttack(targetLoc) == -1) {
+            tryChase(targetLoc);
+        }
     }
 
     public static int tryAttack(MapLocation targetLoc) throws GameActionException {
+        log("Trying attack");
         if (targetLoc != null) {
             int dist = here.distanceSquaredTo(targetLoc);
             int ed = getBestEmpower(dist);
             log("Empower dist " + dist + " " + ed);
             if (ed != -1) {
+                tlog("Attacking " + ed);
                 Actions.doEmpower(ed);
                 return ed;
             } else {
+                tlog("Could not attack");
                 return -1;
             }
         }
+        tlog("Could not attack");
         return -1;
     }
 
     public static Direction tryChase(MapLocation targetLoc) throws GameActionException {
+        log("Trying chasing");
         if (targetLoc != null) {
             // have not exploded, try chasing instead
             drawLine(here, targetLoc, PINK);
-            log("Chasing " + targetLoc);
+            tlog("Chasing " + targetLoc);
             return moveLog(targetLoc);
         }
+        tlog("Could not chase");
         return null;
     }
 
+    /*
+    Get best empower that hits at least 'dist' away
+     */
     public static int getBestEmpower(int dist) throws GameActionException {
         if (dist > MAX_EMPOWER) {
             return -1;
         }
+
+//        log("get best empower " + dist);
 
         int[] possDists = ALL_EMPOWER_DISTS[dist];
         RobotInfo[] hitRobots = rc.senseNearbyRobots(MAX_EMPOWER);
@@ -176,7 +203,7 @@ public class Politician extends Robot {
             }
         }
 
-        Arrays.sort(hitRobots, new RobotCompare());
+//        Arrays.sort(hitRobots, new RobotCompare());
 
         double[] scores = new double[possDists.length];
         for (int i = possDists.length; --i >= 0;) {
@@ -184,9 +211,8 @@ public class Politician extends Robot {
                 RobotInfo ri = hitRobots[j];
                 if (here.isWithinDistanceSquared(ri.location, possDists[i])) {
                     int dmg = myDamage / numHit[i];
-                    scores[i] += getEmpowerScore(ri, dmg);
-                } else {
-                    break;
+                    double score = getEmpowerScore(ri, dmg);
+                    scores[i] += score;
                 }
             }
         }
@@ -200,9 +226,15 @@ public class Politician extends Robot {
             }
         }
 
+        if (bestScore == 0) {
+            return -1;
+        }
+
+
         // best score must be at least better than some threshold
-        double maxScore = myConviction - GameConstants.EMPOWER_TAX;
-        if (bestScore >= 0.5 * maxScore) {
+        double threshold = 0.5 * (myConviction - GameConstants.EMPOWER_TAX);
+        log("My score " + bestScore + " vs " + threshold);
+        if (bestScore >= threshold) {
             return bestDist;
         } else {
             return -1;
@@ -210,42 +242,59 @@ public class Politician extends Robot {
     }
 
     public static double getEmpowerScore(RobotInfo ri, int dmg) {
+        double score = 0;
         if (ri.team == us) {
             if (ri.type == RobotType.POLITICIAN) {
-                return Math.min(dmg, ri.influence - ri.conviction);
+                score += Math.min(dmg, ri.influence - ri.conviction);
             } else {
-                return 0;
+                score += 0;
             }
         } else if (ri.team == them) {
             switch (ri.type) {
                 case ENLIGHTENMENT_CENTER:
                     if (dmg > ri.conviction) {
-                        return 2 * dmg;
+                        score += 2 * dmg;
                     } else {
-                        return dmg;
+                        score += dmg;
                     }
+                    break;
                 case MUCKRAKER:
                     if (dmg > ri.conviction) {
-                        return 2 * ri.conviction;
+                        score += 2 * ri.conviction;
                     } else {
-                        return dmg;
+                        score += dmg;
                     }
+                    break;
                 case POLITICIAN:
                     if (dmg > ri.conviction) {
-                        return 2 * Math.min(dmg - ri.conviction, ri.influence + ri.conviction);
+                        score += 2 * Math.min(dmg - ri.conviction, ri.influence + ri.conviction);
                     } else {
-                        return dmg;
+                        score += dmg;
                     }
+                    break;
                 default:
-                    return 0;
+                    score += 0;
+                    break;
             }
         } else {
             // neutral hq
             if (dmg > ri.conviction) {
-                return 10 * dmg;
+                score += 10 * dmg;
             } else {
-                return 0.5 * dmg;
+                score += 0.5 * dmg;
             }
         }
+
+//        log("score " + extremeAggression + " " + killHungryTarget + " " + ri.getID());
+        // modifiers
+        if (extremeAggression && ri.team != us) {
+//            log("extreme aggro");
+            score += 1e6;
+        }
+        if (ri.getID() == killHungryTarget && dmg > ri.conviction) {
+//            log("kill hungry");
+            score += 1e6;
+        }
+        return score;
     }
 }

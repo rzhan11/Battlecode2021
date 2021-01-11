@@ -138,6 +138,8 @@ public abstract class Robot extends Constants {
 
 
     public static void updateTurnInfo() throws GameActionException {
+        Debug.clearBuffer();
+
         // independent, always first
         updateBasicInfo();
 
@@ -162,6 +164,7 @@ public abstract class Robot extends Constants {
         // after updateMaster
         // before readMasterComms
         printMyInfo();
+        printBuffer();
 
         // after updateMaster, updateEnemyHQs, updateMapBounds
         readMasterComms();
@@ -172,9 +175,6 @@ public abstract class Robot extends Constants {
         }
 
         updateTargetEnemyHQ();
-
-        // after updateMapBounds, readMasterComms
-        reportMapBounds();
 
         // independent
         CommManager.updateQueuedMessage();
@@ -188,6 +188,8 @@ public abstract class Robot extends Constants {
         for (int i = 0; i < enemyHQCount; i++) {
             tlog(enemyHQLocs[i] + " " + enemyHQIDs[i]);
         }
+
+        printBuffer();
     }
 
     /*
@@ -296,11 +298,18 @@ public abstract class Robot extends Constants {
         // TODO merge with politician/muckraker targetting
         // delete dead enemies
         for (int i = enemyHQCount; --i >= 0;) {
-            if (enemyHQIDs[i] > 0 && !rc.canGetFlag(enemyHQIDs[i])) {
+            int id = enemyHQIDs[i];
+            MapLocation loc = enemyHQLocs[i];
+            if (id > 0 && !rc.canGetFlag(id)) {
                 enemyHQCount--;
-                enemyHQIDs[i] = enemyHQIDs[enemyHQCount];
-                enemyHQIDs[enemyHQCount] = -1;
+                swap(enemyHQIDs, i, enemyHQCount);
                 swap(enemyHQLocs, i, enemyHQCount);
+            } else if (rc.canSenseLocation(loc)) {
+                if (rc.senseRobotAtLocation(loc).team != them) {
+                    enemyHQCount--;
+                    swap(enemyHQIDs, i, enemyHQCount);
+                    swap(enemyHQLocs, i, enemyHQCount);
+                }
             }
         }
 
@@ -332,7 +341,7 @@ public abstract class Robot extends Constants {
             targetEnemyHQLoc = null;
             targetEnemyHQID = -1;
         }
-        log("targetEnemy " + targetEnemyHQLoc + " " + targetEnemyHQID);
+        log("targetEnemyHQ " + targetEnemyHQLoc + " " + targetEnemyHQID);
     }
 
     /*
@@ -353,17 +362,20 @@ public abstract class Robot extends Constants {
     public static void updateExploreLoc() {
         exploreLoc = processExploreLoc(exploreLoc);
         if (rc.canSenseLocation(exploreLoc)) {
-            // chose new exploreDir
-            exploreDir = exploreDir.rotateLeft();
-            if ((rc.getID()&8) == 0) { //initial directions is ID%8, so this is independent
-                // this makes some mucks cross the center instead of sticking to the outside
+            // chose new exploreDir, either rotate 1 or 3
+            if ((rc.getID() & 8) == 0) { //initial directions is ID%8, so this is independent
                 exploreDir = exploreDir.rotateLeft();
-                exploreDir = exploreDir.rotateLeft();
+            } else {
+                exploreDir = exploreDir.rotateLeft().rotateLeft().rotateLeft();
             }
 
-            MapLocation mapCenter;
-            if (isMapKnown()) mapCenter = new MapLocation(XMIN + XLEN / 2, YMIN + YLEN / 2);
-            else mapCenter = spawnLoc;
+            int xmid, ymid;
+            if (isMapXKnown()) xmid = XMIN + XLEN / 2;
+            else xmid = spawnLoc.x;
+            if (isMapYKnown()) ymid = YMIN + YLEN / 2;
+            else ymid = spawnLoc.y;
+
+            MapLocation mapCenter = new MapLocation(xmid, ymid);
 
             exploreLoc = processExploreLoc(addDir(mapCenter, exploreDir, MAX_MAP_SIZE));
             log("Exploring " + exploreLoc + " " + exploreDir + " " + mapCenter);
@@ -398,13 +410,17 @@ public abstract class Robot extends Constants {
             tlogi("Overused bytecode: " + (bytecodeOver + (turns - 1) * myType.bytecodeLimit));
             tlogi("Skipped turns: " + turns);
         }
+
+        printBuffer();
+        // print endTurn information
         if (!NO_TURN_LOGS) {
             logline();
             log("END TURN");
             tlog("Flag Status: " + CommManager.getStatus());
             tlog(CommManager.getMessage().toString());
-            log("Bytecode left: " + Clock.getBytecodesLeft());
+            tlog("Bytecode left: " + Clock.getBytecodesLeft());
             logline();
+            printBuffer();
         }
         Clock.yield();
     }

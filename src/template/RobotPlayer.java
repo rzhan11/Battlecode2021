@@ -3,33 +3,75 @@ package template;
 import battlecode.common.*;
 
 import static template.Debug.*;
+import static template.Robot.*;
 
 public strictfp class RobotPlayer {
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
-        try {
-            Robot.init(rc);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        boolean firstChange = true;
 
-        switch (rc.getType()) {
+        while (true) {
+            try {
+                // changed is true on the first turn
+                // or when slanderers turn to politicians
+                boolean changed = (myType != rc.getType());
+                if (changed) {
+                    if (firstChange) firstChange = false;
+                    else System.out.println("\nCONVERTED TO POLITICIAN");
+                    Robot.init(rc);
+                }
+                updateTurnInfo();
+                if (changed) firstTurnSetup();
+
+                turn();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            try {
+                endTurn();
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private static void firstTurnSetup() throws GameActionException {
+        switch (myType) {
             case ENLIGHTENMENT_CENTER:
-                EnlightenmentCenter.run();
+                EnlightenmentCenter.firstTurnSetup();
                 break;
             case POLITICIAN:
-                Politician.run();
+                Politician.firstTurnSetup();
                 break;
             case SLANDERER:
-                Slanderer.run();
-                // if this is reached, then convert to politician
-                Politician.run();
+                Slanderer.firstTurnSetup();
                 break;
             case MUCKRAKER:
-                Muckraker.run();
+                Muckraker.firstTurnSetup();
                 break;
             default:
-                log("WARNING: Unknown unit!");
+                log("WARNING: 'firstTurnSetup' Unknown unit!");
         }
+    }
+
+    private static void turn() throws GameActionException {
+        switch (myType) {
+            case ENLIGHTENMENT_CENTER:
+                EnlightenmentCenter.turn();
+                break;
+            case POLITICIAN:
+                Politician.turn();
+                break;
+            case SLANDERER:
+                Slanderer.turn();
+                break;
+            case MUCKRAKER:
+                Muckraker.turn();
+                break;
+            default:
+                log("WARNING: 'turn' Unknown unit!");
+        }
+        printBuffer();
     }
 }

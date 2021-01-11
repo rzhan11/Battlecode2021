@@ -7,32 +7,7 @@ import static template.Map.*;
 import static template.Utils.*;
 
 public class EnlightenmentCenter extends Robot {
-
-    public static void run() throws GameActionException {
-        // turn 1
-        try {
-            updateTurnInfo();
-            firstTurnSetup();
-            loghalf(); turn(); loghalf();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        endTurn();
-
-        // turn 2+
-        while (true) {
-            try {
-                updateTurnInfo();
-                loghalf(); turn(); loghalf();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            endTurn();
-        }
-    }
-
     // final constants
-
 
     final public static int MAX_KNOWN_ALLIES = 1000;
 
@@ -203,6 +178,11 @@ public class EnlightenmentCenter extends Robot {
             closestEnemyMuckraker = null;
         }
         log("Mucker " + closestEnemyMuckraker);
+
+        enemyMuckrakerDanger = 0;
+        for (int i = enemyMuckrakerCount; --i >= 0;) {
+            enemyMuckrakerDanger += enemyMuckrakers[i].conviction;
+        }
     }
 
     public static Direction makeSlanderer() throws GameActionException {
@@ -242,7 +222,7 @@ public class EnlightenmentCenter extends Robot {
             // make politician to kill close muckraker
             tlog("To kill close muckraker");
             // find cost
-            cost = GameConstants.EMPOWER_TAX + enemyMuckrakerDanger;
+            cost = GameConstants.EMPOWER_TAX + Math.min((int) Math.ceil(enemyMuckrakerDanger * 1.25), 4);
             // find dir
             scoutDir = here.directionTo(closestEnemyMuckraker);
             scoutDirIndex = dir2int(scoutDir);

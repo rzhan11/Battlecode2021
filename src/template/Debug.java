@@ -15,6 +15,8 @@ public class Debug {
     // Message.toString
     final public static boolean USE_BASIC_MESSAGES = false;
 
+    private static StringBuilder buffer;
+
     /*
     Selectively turn off print logs for certain units
     NOTE: important messages will still be displayed
@@ -52,12 +54,21 @@ public class Debug {
         }
     }
 
+    public static void clearBuffer() {
+        buffer = new StringBuilder();
+    }
+
+    public static void printBuffer() {
+        System.out.println(buffer);
+        buffer = new StringBuilder();
+    }
+
     /*
     Prints a separator line, currently a single dash
     */
     public static void log() {
         if (isDisplayLogs()) {
-            System.out.println("\n");
+            buffer.append("\n");
         }
     }
 
@@ -67,7 +78,7 @@ public class Debug {
     */
     public static void log(String str) {
         if (isDisplayLogs()) {
-            System.out.println("\n" + str);
+            buffer.append("\n").append(str);
         }
     }
 
@@ -77,7 +88,7 @@ public class Debug {
     */
     public static void tlog(String str) {
         if (isDisplayLogs()) {
-            System.out.println("\n- " + str);
+            buffer.append("\n- ").append(str);
         }
     }
 
@@ -87,19 +98,25 @@ public class Debug {
     */
     public static void ttlog(String str) {
         if (isDisplayLogs()) {
-            System.out.println("\n-- " + str);
+            buffer.append("\n-- ").append(str);
+        }
+    }
+
+    public static void logByte(String tag) {
+        if (isDisplayLogs()) {
+            buffer.append("\nBYTECODE LEFT - ").append(tag).append(": ").append(Clock.getBytecodesLeft());
         }
     }
 
     public static void loghalf() {
         if (isDisplayLogs()) {
-            System.out.println("\n---------------\n---------------\n");
+            buffer.append("\n---------------\n---------------");
         }
     }
 
     public static void logline() {
         if (isDisplayLogs()) {
-            System.out.println("\n------------------------------\n");
+            buffer.append("\n------------------------------");
         }
     }
 
@@ -107,25 +124,19 @@ public class Debug {
     Ignores the 'DISPLAY_LOGS' flag
     */
     public static void logi() {
-        System.out.println("\n");
+        buffer.append("\n");
     }
 
     public static void logi(String str) {
-        System.out.println("\n" + str);
+        buffer.append("\n").append(str);
     }
 
     public static void tlogi(String str) {
-        System.out.println("\n- " + str);
+        buffer.append("\n- ").append(str);
     }
 
     public static void ttlogi(String str) {
-        System.out.println("\n-- " + str);
-    }
-
-    public static void logByte(String tag) {
-        if (isDisplayLogs()) {
-            System.out.println("\nBYTECODE LEFT - " + tag + ": " + Clock.getBytecodesLeft());
-        }
+        buffer.append("\n-- ").append(str);
     }
 
     public static void drawLine(MapLocation loc1, MapLocation loc2, int[] color) {

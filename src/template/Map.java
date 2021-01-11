@@ -20,7 +20,18 @@ public class Map {
     }
 
     public static MapLocation processExploreLoc(MapLocation loc) {
-        return convertToKnownBounds(loc, (int) Math.sqrt(mySensorRadius));
+        int radius;
+        switch(myType) {
+            case MUCKRAKER:
+            case POLITICIAN:
+            case SLANDERER:
+                radius = 3;
+                break;
+            default:
+                radius = 0;
+                break;
+        }
+        return convertToKnownBounds(loc, radius);
     }
 
     public static MapLocation convertToKnownBounds(MapLocation loc, int offset) {
@@ -78,18 +89,24 @@ public class Map {
     public static boolean isMapKnown() {
         return XMIN != -1 && XMAX != -1 && YMIN != -1 && YMAX != -1;
     }
+    public static boolean isMapXKnown() {
+        return XMIN != -1 && XMAX != -1;
+    }
+    public static boolean isMapYKnown() {
+        return YMIN != -1 && YMAX != -1;
+    }
 
     public static void updateMapBounds() throws GameActionException {
-        int maxRadius = (int) Math.sqrt(mySensorRadius);
+        int maxRadius = (int) Math.sqrt(myDetectionRadius);
         boolean notHQ = (myType != RobotType.ENLIGHTENMENT_CENTER);
         MapLocation loc;
 
         if (XMIN == -1) {
             loc = here.translate(-maxRadius, 0);
-            if (!rc.onTheMap(loc)) {
+            if (!rc.canDetectLocation(loc)) {
                 for (int i = maxRadius - 1; i >= 1; i--) {
                     loc = here.translate(-i, 0);
-                    if (rc.onTheMap(loc)) {
+                    if (rc.canDetectLocation(loc)) {
                         XMIN = loc.x;
                         if (notHQ) {
                             writeXBounds();
@@ -104,10 +121,10 @@ public class Map {
         }
         if (YMIN == -1) {
             loc = here.translate(0, -maxRadius);
-            if (!rc.onTheMap(loc)) {
+            if (!rc.canDetectLocation(loc)) {
                 for (int i = maxRadius - 1; i >= 1; i--) {
                     loc = here.translate(0, -i);
-                    if (rc.onTheMap(loc)) {
+                    if (rc.canDetectLocation(loc)) {
                         YMIN = loc.y;
                         if (notHQ) {
                             writeYBounds();
@@ -122,10 +139,10 @@ public class Map {
         }
         if (XMAX == -1) {
             loc = here.translate(maxRadius, 0);
-            if (!rc.onTheMap(loc)) {
+            if (!rc.canDetectLocation(loc)) {
                 for (int i = maxRadius - 1; i >= 1; i--) {
                     loc = here.translate(i, 0);
-                    if (rc.onTheMap(loc)) {
+                    if (rc.canDetectLocation(loc)) {
                         XMAX = loc.x;
                         if (notHQ) {
                             writeXBounds();
@@ -140,10 +157,10 @@ public class Map {
         }
         if (YMAX == -1) {
             loc = here.translate(0, maxRadius);
-            if (!rc.onTheMap(loc)) {
+            if (!rc.canDetectLocation(loc)) {
                 for (int i = maxRadius - 1; i >= 1; i--) {
                     loc = here.translate(0, i);
-                    if (rc.onTheMap(loc)) {
+                    if (rc.canDetectLocation(loc)) {
                         YMAX = loc.y;
                         if (notHQ) {
                             writeYBounds();
@@ -156,10 +173,6 @@ public class Map {
                 }
             }
         }
-    }
-
-    public static void reportMapBounds() {
-
     }
 
     public static int dir2int(Direction dir) {

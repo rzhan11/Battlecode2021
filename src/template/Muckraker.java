@@ -8,33 +8,10 @@ import static template.Debug.*;
 
 public class Muckraker extends Robot {
 
-    public static void run() throws GameActionException {
-        // turn 1
-        try {
-            updateTurnInfo();
-            firstTurnSetup();
-            loghalf(); turn(); loghalf();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        endTurn();
-
-        // turn 2+
-        while (true) {
-            try {
-                updateTurnInfo();
-                loghalf(); turn(); loghalf();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            endTurn();
-        }
-    }
-
     // final constants
 
     // max distance from an hq, such that we can kill all slanderers spawned by it
-    //try to block the enemy hq
+    // try to block the enemy hq from spawning slanderers
     final public static int GOOD_DIST_TO_ENEMY_HQ = 2;
 
     // variables

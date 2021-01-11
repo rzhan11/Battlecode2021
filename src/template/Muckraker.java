@@ -35,7 +35,8 @@ public class Muckraker extends Robot {
     // final constants
 
     // max distance from an hq, such that we can kill all slanderers spawned by it
-    final public static int GOOD_DIST_TO_ENEMY_HQ = 4;
+    //try to block the enemy hq
+    final public static int GOOD_DIST_TO_ENEMY_HQ = 2;
 
     // variables
 
@@ -45,7 +46,8 @@ public class Muckraker extends Robot {
     public static RobotInfo[] closeEnemySlanderers;
 
     public static MapLocation chaseLoc;
-
+    public static int targetHQChecked = -100;
+    public final static int CHECK_HQ_TURNS = 200;
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
@@ -75,36 +77,42 @@ public class Muckraker extends Robot {
         if (chaseLoc != null) {
             drawLine(here, chaseLoc, PINK);
             log("Chasing slanderer " + chaseLoc);
-            moveLog(exploreLoc);
+            moveLog(chaseLoc);
             return;
         }
 
         // move towards targetEnemyHQ
-        if (targetEnemyHQLoc != null) {
-            if (here.isWithinDistanceSquared(targetEnemyHQLoc, GOOD_DIST_TO_ENEMY_HQ)) {
-                log("Close to targetEnemyHQ");
-                // check directions to find more passable tile
-                Direction bestDir = null;
-                double bestPass = myPassability;
-                for (int i = 0; i < 8; i++) {
-                    MapLocation adjLoc = rc.adjacentLocation(DIRS[i]);
-                    if (isDirMoveable[i] && adjLoc.isWithinDistanceSquared(targetEnemyHQLoc, GOOD_DIST_TO_ENEMY_HQ) && rc.sensePassability(adjLoc) > bestPass) {
-                        bestDir = DIRS[i];
-                        bestPass = rc.sensePassability(adjLoc);
-                    }
-                }
-                if (bestDir == null) {
-                    tlog("Best local position");
-                    return;
-                } else {
-                    tlog("Moving to better position");
-                    Actions.doMove(bestDir);
-                    return;
-                }
+        //unless we have seen it's ours recently
+        if (targetEnemyHQLoc != null && targetHQChecked + CHECK_HQ_TURNS < roundNum) {
+            //once the hq has been converted stop
+            if (rc.canSenseLocation(targetEnemyHQLoc) && rc.senseRobotAtLocation(targetEnemyHQLoc).team==rc.getTeam()) {
+                targetHQChecked = roundNum;
             } else {
-                log("Moving towards targetEnemyHQ");
-                moveLog(targetEnemyHQLoc);
-                return;
+                if (here.isWithinDistanceSquared(targetEnemyHQLoc, GOOD_DIST_TO_ENEMY_HQ)) {
+                    log("Close to targetEnemyHQ");
+                    // check directions to find more passable tile
+                    Direction bestDir = null;
+                    double bestPass = myPassability;
+                    for (int i = 0; i < 8; i++) {
+                        MapLocation adjLoc = rc.adjacentLocation(DIRS[i]);
+                        if (isDirMoveable[i] && adjLoc.isWithinDistanceSquared(targetEnemyHQLoc, GOOD_DIST_TO_ENEMY_HQ) && rc.sensePassability(adjLoc) > bestPass) {
+                            bestDir = DIRS[i];
+                            bestPass = rc.sensePassability(adjLoc);
+                        }
+                    }
+                    if (bestDir == null) {
+                        tlog("Best local position");
+                        return;
+                    } else {
+                        tlog("Moving to better position");
+                        Actions.doMove(bestDir);
+                        return;
+                    }
+                } else {
+                    log("Moving towards targetEnemyHQ");
+                    moveLog(targetEnemyHQLoc);
+                    return;
+                }
             }
         }
 

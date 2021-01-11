@@ -10,8 +10,6 @@ import static template.Map.*;
 import static template.Nav.*;
 import static template.Utils.*;
 
-// TODO URGENT TEST CODE
-
 public abstract class Robot extends Constants {
 
     /*
@@ -45,7 +43,8 @@ public abstract class Robot extends Constants {
     public static Team us;
     public static Team them;
 
-//    public static int[][] senseDirections = null; // stores (dx, dy, magnitude) of locations that can be sensed
+    public static int[][] senseDirections = null; // stores (dx, dy, magnitude) of locations that can be sensed
+    public static int maxSensedUnits;
 //    public static int mapWidth;
 //    public static int mapHeight;
 
@@ -70,10 +69,28 @@ public abstract class Robot extends Constants {
 
         rand = new Random(myID);
 
-        HardCode.initHardCode();
-
         Comms.initBaseCoords(rc.getLocation());
-//        Nav.resetHistory();
+
+        HardCode.initHardCode();
+        switch(myType) {
+            case ENLIGHTENMENT_CENTER:
+                senseDirections = HardCode.BFS40;
+                break;
+            case POLITICIAN:
+                senseDirections = HardCode.BFS25;
+                break;
+            case SLANDERER:
+                senseDirections = HardCode.BFS20;
+                break;
+            case MUCKRAKER:
+                senseDirections = HardCode.BFS30;
+                break;
+        }
+        maxSensedUnits = senseDirections.length - 1;
+
+        enemyMuckrakers = new RobotInfo[maxSensedUnits];
+        enemyPoliticians = new RobotInfo[maxSensedUnits];
+        enemySlanderers = new RobotInfo[maxSensedUnits];
     }
 
     /*
@@ -91,6 +108,15 @@ public abstract class Robot extends Constants {
     public static RobotInfo[] sensedAllies;
     public static RobotInfo[] sensedEnemies;
     public static RobotInfo[] sensedNeutrals;
+
+    public static RobotInfo[] enemyMuckrakers;
+    public static RobotInfo[] enemyPoliticians;
+    public static RobotInfo[] enemySlanderers;
+    public static int enemyMuckrakerCount;
+    public static int enemyPoliticianCount;
+    public static int enemySlandererCount;
+    public static RobotInfo[] sensedEnemyHQs = new RobotInfo[MAX_HQ_COUNT];
+    public static int sensedEnemyHQCount;
 
     public static RobotInfo[] adjAllies;
 
@@ -114,6 +140,8 @@ public abstract class Robot extends Constants {
     public static void updateTurnInfo() throws GameActionException {
         // independent, always first
         updateBasicInfo();
+
+        sortEnemyTypes();
 
         // independent
         updateIsDirMoveable();
@@ -143,8 +171,13 @@ public abstract class Robot extends Constants {
             reportEnemyHQs();
         }
 
+        updateTargetEnemyHQ();
+
         // after updateMapBounds, readMasterComms
         reportMapBounds();
+
+        // independent
+        CommManager.updateQueuedMessage();
 
         // map info
         log("MAP X " + new MapLocation(XMIN, XMAX));
@@ -176,6 +209,36 @@ public abstract class Robot extends Constants {
         adjAllies = rc.senseNearbyRobots(2, us);
 
         CommManager.resetFlag();
+    }
+
+    public static void sortEnemyTypes() throws GameActionException {
+        enemyMuckrakerCount = 0;
+        enemyPoliticianCount = 0;
+        enemySlandererCount = 0;
+        sensedEnemyHQCount = 0;
+
+        for (RobotInfo ri: sensedEnemies) {
+            switch(ri.type) {
+                case MUCKRAKER:
+                    enemyMuckrakers[enemyMuckrakerCount++] = ri;
+                    break;
+
+                case POLITICIAN:
+                    enemyPoliticians[enemyPoliticianCount++] = ri;
+                    break;
+
+                case SLANDERER:
+                    enemySlanderers[enemySlandererCount++] = ri;
+                    break;
+
+                case ENLIGHTENMENT_CENTER:
+                    sensedEnemyHQs[sensedEnemyHQCount++] = ri;
+                    break;
+
+                default:
+                    break;
+            }
+        }
     }
 
     public static void updateMaster() throws GameActionException {
@@ -241,9 +304,26 @@ public abstract class Robot extends Constants {
             }
         }
 
-        // MOVED:
-        // adding seen enemy hq's is done in the 'reportEnemyHQs' method
+        // MOVED: adding seen enemy hq's is done in the 'reportEnemyHQs' method
+    }
 
+    public static void reportEnemyHQs() throws GameActionException {
+        for (int i = sensedEnemyHQCount; --i >= 0;) {
+            RobotInfo ri = sensedEnemyHQs[i];
+            int id = ri.getID();
+            if (!inArray(enemyHQIDs, id, enemyHQCount)) {
+                // add to array
+                enemyHQLocs[enemyHQCount] = ri.location;
+                enemyHQIDs[enemyHQCount] = id;
+                enemyHQCount++;
+                // add messages to queue
+                writeEnemyHQLoc(ri.location, false);
+                writeEnemyHQID(id, false);
+            }
+        }
+    }
+
+    public static void updateTargetEnemyHQ() throws GameActionException {
         // update targetEnemyHQLoc
         if (enemyHQCount > 0) {
             targetEnemyHQLoc = enemyHQLocs[0];
@@ -252,23 +332,7 @@ public abstract class Robot extends Constants {
             targetEnemyHQLoc = null;
             targetEnemyHQID = -1;
         }
-    }
-
-    public static void reportEnemyHQs() throws GameActionException {
-        for (RobotInfo ri: sensedEnemies) {
-            if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
-                int id = ri.getID();
-                if (!inArray(enemyHQIDs, id, enemyHQCount)) {
-                    // add to array
-                    enemyHQLocs[enemyHQCount] = ri.location;
-                    enemyHQIDs[enemyHQCount] = id;
-                    enemyHQCount++;
-                    // add messages to queue
-                    writeEnemyHQLoc(ri.location, false);
-                    writeEnemyHQID(id, false);
-                }
-            }
-        }
+        log("targetEnemy " + targetEnemyHQLoc + " " + targetEnemyHQID);
     }
 
     /*
@@ -279,24 +343,30 @@ public abstract class Robot extends Constants {
         // default exploreDir is randomized
         exploreDir = DIRS[myID % 8];
         if (myMaster != -1) {
-            int flag = rc.getFlag(myMaster);
-            exploreDir = DIRS[Comms.getStatusFromFlag(flag)];
+            int status = Comms.getStatusFromFlag(rc.getFlag(myMaster));
+            exploreDir = DIRS[status % 8];
         }
 
         exploreLoc = addDir(spawnLoc, exploreDir, MAX_MAP_SIZE);
     }
 
     public static void updateExploreLoc() {
-        exploreLoc = convertToKnownBounds(exploreLoc);
+        exploreLoc = processExploreLoc(exploreLoc);
         if (rc.canSenseLocation(exploreLoc)) {
+            // chose new exploreDir
             exploreDir = exploreDir.rotateLeft();
-            //this makes some mucks cross the center instead of sticking to the outside
             if ((rc.getID()&8) == 0) { //initial directions is ID%8, so this is independent
+                // this makes some mucks cross the center instead of sticking to the outside
                 exploreDir = exploreDir.rotateLeft();
                 exploreDir = exploreDir.rotateLeft();
             }
-            log("explore " + spawnLoc + " " + exploreDir + " " + MAX_MAP_SIZE);
-            exploreLoc = convertToKnownBounds(addDir(spawnLoc, exploreDir, MAX_MAP_SIZE));
+
+            MapLocation mapCenter;
+            if (isMapKnown()) mapCenter = new MapLocation(XMIN + XLEN / 2, YMIN + YLEN / 2);
+            else mapCenter = spawnLoc;
+
+            exploreLoc = processExploreLoc(addDir(mapCenter, exploreDir, MAX_MAP_SIZE));
+            log("Exploring " + exploreLoc + " " + exploreDir + " " + mapCenter);
         }
     }
 

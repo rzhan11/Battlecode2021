@@ -80,8 +80,16 @@ public class CommManager {
     }
 
     public static void updateQueuedMessage() throws GameActionException {
-        if (msgQueueCount > 0) {
-            setMessage(msgQueue[msgQueueIndex]);
+        while (msgQueueCount > 0) {
+            Message msg = msgQueue[msgQueueIndex];
+            boolean valid = !msg.repeat || checkRepeat(msg);
+            if (valid) {
+                setMessage(msg);
+                break;
+            } else {
+                msgQueueCount--;
+                msgQueueIndex = (msgQueueIndex + 1) % MSG_QUEUE_LEN;
+            }
         }
     }
 

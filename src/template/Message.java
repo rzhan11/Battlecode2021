@@ -29,40 +29,47 @@ public class Message {
             return type + " " + info + " " + repeat;
         }
 
+        String str = "";
+        boolean valid = !repeat || checkRepeat(this);
+        if (!valid) {
+            str += "INVALID ";
+        }
+
         switch (type) {
             case EMPTY_MSG:
-                return "[BLANK MESSAGE]";
+                str += "[BLANK MESSAGE]"; break;
 
             case ENEMY_HQ_LOC_MSG:
-                return "[ENEMY HQ LOC] " + bits2loc(info);
+                str += "[ENEMY HQ LOC] " + bits2loc(info); break;
             case ENEMY_HQ_ID_MSG:
-                return "[ENEMY HQ ID] " + (info + MIN_ID);
+                str += "[ENEMY HQ ID] " + (info + MIN_ID); break;
 
             case ALL_TARGET_LOC_MSG:
-                return "[ALL TARGET LOC] " + bits2loc(info);
+                str += "[ALL TARGET LOC] " + bits2loc(info); break;
             case MUCKRAKER_TARGET_LOC_MSG:
-                return "[MUCKRAKER TARGET LOC]" + bits2loc(info);
+                str += "[MUCKRAKER TARGET LOC]" + bits2loc(info); break;
 
             case XBOUNDS_MSG:
-                return "[X]" + bits2loc(info);
+                str += "[X]" + bits2loc(info); break;
             case XMIN_MSG:
-                return "[X]" + new MapLocation(bits2loc(info).x, -1);
+                str += "[X]" + new MapLocation(bits2loc(info).x, -1); break;
             case XMAX_MSG:
-                return "[X]" + new MapLocation(-1, bits2loc(info).y);
+                str += "[X]" + new MapLocation(-1, bits2loc(info).y); break;
             case XNONE_MSG:
-                return "[X]" + new MapLocation(-1, -1);
+                str += "[X]" + new MapLocation(-1, -1); break;
 
             case YBOUNDS_MSG:
-                return "[Y]" + bits2loc(info);
+                str += "[Y]" + bits2loc(info); break;
             case YMIN_MSG:
-                return "[Y]" + new MapLocation(bits2loc(info).x, -1);
+                str += "[Y]" + new MapLocation(bits2loc(info).x, -1); break;
             case YMAX_MSG:
-                return "[Y]" + new MapLocation(-1, bits2loc(info).y);
+                str += "[Y]" + new MapLocation(-1, bits2loc(info).y); break;
             case YNONE_MSG:
-                return "[Y]" + new MapLocation(-1, -1);
+                str += "[Y]" + new MapLocation(-1, -1); break;
 
             default:
-                return type + " " + info + " " + repeat;
+                str += type + " " + info + " " + repeat; break;
         }
+        return str;
     }
 }

@@ -57,6 +57,9 @@ public class EnlightenmentCenter extends Robot {
     public static int liveSlanderers = 0;
     public static int livePoliticians = 0;
 
+    public static int enemyMuckrakerDanger = 0;
+    public static MapLocation closestEnemyMuckraker;
+
 //    public static int enemyHQIndex = 0;
 
     // things to do on turn 1 of existence
@@ -71,6 +74,8 @@ public class EnlightenmentCenter extends Robot {
     public static void turn() throws GameActionException {
         updateKnownAllies();
         processMessages();
+
+        updateEnemies();
 
         // make a slanderer on the first turn
         if (roundNum == 1) {
@@ -89,9 +94,9 @@ public class EnlightenmentCenter extends Robot {
         }
 
         // TESTING PURPOSES ONLY
-//        if (roundNum >= 1000) {
-//            rc.resign();
-//        }
+        if (roundNum >= 1000) {
+            rc.resign();
+        }
 
         if (!rc.isReady()) {
             return;
@@ -113,18 +118,22 @@ public class EnlightenmentCenter extends Robot {
         }
 
 
+        // make slanderers
         if (roundNum % 50 == 0) {
             slanderersMade = Math.max(slanderersMade - 5, 0);
         }
-        if (slanderersMade < 10 && rc.getInfluence() >= MIN_SLANDERER_COST) {
-            Direction dir = makeSlanderer();
-            if (dir != null) {
-                slanderersMade++;
+        if (enemyMuckrakerCount == 0) {
+            if (slanderersMade < 10 && rc.getInfluence() >= MIN_SLANDERER_COST) {
+                Direction dir = makeSlanderer();
+                if (dir != null) {
+                    slanderersMade++;
+                }
+                return;
             }
-            return;
         }
 
-        if (rc.getInfluence() > 200) {
+        // make politicians
+        if (rc.getInfluence() > 1 + GameConstants.EMPOWER_TAX) {
             makePolitician();
             return;
         }
@@ -151,12 +160,29 @@ public class EnlightenmentCenter extends Robot {
     }
 
     public static void updateKnownAllies() throws GameActionException {
-        // delete dead allies
+        liveMuckrakers = 0;
+        livePoliticians = 0;
+        liveSlanderers = 0;
         for (int i = knownAlliesCount; --i >= 0;) {
             if (!rc.canGetFlag(knownAllies[i])) {
+                // delete dead allies
                 knownAlliesCount--;
                 knownAllies[i] = knownAllies[knownAlliesCount];
                 knownAlliesType[i] = knownAlliesType[knownAlliesCount];
+            } else { // ally is alive
+                switch (knownAlliesType[i]) {
+                    case MUCKRAKER:
+                        liveMuckrakers++;
+                        break;
+                    case POLITICIAN:
+                        livePoliticians++;
+                        break;
+                    case SLANDERER:
+                        liveSlanderers++;
+                        break;
+                    default:
+                        break;
+                }
             }
         }
     }
@@ -167,6 +193,16 @@ public class EnlightenmentCenter extends Robot {
 //            tlog(knownAllies[i] + " " + knownAlliesType[i]);
             Comms.readMessage(knownAllies[i]);
         }
+    }
+
+    public static void updateEnemies() throws GameActionException {
+        RobotInfo ri = getClosest(here, enemyMuckrakers, enemyMuckrakerCount);
+        if (ri != null) {
+            closestEnemyMuckraker = ri.location;
+        } else {
+            closestEnemyMuckraker = null;
+        }
+        log("Mucker " + closestEnemyMuckraker);
     }
 
     public static Direction makeSlanderer() throws GameActionException {
@@ -196,14 +232,43 @@ public class EnlightenmentCenter extends Robot {
     }
 
     public static Direction makePolitician() throws GameActionException {
-        // determine cost of politician
-        int cost = rc.getInfluence() * 9 / 10;
+        log("Trying to build politician");
+        int cost;
+        Direction scoutDir;
+        int scoutDirIndex;
+        int status;
+
+        if (closestEnemyMuckraker != null) {
+            // make politician to kill close muckraker
+            tlog("To kill close muckraker");
+            // find cost
+            cost = GameConstants.EMPOWER_TAX + enemyMuckrakerDanger;
+            // find dir
+            scoutDir = here.directionTo(closestEnemyMuckraker);
+            scoutDirIndex = dir2int(scoutDir);
+            // find status
+            status = scoutDirIndex + (1 << 3);
+        } else {
+            // make scouting politician
+            tlog("To scout");
+            // find cost
+            cost = rc.getInfluence() / 2;
+            if (cost < 50) return null;
+            // find dir
+            scoutDirIndex = scoutCount % 8;
+            scoutDir = DIRS[scoutDirIndex];
+            // find status
+            status = scoutDirIndex;
+        }
+        Direction[] checkDirs = getClosestDirs(DIRS[scoutDirIndex]);
+
         // find direction to build slanderer
-        for (Direction dir: DIRS) {
+        for (Direction dir: checkDirs) {
             MapLocation adjLoc = here.add(dir);
             if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
-                tlog("Scout " + scoutCount % 8);
-                CommManager.setStatus(scoutCount % 8);
+                tlog("Scout " + scoutDir);
+                CommManager.setStatus(status);
+
                 Actions.doBuildRobot(RobotType.POLITICIAN, dir, cost);
                 addKnownAlly(dir);
                 return dir;

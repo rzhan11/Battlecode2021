@@ -6,19 +6,28 @@ import static template.Robot.*;
 import static template.Debug.*;
 
 public class Actions {
-    public static void doMove (Direction dir) throws GameActionException {
+    public static void doMove(Direction dir) throws GameActionException {
         log("MOVING " + dir);
         drawLine(here, rc.adjacentLocation(dir), YELLOW);
         rc.move(dir);
     }
 
-    public static void doExpose (MapLocation loc) throws GameActionException {
+    public static void doExpose(MapLocation loc) throws GameActionException {
         log("EXPOSING " + loc);
         drawLine(here, loc, ORANGE);
         rc.expose(loc);
     }
 
-    public static void doBuildRobot (RobotType type, Direction dir, int i) throws GameActionException {
+    public static void doEmpower(int dist) throws GameActionException {
+        log("EMPOWERING " + dist);
+        int len = HardCode.BFS9.length;
+        for (int i = len; --i >= 0;) {
+            drawDot(here.translate(HardCode.BFS9[i][0], HardCode.BFS9[i][1]), BLACK);
+        }
+        rc.empower(dist);
+    }
+
+    public static void doBuildRobot(RobotType type, Direction dir, int i) throws GameActionException {
         drawLine(here, rc.adjacentLocation(dir), CYAN);
         log("BUILDING " + type + " " + dir);
         rc.buildRobot(type, dir, i);

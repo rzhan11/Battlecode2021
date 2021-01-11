@@ -2,7 +2,6 @@ package template;
 
 import battlecode.common.*;
 
-import static template.Map.*;
 import static template.Nav.*;
 import static template.Debug.*;
 
@@ -42,8 +41,9 @@ public class Muckraker extends Robot {
 
     // only contains information about detected locations that it cannot sense
     public static MapLocation[] detectedLocs;
-    public static RobotInfo[] enemySlanderers;
+
     public static RobotInfo[] closeEnemySlanderers;
+    public static int closeEnemySlandererCount;
 
     public static MapLocation chaseLoc;
     public static int targetHQChecked = -100;
@@ -52,12 +52,14 @@ public class Muckraker extends Robot {
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
         initExploreLoc();
+
+        closeEnemySlanderers = new RobotInfo[maxSensedUnits];
     }
 
     // code run each turn
     public static void turn() throws GameActionException {
         updateDetectedLocs();
-        updateEnemySlanderers();
+        updateCloseEnemySlanderers();
         updateExploreLoc();
 
         if (!rc.isReady()) {
@@ -123,7 +125,8 @@ public class Muckraker extends Robot {
     public static MapLocation getBestExpose() {
         RobotInfo bestExpose = null;
         int bestValue = -1;
-        for (RobotInfo ri: closeEnemySlanderers) {
+        for (int i = closeEnemySlandererCount; --i >=0;) {
+            RobotInfo ri = closeEnemySlanderers[i];
             if (ri.influence > bestValue) {
                 bestExpose = ri;
                 bestValue = ri.influence;
@@ -139,7 +142,8 @@ public class Muckraker extends Robot {
     public static MapLocation getBestChase() {
         RobotInfo bestExpose = null;
         int bestValue = -1;
-        for (RobotInfo ri: enemySlanderers) {
+        for (int i = enemySlandererCount; --i >=0;) {
+            RobotInfo ri = enemySlanderers[i];
             if (ri.influence > bestValue) {
                 bestExpose = ri;
                 bestValue = ri.influence;
@@ -152,27 +156,12 @@ public class Muckraker extends Robot {
         }
     }
 
-    private static void updateEnemySlanderers() {
-        int count = 0;
-        int closeCount = 0;
-        for (int i = 0; i < sensedEnemies.length; i++) {
-            if (sensedEnemies[i].type == RobotType.SLANDERER) {
-                count++;
-                if (here.isWithinDistanceSquared(sensedEnemies[i].location, myActionRadius)) {
-                    closeCount++;
-                }
-            }
-        }
-        enemySlanderers = new RobotInfo[count];
-        closeEnemySlanderers = new RobotInfo[closeCount];
-        count = 0;
-        closeCount = 0;
-        for (int i = 0; i < sensedEnemies.length; i++) {
-            if (sensedEnemies[i].type == RobotType.SLANDERER) {
-                enemySlanderers[count++] = sensedEnemies[i];
-                if (here.isWithinDistanceSquared(sensedEnemies[i].location, myActionRadius)) {
-                    closeEnemySlanderers[closeCount++] = sensedEnemies[i];
-                }
+    private static void updateCloseEnemySlanderers() {
+        closeEnemySlandererCount = 0;
+        for (int i = enemySlandererCount; --i >=0;) {
+            RobotInfo ri = enemySlanderers[i];
+            if (here.isWithinDistanceSquared(ri.location, myActionRadius)) {
+                closeEnemySlanderers[closeEnemySlandererCount++] = ri;
             }
         }
     }

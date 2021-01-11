@@ -19,6 +19,28 @@ public class Map {
         return loc.translate(dir.dx * len, dir.dy * len);
     }
 
+    public static MapLocation processExploreLoc(MapLocation loc) {
+        return convertToKnownBounds(loc, (int) Math.sqrt(mySensorRadius));
+    }
+
+    public static MapLocation convertToKnownBounds(MapLocation loc, int offset) {
+        int x = loc.x;
+        int y = loc.y;
+        if (XMIN != -1 && x < XMIN + offset) {
+            x = XMIN + offset;
+        }
+        if (XMAX != -1 && x > XMAX - offset) {
+            x = XMAX - offset;
+        }
+        if (YMIN != -1 && y < YMIN + offset) {
+            y = YMIN + offset;
+        }
+        if (YMAX != -1 && y > YMAX - offset) {
+            y = YMAX - offset;
+        }
+        return new MapLocation(x, y);
+    }
+
     public static MapLocation convertToKnownBounds(MapLocation loc) {
         int x = loc.x;
         int y = loc.y;
@@ -51,6 +73,10 @@ public class Map {
             return false;
         }
         return true;
+    }
+
+    public static boolean isMapKnown() {
+        return XMIN != -1 && XMAX != -1 && YMIN != -1 && YMAX != -1;
     }
 
     public static void updateMapBounds() throws GameActionException {

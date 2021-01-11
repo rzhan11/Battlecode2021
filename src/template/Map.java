@@ -2,11 +2,19 @@ package template;
 
 import battlecode.common.*;
 
-import static template.Robot.*;
+import static template.Comms.*;
 import static template.Debug.*;
 import static template.HardCode.*;
+import static template.Robot.*;
 
 public class Map {
+    public static int XMIN = -1;
+    public static int YMIN = -1;
+    public static int XMAX = -1;
+    public static int YMAX = -1;
+    public static int XLEN = -1;
+    public static int YLEN = -1;
+
     public static MapLocation addDir(MapLocation loc, Direction dir, int len) {
         return loc.translate(dir.dx * len, dir.dy * len);
     }
@@ -47,6 +55,7 @@ public class Map {
 
     public static void updateMapBounds() throws GameActionException {
         int maxRadius = (int) Math.sqrt(mySensorRadius);
+        boolean notHQ = (myType != RobotType.ENLIGHTENMENT_CENTER);
         MapLocation loc;
 
         if (XMIN == -1) {
@@ -56,6 +65,9 @@ public class Map {
                     loc = here.translate(-i, 0);
                     if (rc.onTheMap(loc)) {
                         XMIN = loc.x;
+                        if (notHQ) {
+                            writeXBounds();
+                        }
                         if (XMAX != -1) {
                             XLEN = XMAX - XMIN + 1;
                         }
@@ -71,6 +83,9 @@ public class Map {
                     loc = here.translate(0, -i);
                     if (rc.onTheMap(loc)) {
                         YMIN = loc.y;
+                        if (notHQ) {
+                            writeYBounds();
+                        }
                         if (YMAX != -1) {
                             YLEN = YMAX - YMIN + 1;
                         }
@@ -86,6 +101,9 @@ public class Map {
                     loc = here.translate(i, 0);
                     if (rc.onTheMap(loc)) {
                         XMAX = loc.x;
+                        if (notHQ) {
+                            writeXBounds();
+                        }
                         if (XMIN != -1) {
                             XLEN = XMAX - XMIN + 1;
                         }
@@ -101,6 +119,9 @@ public class Map {
                     loc = here.translate(0, i);
                     if (rc.onTheMap(loc)) {
                         YMAX = loc.y;
+                        if (notHQ) {
+                            writeYBounds();
+                        }
                         if (YMIN != -1) {
                             YLEN = YMAX - YMIN + 1;
                         }
@@ -109,6 +130,10 @@ public class Map {
                 }
             }
         }
+    }
+
+    public static void reportMapBounds() {
+
     }
 
     public static int dir2int(Direction dir) {

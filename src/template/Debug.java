@@ -9,7 +9,11 @@ public class Debug {
     final public static boolean SILENCE_LOGS = false;
     final public static boolean SILENCE_INDICATORS = false;
 
+    // Robot.endTurn and Robot.printMyInfo
     final public static boolean NO_TURN_LOGS = false;
+
+    // Message.toString
+    final public static boolean USE_BASIC_MESSAGES = false;
 
     /*
     Selectively turn off print logs for certain units
@@ -84,6 +88,18 @@ public class Debug {
     public static void ttlog(String str) {
         if (isDisplayLogs()) {
             System.out.println("\n-- " + str);
+        }
+    }
+
+    public static void loghalf() {
+        if (isDisplayLogs()) {
+            System.out.println("\n---------------\n---------------\n");
+        }
+    }
+
+    public static void logline() {
+        if (isDisplayLogs()) {
+            System.out.println("\n------------------------------\n");
         }
     }
 

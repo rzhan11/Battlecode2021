@@ -13,9 +13,8 @@ public class Slanderer extends Robot {
         // turn 1
         try {
             updateTurnInfo();
-            postUpdateInit();
             firstTurnSetup();
-            turn();
+            loghalf(); turn(); loghalf();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -30,7 +29,7 @@ public class Slanderer extends Robot {
             }
             try {
                 updateTurnInfo();
-                turn();
+                loghalf(); turn(); loghalf();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -56,6 +55,9 @@ public class Slanderer extends Robot {
 
     // code run each turn
     public static void turn() throws GameActionException {
+        log("Generated influence: " + RobotType.SLANDERER.getPassiveInfluence(myInfluence, age, roundNum));
+        tlog("Less: " + RobotType.SLANDERER.getPassiveInfluence(myInfluence - 1, age, roundNum));
+
         if (age == 0) {
             return;
         }

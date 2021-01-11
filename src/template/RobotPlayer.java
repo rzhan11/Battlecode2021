@@ -29,7 +29,7 @@ public strictfp class RobotPlayer {
                 Muckraker.run();
                 break;
             default:
-                log("[EXCEPTION]: Unknown unit!");
+                log("WARNING: Unknown unit!");
         }
     }
 }

@@ -13,9 +13,8 @@ public class Muckraker extends Robot {
         // turn 1
         try {
             updateTurnInfo();
-            postUpdateInit();
             firstTurnSetup();
-            turn();
+            loghalf(); turn(); loghalf();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -25,7 +24,7 @@ public class Muckraker extends Robot {
         while (true) {
             try {
                 updateTurnInfo();
-                turn();
+                loghalf(); turn(); loghalf();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -47,28 +46,10 @@ public class Muckraker extends Robot {
 
     public static MapLocation chaseLoc;
 
-    public static Direction exploreDir;
-    public static MapLocation exploreLoc;
-
-    public static MapLocation targetEnemyHQ;
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
-
-        // default exploreDir is randomized
-        exploreDir = DIRS[myID % 8];
-        for (Direction dir: DIRS) {
-            MapLocation adjLoc = here.add(dir);
-            RobotInfo ri = rc.senseRobotAtLocation(adjLoc);
-            if (ri != null) {
-                if (ri.getType() == RobotType.ENLIGHTENMENT_CENTER && ri.getTeam() == us) {
-                    exploreDir = DIRS[rc.getFlag(ri.getID()) % 8];
-                    break;
-                }
-            }
-        }
-
-        exploreLoc = addDir(spawnLoc, exploreDir, MAX_MAP_SIZE);
+        initExploreLoc();
     }
 
     // code run each turn
@@ -76,12 +57,6 @@ public class Muckraker extends Robot {
         updateDetectedLocs();
         updateEnemySlanderers();
         updateExploreLoc();
-
-        // notify master of hqs
-        MapLocation enemyHQ = findEnemyHQ();
-        if (enemyHQ != null) {
-            Comms.writeFoundEnemyHQ(enemyHQ);
-        }
 
         if (!rc.isReady()) {
             return;
@@ -94,6 +69,7 @@ public class Muckraker extends Robot {
             return;
         }
 
+        // TODO add better target locking
         // move towards sensed enemy slanderers
         chaseLoc = getBestChase();
         if (chaseLoc != null) {
@@ -104,15 +80,15 @@ public class Muckraker extends Robot {
         }
 
         // move towards targetEnemyHQ
-        if (targetEnemyHQ != null) {
-            if (here.isWithinDistanceSquared(targetEnemyHQ, GOOD_DIST_TO_ENEMY_HQ)) {
+        if (targetEnemyHQLoc != null) {
+            if (here.isWithinDistanceSquared(targetEnemyHQLoc, GOOD_DIST_TO_ENEMY_HQ)) {
                 log("Close to targetEnemyHQ");
                 // check directions to find more passable tile
                 Direction bestDir = null;
                 double bestPass = myPassability;
                 for (int i = 0; i < 8; i++) {
                     MapLocation adjLoc = rc.adjacentLocation(DIRS[i]);
-                    if (isDirMoveable[i] && adjLoc.isWithinDistanceSquared(targetEnemyHQ, GOOD_DIST_TO_ENEMY_HQ) && rc.sensePassability(adjLoc) > bestPass) {
+                    if (isDirMoveable[i] && adjLoc.isWithinDistanceSquared(targetEnemyHQLoc, GOOD_DIST_TO_ENEMY_HQ) && rc.sensePassability(adjLoc) > bestPass) {
                         bestDir = DIRS[i];
                         bestPass = rc.sensePassability(adjLoc);
                     }
@@ -127,35 +103,22 @@ public class Muckraker extends Robot {
                 }
             } else {
                 log("Moving towards targetEnemyHQ");
-                moveLog(targetEnemyHQ);
+                moveLog(targetEnemyHQLoc);
                 return;
             }
         }
 
 
-        // move towards explore loc
-        rc.setIndicatorLine(here, exploreLoc, PURPLE[0], PURPLE[1], PURPLE[2]);
-        log("Exploring: " + exploreLoc);
-        moveLog(exploreLoc);
-    }
-
-    public static MapLocation findEnemyHQ() {
-        for (RobotInfo ri: sensedEnemies) {
-            if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
-                return ri.location;
-            }
-        }
-        return null;
+        explore();
     }
 
     public static MapLocation getBestExpose() {
         RobotInfo bestExpose = null;
         double bestValue = -1;
         for (RobotInfo ri: closeEnemySlanderers) {
-            double value = GameConstants.PASSIVE_INFLUENCE_RATIO_SLANDERER * ri.getInfluence();
-            if (value > bestValue) {
+            if (ri.influence > bestValue) {
                 bestExpose = ri;
-                bestValue = value;
+                bestValue = ri.influence;
             }
         }
         if (bestExpose == null) {
@@ -169,10 +132,9 @@ public class Muckraker extends Robot {
         RobotInfo bestExpose = null;
         double bestValue = -1;
         for (RobotInfo ri: enemySlanderers) {
-            double value = GameConstants.PASSIVE_INFLUENCE_RATIO_SLANDERER * ri.getInfluence();
-            if (value > bestValue) {
+            if (ri.influence > bestValue) {
                 bestExpose = ri;
-                bestValue = value;
+                bestValue = ri.influence;
             }
         }
         if (bestExpose == null) {
@@ -221,19 +183,6 @@ public class Muckraker extends Robot {
             if (!rc.canSenseLocation(loc)) {
                 detectedLocs[count++] = loc;
             }
-        }
-    }
-
-    public static void updateExploreLoc() {
-        exploreLoc = convertToKnownBounds(exploreLoc);
-        if (rc.canSenseLocation(exploreLoc)) {
-            exploreDir = exploreDir.rotateLeft();
-            //this if makes som mucks cross the center instead of sticking to the outside
-            if ((rc.getID()&8) == 0) { //initial directions is ID%8, so this is independent
-                exploreDir = exploreDir.rotateLeft();
-                exploreDir = exploreDir.rotateLeft();
-            }
-            exploreLoc = convertToKnownBounds(addDir(spawnLoc, exploreDir, MAX_MAP_SIZE));
         }
     }
 }

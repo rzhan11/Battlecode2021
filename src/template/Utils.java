@@ -25,6 +25,26 @@ public class Utils {
         return false;
     }
 
+    public static void swap(int[] arr, int i, int j) {
+        int temp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = temp;
+    }
+
+    public static void swap(Object[] arr, int i, int j) {
+        Object temp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = temp;
+    }
+
+    public static void delete(int[] arr, int i, int len) {
+        arr[i] = arr[len - 1];
+    }
+
+    public static void delete(Object[] arr, int i, int len) {
+        arr[i] = arr[len - 1];
+    }
+
     public static Direction getRandomDir() {
         return DIRS[(int)(Math.random() * 8)];
     }

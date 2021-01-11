@@ -8,7 +8,7 @@ public class Constants {
     final public static int N_INF = -1000000000;
     final public static int MAX_MAP_SIZE = 64;
 
-    final public static int MIN_SLANDERER_COST = 20;
+    final public static int MIN_ID = 10000;
 
     final public static int[] YELLOW = {255, 255, 0}; // moving
 

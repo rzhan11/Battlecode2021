@@ -20,6 +20,9 @@ public abstract class Robot extends Constants {
     final public static Direction[] CARD_DIRS = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST}; // four cardinal directions
     final public static Direction[] DIAG_DIRS = {Direction.NORTHEAST, Direction.SOUTHEAST, Direction.SOUTHWEST, Direction.NORTHWEST}; // four diagonals
 
+    // the priority of directions to explore
+    final public static Direction[] EXPLORE_DIRS = {Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST, Direction.SOUTHWEST, Direction.NORTHEAST, Direction.SOUTHEAST, Direction.NORTHWEST};
+
     final public static Team neutral = Team.NEUTRAL;
 
     final public static int MAX_HQ_COUNT = 12;

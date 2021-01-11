@@ -16,7 +16,7 @@ public class EnlightenmentCenter extends Robot {
     final public static int BEST_SLANDERER_COST = 41;
     final public static int MAX_SLANDERER_COST = 399;
 
-    final public static int EARLY_MUCKRAKERS_COUNT = 8;
+    final public static int EARLY_MUCKRAKERS_COUNT = 4;
 
     // variables
 
@@ -34,6 +34,10 @@ public class EnlightenmentCenter extends Robot {
 
     public static int enemyMuckrakerDanger = 0;
     public static MapLocation closestEnemyMuckraker;
+
+    public static double muckrakerRatio = 4.0;
+    public static double politicianRatio = 4.0;
+    public static double slandererRatio = 1.0;
 
 //    public static int enemyHQIndex = 0;
 
@@ -62,14 +66,14 @@ public class EnlightenmentCenter extends Robot {
         // crude bidding based on num rounds left
         if (roundNum >= 500) {
             int roundsLeft = GameConstants.GAME_MAX_NUMBER_OF_ROUNDS - roundNum + 1;
-            int amt = rc.getInfluence() / Math.min(10, roundsLeft);
+            int amt = rc.getInfluence() / Math.min(25, roundsLeft);
             if (amt > 0) {
                 rc.bid(amt);
             }
         }
 
         // TESTING PURPOSES ONLY
-        if (roundNum >= 1000) {
+        if (roundNum >= 600) {
             rc.resign();
         }
 
@@ -78,39 +82,47 @@ public class EnlightenmentCenter extends Robot {
         }
 
         // spawn muck scouts
-        if (scoutCount < EARLY_MUCKRAKERS_COUNT && rc.getInfluence() >= 1) {
-            for (Direction dir: getClosestDirs(DIRS[scoutCount])) {
-                MapLocation adjLoc = here.add(dir);
-                if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
-                    CommManager.setStatus(scoutCount % 8);
-                    Actions.doBuildRobot(RobotType.MUCKRAKER, dir, 1);
-                    addKnownAlly(dir);
-                    scoutCount++;
-                    return;
-                }
+        if (scoutCount < EARLY_MUCKRAKERS_COUNT) {
+            Direction dir = makeMuckraker();
+            if (dir != null) {
+                scoutCount++;
             }
             return;
         }
 
+        double muckrakerScore = liveMuckrakers / muckrakerRatio;
+        double politicianScore = livePoliticians / politicianRatio;
+        double slandererScore = liveSlanderers / slandererRatio;
 
-        // make slanderers
-        if (roundNum % 50 == 0) {
-            slanderersMade = Math.max(slanderersMade - 5, 0);
+        log("BUILD SCORES");
+        log("Muckraker: " + muckrakerScore);
+        log("Politician: " + politicianScore);
+        log("Slanderer: " + slandererScore);
+
+        if (enemyMuckrakerCount > 0) {
+            makeDefendPolitician();
+            return;
         }
-        if (enemyMuckrakerCount == 0) {
-            if (slanderersMade < 10 && rc.getInfluence() >= MIN_SLANDERER_COST) {
-                Direction dir = makeSlanderer();
-                if (dir != null) {
-                    slanderersMade++;
-                }
+
+        // no visible enemy muckrakers
+        if (politicianScore < slandererScore) {
+            // 2/3 of politicans are defend
+            // 1/3 of politicians are attack
+            if (Math.random() < 2.0 / 3) {
+                makeDefendPolitician();
+                return;
+            } else {
+                makeAttackPolitician();
                 return;
             }
-        }
-
-        // make politicians
-        if (rc.getInfluence() > 1 + GameConstants.EMPOWER_TAX) {
-            makePolitician();
-            return;
+        } else { // consider muckraker vs slanderer
+            if (muckrakerScore < slandererScore) {
+                makeMuckraker();
+                return;
+            } else {
+                makeSlanderer();
+                return;
+            }
         }
     }
 
@@ -185,7 +197,28 @@ public class EnlightenmentCenter extends Robot {
         }
     }
 
+    public static Direction makeMuckraker() throws GameActionException {
+        log("Trying to build muckraker");
+
+        int targetConviction = (int) Math.ceil(1.0 * (age + 1) / 25);
+        int cost = RobotType.MUCKRAKER.getInfluenceCostForConviction(targetConviction);
+
+        int scoutDirIndex = scoutCount % 8;
+        Direction scoutDir = DIRS[scoutDirIndex];
+
+        int status = scoutDirIndex;
+        CommManager.setStatus(status);
+
+        Direction buildDir = tryBuild(RobotType.MUCKRAKER, scoutDir, cost);
+        if (buildDir != null) {
+            scoutCount++;
+        }
+        return buildDir;
+    }
+
     public static Direction makeSlanderer() throws GameActionException {
+        log("Trying to build slanderer");
+
         // determine cost of slanderer
         int budget = rc.getInfluence();
         int cost = -1;
@@ -199,61 +232,66 @@ public class EnlightenmentCenter extends Robot {
                 }
             }
         }
-        // find direction to build slanderer
-        for (Direction dir: DIRS) {
-            MapLocation adjLoc = here.add(dir);
-            if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
-                Actions.doBuildRobot(RobotType.SLANDERER, dir, cost);
-                addKnownAlly(dir);
-                return dir;
-            }
-        }
-        return null;
+        Direction buildDir = tryBuild(RobotType.SLANDERER, Direction.NORTH, cost);
+        return buildDir;
     }
 
-    public static Direction makePolitician() throws GameActionException {
-        log("Trying to build politician");
-        int cost;
-        Direction scoutDir;
-        int scoutDirIndex;
-        int status;
+    public static Direction makeDefendPolitician() throws GameActionException {
+        log("Trying to build defensive politician");
 
-        if (closestEnemyMuckraker != null) {
-            // make politician to kill close muckraker
-            tlog("To kill close muckraker");
-            // find cost
-            cost = GameConstants.EMPOWER_TAX + Math.min((int) Math.ceil(enemyMuckrakerDanger * 1.25), 4);
-            // find dir
-            scoutDir = here.directionTo(closestEnemyMuckraker);
-            scoutDirIndex = dir2int(scoutDir);
-            // find status
-            status = scoutDirIndex + (1 << 3);
-        } else {
-            // make scouting politician
-            tlog("To scout");
-            // find cost
-            cost = rc.getInfluence() / 2;
-            if (cost < 50) return null;
-            // find dir
-            scoutDirIndex = scoutCount % 8;
-            scoutDir = DIRS[scoutDirIndex];
-            // find status
-            status = scoutDirIndex;
+        int cost = GameConstants.EMPOWER_TAX + Math.max((int) Math.ceil(enemyMuckrakerDanger * 1.25), 4);
+        if (cost > rc.getInfluence()) {
+            return null;
         }
-        Direction[] checkDirs = getClosestDirs(DIRS[scoutDirIndex]);
 
-        // find direction to build slanderer
+        Direction scoutDir;
+        if (closestEnemyMuckraker != null) {
+            scoutDir = here.directionTo(closestEnemyMuckraker);
+        } else {
+            scoutDir = getRandomDir();
+        }
+        int scoutDirIndex = dir2int(scoutDir);
+
+        int status = scoutDirIndex + (1 << 3);
+        CommManager.setStatus(status);
+
+        Direction buildDir = tryBuild(RobotType.POLITICIAN, scoutDir, cost);
+        return buildDir;
+    }
+
+    public static Direction makeAttackPolitician() throws GameActionException {
+        log("Trying to build attack politician");
+
+        int cost = Math.min(250, Math.max(roundNum, GameConstants.EMPOWER_TAX + 1));
+        if (cost > 0.5 * rc.getInfluence()) {
+            return null;
+        }
+
+        int scoutDirIndex = scoutCount % 8;
+        Direction scoutDir = DIRS[scoutDirIndex];
+
+        int status = scoutDirIndex;
+        CommManager.setStatus(status);
+
+        Direction buildDir = tryBuild(RobotType.POLITICIAN, scoutDir, cost);
+        if (buildDir != null) {
+            scoutCount++;
+        }
+        return buildDir;
+    }
+
+    public static Direction tryBuild(RobotType rt, Direction bestDir, int cost) throws GameActionException {
+        Direction[] checkDirs = getClosestDirs(bestDir);
+        // find direction to build
         for (Direction dir: checkDirs) {
             MapLocation adjLoc = here.add(dir);
             if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
-                tlog("Scout " + scoutDir);
-                CommManager.setStatus(status);
-
-                Actions.doBuildRobot(RobotType.POLITICIAN, dir, cost);
+                Actions.doBuildRobot(rt, dir, cost);
                 addKnownAlly(dir);
                 return dir;
             }
         }
         return null;
+
     }
 }

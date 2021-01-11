@@ -119,7 +119,7 @@ public class Politician extends Robot {
                 return;
             }
             // no seen muckrakers
-            explore();
+            Slanderer.wander(Slanderer.POLITICIAN_WANDER_RADIUS);
             return;
         }
     }
@@ -159,11 +159,11 @@ public class Politician extends Robot {
                 Actions.doEmpower(ed);
                 return ed;
             } else {
-                tlog("Could not attack");
+                tlog("Attack is inefficient");
                 return -1;
             }
         }
-        tlog("Could not attack");
+        tlog("No target");
         return -1;
     }
 

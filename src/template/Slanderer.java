@@ -4,8 +4,6 @@ import battlecode.common.*;
 
 import static template.Debug.*;
 import static template.Map.*;
-import static template.Nav.*;
-import static template.Utils.*;
 
 public class Slanderer extends Robot {
 
@@ -50,7 +48,7 @@ public class Slanderer extends Robot {
             return;
         }
 
-        wander();
+        wander(SLANDERER_WANDER_RADIUS);
     }
 
     public static void updateDanger() throws GameActionException {
@@ -128,13 +126,14 @@ public class Slanderer extends Robot {
     }
 
 
-    final public static int MIN_WANDER_RADIUS = 8;
+    final public static int SLANDERER_WANDER_RADIUS = 8;
+    final public static int POLITICIAN_WANDER_RADIUS = 13;
 
     public static boolean wanderLeft = true;
 
-    public static boolean canWander(Direction dir) {
+    public static boolean canWander(Direction dir, int radius) {
         MapLocation loc = rc.adjacentLocation(dir);
-        return isDirMoveable[dir2int(dir)] && !loc.isWithinDistanceSquared(spawnLoc, MIN_WANDER_RADIUS);
+        return isDirMoveable[dir2int(dir)] && !loc.isWithinDistanceSquared(spawnLoc, radius);
     }
 
     public static Direction[] getWanderDirs(Direction dir) {
@@ -153,11 +152,11 @@ public class Slanderer extends Robot {
     /*
     Circles around spawn point
      */
-    public static Direction wander() throws GameActionException {
+    public static Direction wander(int radius) throws GameActionException {
         log("Trying to wander");
 
         // check if too close to spawn
-        if (here.isWithinDistanceSquared(spawnLoc, MIN_WANDER_RADIUS)) {
+        if (here.isWithinDistanceSquared(spawnLoc, radius)) {
             tlog("Too close to spawn");
             return flee(spawnLoc);
         }
@@ -174,7 +173,7 @@ public class Slanderer extends Robot {
         Direction[] wanderDirs = getWanderDirs(wanderDir);
 
         for (int i = 0; i < 8; i++) {
-            if (canWander(wanderDirs[i])) {
+            if (canWander(wanderDirs[i], radius)) {
                 if (i >= 5) {
                     wanderLeft = !wanderLeft;
                 }

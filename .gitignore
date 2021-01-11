@@ -14,5 +14,6 @@ version.txt
 access.txt
 package-lock.json
 scripts/log
+scripts/log.txt
 
 src/template.zip

@@ -50,6 +50,11 @@ public class Muckraker extends Robot {
             return;
         }
 
+        //if early game and on a diagonal from our HQ, don't move
+        if (myMasterLoc!=null && here.distanceSquaredTo(myMasterLoc)==2 && roundNum<350) {
+            return;
+        }
+
         // TODO add better target locking
         // move towards sensed enemy slanderers
         chaseLoc = getBestChase();

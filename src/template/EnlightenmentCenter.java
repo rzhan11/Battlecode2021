@@ -48,7 +48,6 @@ public class EnlightenmentCenter extends Robot {
 
     }
 
-    // TODO add bidding
     // code run each turn
     public static void turn() throws GameActionException {
         updateKnownAllies();
@@ -73,7 +72,8 @@ public class EnlightenmentCenter extends Robot {
         }
 
         // TESTING PURPOSES ONLY
-        if (roundNum >= 600) {
+        if (roundNum >= 750) {
+            log("RESIGNING");
             rc.resign();
         }
 
@@ -225,13 +225,17 @@ public class EnlightenmentCenter extends Robot {
         if (budget >= MAX_SLANDERER_COST) {
             cost = MAX_SLANDERER_COST;
         } else {
-            for (int i = 0; i < SLANDERER_COSTS.length; i++) {
+            if (budget < SLANDERER_COSTS[0]) {
+                return null;
+            }
+            for (int i = 1; i < SLANDERER_COSTS.length; i++) {
                 if (budget < SLANDERER_COSTS[i]) {
                     cost = SLANDERER_COSTS[i - 1];
                     break;
                 }
             }
         }
+
         Direction buildDir = tryBuild(RobotType.SLANDERER, Direction.NORTH, cost);
         return buildDir;
     }

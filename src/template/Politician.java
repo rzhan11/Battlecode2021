@@ -41,7 +41,7 @@ public class Politician extends Robot {
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
         // init my role
-        if (myMaster != -1) {
+        if (myMaster < 0) {
             int status = Comms.getStatusFromFlag(rc.getFlag(myMaster));
             boolean bit3 = (status & (1 << 3)) != 0;
             if (bit3) {

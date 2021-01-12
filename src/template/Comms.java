@@ -4,6 +4,7 @@ import battlecode.common.*;
 
 import static template.CommManager.*;
 import static template.Debug.*;
+import static template.HQTracker.*;
 import static template.Map.*;
 import static template.Robot.*;
 import static template.Utils.*;
@@ -16,7 +17,7 @@ public class Comms {
     2. Add a "read" and "write" method
     1. Add it to the switch statement in 'readMessage()'
     3. Add it to the switch statement in 'checkRepeat()' (if you want to do custom things for repeated msgs)
-    4. Add it to the switch statement in 'Message.toString()' (for nicer printing =) )
+    4. Add it to the switch statement in 'Message.getBaseString()' (for nicer printing =) )
      */
 
     /** TERMINOLOGY (Subject to change)
@@ -49,15 +50,13 @@ public class Comms {
 
     final public static int MAX_STATUS = (1 << STATUS_BITS) - 1;
 
-
     // MESSAGE TYPE CONSTANTS
     final public static int EMPTY_MSG = 0;
 
-    final public static int ENEMY_HQ_LOC_MSG = 1;
-    final public static int ENEMY_HQ_ID_MSG = 2;
-
-    final public static int ALL_TARGET_LOC_MSG = 3;
-    final public static int MUCKRAKER_TARGET_LOC_MSG = 4;
+    final public static int HQ_LOC_MSG = 1;
+    final public static int ALLY_HQ_INFO_MSG = 2;
+    final public static int ENEMY_HQ_INFO_MSG = 3;
+    final public static int NEUTRAL_HQ_INFO_MSG = 4;
 
     final public static int XBOUNDS_MSG = 5;
     final public static int XMIN_MSG = 6;
@@ -67,6 +66,9 @@ public class Comms {
     final public static int YMIN_MSG = 10;
     final public static int YMAX_MSG = 11;
     final public static int YNONE_MSG = 12;
+
+//    final public static int ALL_TARGET_LOC_MSG = ;
+//    final public static int MUCKRAKER_TARGET_LOC_MSG = ;
 
 
     // constants for coordinates
@@ -147,18 +149,6 @@ public class Comms {
             case EMPTY_MSG:
                 readBlank(msg.info, id);
                 break;
-            case ENEMY_HQ_LOC_MSG:
-                readEnemyHQLoc(msg.info, id);
-                break;
-            case ENEMY_HQ_ID_MSG:
-                readEnemyHQID(msg.info, id);
-                break;
-            case ALL_TARGET_LOC_MSG:
-                readAllTargetLoc(msg.info, id);
-                break;
-            case MUCKRAKER_TARGET_LOC_MSG:
-                readMuckrakerTargetLoc(msg.info, id);
-                break;
             case XBOUNDS_MSG:
             case XMIN_MSG:
             case XMAX_MSG:
@@ -171,6 +161,22 @@ public class Comms {
             case YNONE_MSG:
                 readYBounds(msg.info, msg.type);
                 break;
+            case HQ_LOC_MSG:
+                readHQLoc(msg.info, id);
+                break;
+            case ALLY_HQ_INFO_MSG:
+            case ENEMY_HQ_INFO_MSG:
+            case NEUTRAL_HQ_INFO_MSG:
+                readHQInfo(msg.info, msg.type, id);
+                break;
+
+//            case ALL_TARGET_LOC_MSG:
+//                readAllTargetLoc(msg.info);
+//                break;
+//            case MUCKRAKER_TARGET_LOC_MSG:
+//                readMuckrakerTargetLoc(msg.info);
+//                break;
+
             default:
                 logi("ERROR: Unknown msg.type " + msg.type + " from id " + id);
                 break;
@@ -180,17 +186,6 @@ public class Comms {
     public static boolean checkRepeat(Message msg) {
         if (!msg.repeat) return false;
         switch(msg.type) {
-            case ENEMY_HQ_ID_MSG: {
-                int hqid = msg.info + MIN_ID;
-                return inArray(enemyHQIDs, hqid, enemyHQCount);
-            }
-
-            case ENEMY_HQ_LOC_MSG:
-            case ALL_TARGET_LOC_MSG: {
-                // if location no longer exists, stop broadcasting
-                MapLocation loc = bits2loc(msg.info);
-                return inArray(enemyHQLocs, loc, enemyHQCount);
-            }
 
             case XBOUNDS_MSG:
             case XMIN_MSG:
@@ -222,131 +217,51 @@ public class Comms {
          */
     }
 
-    /*
-    14 | ENEMY HQ LOC
-     */
-
-    public static void writeEnemyHQLoc(MapLocation loc, boolean repeat) throws GameActionException {
-        log("Writing 'Enemy HQ Loc' message");
-        tlog("Loc: " + loc);
-
-        Message msg = new Message(ENEMY_HQ_LOC_MSG, loc2bits(loc), repeat);
-        queueMessage(msg, false);
-    }
-
-    public static void readEnemyHQLoc(int msgInfo, int id) throws GameActionException {
-        MapLocation loc = bits2loc(msgInfo);
-        // check if enemy HQ has been previously found
-        for (int i = enemyHQCount; --i >= 0;) {
-            if (loc.equals(enemyHQLocs[i])) {
-                tlog("Known loc: " + loc);
-                return;
-            }
-        }
-
-        // by this point, we know that this is a new enemy HQ
-        if (enemyHQCount == MAX_HQ_COUNT) { // safety check
-            logi("WARNING: enemyHQCount reached MAX_HQ_COUNT limit");
-            return;
-        }
-
-        // saves to array
-        tlog("New loc: " + loc);
-        enemyHQLocs[enemyHQCount] = loc;
-        enemyHQIDs[enemyHQCount] = -id;
-        enemyHQCount++;
-
-        // if i am an enlightenment center, I will notify all allies of new enemy hq ids
-        if (myType == RobotType.ENLIGHTENMENT_CENTER) {
-            writeEnemyHQLoc(loc, true);
-        }
-    }
-
-    /*
-    MAX_ID = 2^14 + 10000
-    14 | ENEMY HQ ID
-     */
-
-    public static void writeEnemyHQID(int id, boolean repeat) throws GameActionException {
-        log("Writing 'Enemy HQ ID' message");
-        tlog("ID: " + id);
-
-        int value = id - MIN_ID;
-        if (!(0 <= value && value < (1 << 14))) {
-            logi("Exception: 'writeEnemyHQID' for " + value + " is too big");
-        }
-
-        Message msg = new Message(ENEMY_HQ_ID_MSG, value, repeat);
-        queueMessage(msg, false);
-    }
-
-    public static void readEnemyHQID(int msgInfo, int id) throws GameActionException {
-        int hqid = msgInfo + MIN_ID;
-
-        for (int i = enemyHQCount; --i >= 0;) {
-            if (enemyHQIDs[i] == -id) {
-                enemyHQIDs[i] = hqid;
-                tlog("HQ " + enemyHQLocs[i]);
-                tlog("ID " + enemyHQIDs[i]);
-                // if i am an enlightenment center, I will notify all allies of new enemy hq ids
-                if (myType == RobotType.ENLIGHTENMENT_CENTER) {
-                    writeEnemyHQID(hqid, true);
-                }
-                return;
-            } else if (enemyHQIDs[i] == hqid) {
-                tlog("Already updated");
-                return;
-            }
-        }
-
-        tlog("Could not update");
-    }
-
-    /*
-    14 | ENEMY HQ LOC
-     */
-    public static void writeAllTargetEnemyHQ(MapLocation loc) throws GameActionException {
-        log("Writing 'All Target Enemy HQ' message");
-        tlog("Loc: " + loc);
-
-        Message msg = new Message(ALL_TARGET_LOC_MSG, loc2bits(loc));
-        queueMessage(msg, false);
-    }
-
-    public static void readAllTargetLoc(int msgInfo, int id) throws GameActionException {
-        switch (myType) {
-            case MUCKRAKER: break;
-            case POLITICIAN: break;
-            default: return;
-        }
-
-        MapLocation loc = bits2loc(msgInfo);
-        tlog("Target HQ loc: " + loc);
-
-        Robot.targetEnemyHQLoc = loc;
-    }
-
-    /*
-    14 | ENEMY HQ LOC
-     */
-    public static void writeMuckrakerTargetEnemyHQ(MapLocation loc) throws GameActionException {
-        log("Writing 'Muckraker Target Enemy HQ' message");
-        tlog("Loc: " + loc);
-
-        Message msg = new Message(MUCKRAKER_TARGET_LOC_MSG, loc2bits(loc));
-        queueMessage(msg, false);
-    }
-
-    public static void readMuckrakerTargetLoc(int msgInfo, int id) throws GameActionException {
-        if (myType != RobotType.MUCKRAKER) {
-            return;
-        }
-
-        MapLocation loc = bits2loc(msgInfo);
-        tlog("Target HQ loc: " + loc);
-
-        Muckraker.targetEnemyHQLoc = loc;
-    }
+//    /*
+//    14 | ENEMY HQ LOC
+//     */
+//    public static void writeAllTargetEnemyHQ(MapLocation loc) throws GameActionException {
+//        log("Writing 'All Target Enemy HQ' message");
+//        tlog("Loc: " + loc);
+//
+//        Message msg = new Message(ALL_TARGET_LOC_MSG, loc2bits(loc));
+//        queueMessage(msg, false);
+//    }
+//
+//    public static void readAllTargetLoc(int msgInfo) throws GameActionException {
+//        switch (myType) {
+//            case MUCKRAKER: break;
+//            case POLITICIAN: break;
+//            default: return;
+//        }
+//
+//        MapLocation loc = bits2loc(msgInfo);
+//        tlog("Target HQ loc: " + loc);
+//
+//        targetEnemyHQLoc = loc;
+//    }
+//
+//    /*
+//    14 | ENEMY HQ LOC
+//     */
+//    public static void writeMuckrakerTargetEnemyHQ(MapLocation loc) throws GameActionException {
+//        log("Writing 'Muckraker Target Enemy HQ' message");
+//        tlog("Loc: " + loc);
+//
+//        Message msg = new Message(MUCKRAKER_TARGET_LOC_MSG, loc2bits(loc));
+//        queueMessage(msg, false);
+//    }
+//
+//    public static void readMuckrakerTargetLoc(int msgInfo) throws GameActionException {
+//        if (myType != RobotType.MUCKRAKER) {
+//            return;
+//        }
+//
+//        MapLocation loc = bits2loc(msgInfo);
+//        tlog("Target HQ loc: " + loc);
+//
+//        targetEnemyHQLoc = loc;
+//    }
 
     /*
     Converts 14 bits into a MapLocation(XMIN, XMAX) or MapLocation(YMIN, YMAX)
@@ -439,5 +354,124 @@ public class Comms {
                 YMAX = loc.y;
             }
         }
+    }
+
+    /*
+    14 | HQ LOCATION
+     */
+    public static Message getHQLocMsg(MapLocation loc, boolean repeat) {
+        return new Message(HQ_LOC_MSG, loc2bits(loc), repeat);
+    }
+
+    public static void writeHQLoc(MapLocation loc, boolean repeat) throws GameActionException {
+        log("Writing 'HQ Loc' message");
+        tlog("Loc: " + loc);
+
+        Message msg = getHQLocMsg(loc, repeat);
+        queueMessage(msg, false);
+    }
+
+    public static void readHQLoc(int msgInfo, int id) throws GameActionException {
+        MapLocation loc = bits2loc(msgInfo);
+        // check if this hq is known
+        for (int i = knownHQCount; --i >= 0;) {
+            if (loc.equals(hqLocs[i])) {
+                // this hq is known
+                tlog("Known Loc: " + loc);
+                if (hqIDs[i] < 0) { // if the hqid is unknown, setup receiving
+                    tlog("Unknown ID, receiving from " + id);
+                    hqIDs[i] = -id;
+                } else {
+                    tlog("Known ID: " + hqIDs[i]);
+                }
+                return;
+            }
+        }
+
+        // by this point, we know that this is a new HQ loc
+        tlog("New HQ Loc: " + loc);
+        tlog("Receiving from " + id);
+        knownHQCount++;
+        hqLocs[knownHQCount - 1] = loc;
+        hqIDs[knownHQCount - 1] = -id;
+        if (myType == RobotType.ENLIGHTENMENT_CENTER) {
+            broadcastHQLoc(knownHQCount - 1);
+        }
+    }
+
+    /*
+    Assumes MAX_ID = 2^14 + 10000
+    14 | ENEMY HQ ID
+     */
+
+    public static Message getHQInfoMsg(int id, Team team, boolean repeat) {
+        int msgType;
+        if (team == us) {
+            msgType = ALLY_HQ_INFO_MSG;
+        } else if (team == them) {
+            msgType = ENEMY_HQ_INFO_MSG;
+        } else if (team == neutral) {
+            msgType = NEUTRAL_HQ_INFO_MSG;
+        } else {
+            // should never reach here
+            logi("WARNING: 'writeEnemyHQID' for unknown team " + team);
+            return null;
+        }
+
+        int value = id - MIN_ID;
+        if (!(0 <= value && value < (1 << 14))) {
+            logi("WARNING: 'writeEnemyHQID' for " + value + " is too big");
+        }
+
+        return new Message(msgType, value, repeat);
+    }
+
+    public static void writeHQInfo(int id, Team team, boolean repeat) throws GameActionException {
+        log("Writing 'HQ Info' message");
+        tlog("ID: " + id);
+        tlog("Team: " + team);
+
+        Message msg = getHQInfoMsg(id, team, repeat);
+        queueMessage(msg, false);
+    }
+
+    public static void readHQInfo(int msgInfo, int msgType, int id) throws GameActionException {
+        int hqid = msgInfo + MIN_ID;
+        Team team;
+        switch (msgType) {
+            case ALLY_HQ_INFO_MSG:
+                team = us;
+                break;
+            case ENEMY_HQ_INFO_MSG:
+                team = them;
+                break;
+            case NEUTRAL_HQ_INFO_MSG:
+                team = neutral;
+                break;
+            default:
+                logi("WARNING: Unknown msgType in 'readHQInfo' " + msgType);
+                return;
+        }
+
+        for (int i = knownHQCount; --i >= 0;) {
+            if (hqIDs[i] == -id) {
+                hqIDs[i] = hqid;
+                hqTeams[i] = team;
+                tlog("Receiving from " + id);
+                tlog("HQ " + hqLocs[i] + " " + hqIDs[i] + " " + hqTeams[i]);
+
+                if (myType == RobotType.ENLIGHTENMENT_CENTER) {
+                    // if I am an enlightenment center
+                    // then notify allies of new hq ids/teams
+                    broadcastHQInfo(i);
+                }
+                return;
+            } else if (hqIDs[i] == hqid) {
+                tlog("Info is already known");
+                return;
+            }
+        }
+
+        tlog("No receiving ID found");
     }
 }

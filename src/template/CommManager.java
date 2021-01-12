@@ -59,16 +59,18 @@ public class CommManager {
      */
     public static void updateMessageCount() throws GameActionException {
         if (msgQueueCount > 0) {
-            msgQueue[msgQueueIndex] = null;
-            // if repeated, readd it to the queue
-            if (checkRepeat(myMessage)) {
+            msgQueue[msgQueueIndex] = myMessage.next;
+            if (myMessage.next == null) {
+                // if repeated, readd it to the queue
+                if (checkRepeat(myMessage)) {
 //                log("YES REPEAT");
-                msgQueue[(msgQueueIndex + msgQueueCount) % MSG_QUEUE_LEN] = myMessage;
-            } else {
+                    msgQueue[(msgQueueIndex + msgQueueCount) % MSG_QUEUE_LEN] = myMessage.getMessageFront();
+                } else {
 //                log("NO REPEAT");
-                msgQueueCount--;
+                    msgQueueCount--;
+                }
+                msgQueueIndex = (msgQueueIndex + 1) % MSG_QUEUE_LEN;
             }
-            msgQueueIndex = (msgQueueIndex + 1) % MSG_QUEUE_LEN;
         }
     }
 
@@ -100,6 +102,7 @@ public class CommManager {
         }
 
         int index;
+        // todo chained messages vs urgent messages
         if (urgent) {
             index = (msgQueueIndex - 1 + MSG_QUEUE_LEN) % MSG_QUEUE_LEN;
             msgQueueIndex = index;
@@ -115,15 +118,19 @@ public class CommManager {
         }
     }
 
-    public static void printMessages() throws GameActionException {
-        log("QUEUED MESSAGES " + msgQueueCount);
+    public static void printMessageQueue() throws GameActionException {
+        log("Queued Messages: " + msgQueueCount);
         for (int i = 0; i < msgQueueCount; i++) {
             int index = (msgQueueIndex + i) % MSG_QUEUE_LEN;
             if (msgQueue[index] != null) {
                 tlog(msgQueue[index].toString());
+                if (msgQueue[index].isChained()) {
+                    log(msgQueue[index].getFullString());
+                }
             } else {
                 tlog(null);
             }
+            log();
         }
     }
 }

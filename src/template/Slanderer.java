@@ -102,7 +102,7 @@ public class Slanderer extends Robot {
         Direction bestDir = null;
         double bestScore = N_INF;
 
-        for (int i = 8; --i >=0;) { // 7->0
+        for (int i = 8; --i >= 0;) { // 7->0
             Direction dir = DIRS[i];
             if (isDirMoveable[dir2int(dir)]) {
                 MapLocation adjLoc = rc.adjacentLocation(dir);

@@ -51,7 +51,7 @@ public class Muckraker extends Robot {
         }
 
         //if early game and on a diagonal from our HQ, don't move
-        if (myMasterLoc!=null && here.distanceSquaredTo(myMasterLoc)==2 && roundNum<350) {
+        if (myMasterLoc!=null && here.distanceSquaredTo(myMasterLoc) == 2 && roundNum<350) {
             return;
         }
 
@@ -107,7 +107,7 @@ public class Muckraker extends Robot {
     public static MapLocation getBestExpose() {
         RobotInfo bestExpose = null;
         int bestValue = -1;
-        for (int i = closeEnemySlandererCount; --i >=0;) {
+        for (int i = closeEnemySlandererCount; --i >= 0;) {
             RobotInfo ri = closeEnemySlanderers[i];
             if (ri.influence > bestValue) {
                 bestExpose = ri;
@@ -124,7 +124,7 @@ public class Muckraker extends Robot {
     public static MapLocation getBestChase() {
         RobotInfo bestExpose = null;
         int bestValue = -1;
-        for (int i = enemySlandererCount; --i >=0;) {
+        for (int i = enemySlandererCount; --i >= 0;) {
             RobotInfo ri = enemySlanderers[i];
             if (ri.influence > bestValue) {
                 bestExpose = ri;
@@ -140,7 +140,7 @@ public class Muckraker extends Robot {
 
     private static void updateCloseEnemySlanderers() {
         closeEnemySlandererCount = 0;
-        for (int i = enemySlandererCount; --i >=0;) {
+        for (int i = enemySlandererCount; --i >= 0;) {
             RobotInfo ri = enemySlanderers[i];
             if (here.isWithinDistanceSquared(ri.location, myActionRadius)) {
                 closeEnemySlanderers[closeEnemySlandererCount++] = ri;

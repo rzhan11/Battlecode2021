@@ -6,6 +6,7 @@ import java.util.Random;
 
 import static template.Comms.*;
 import static template.Debug.*;
+import static template.HQTracker.*;
 import static template.Map.*;
 import static template.Nav.*;
 import static template.Utils.*;
@@ -72,6 +73,11 @@ public abstract class Robot extends Constants {
 
         rand = new Random(myID);
 
+        // after simple updates
+
+        Debug.clearBuffer();
+        log("INIT ROBOT");
+
         Comms.initBaseCoords(rc.getLocation());
 
         HardCode.initHardCode();
@@ -94,6 +100,18 @@ public abstract class Robot extends Constants {
         enemyMuckrakers = new RobotInfo[maxSensedUnits];
         enemyPoliticians = new RobotInfo[maxSensedUnits];
         enemySlanderers = new RobotInfo[maxSensedUnits];
+
+        for (int i = 0; i < hqLocs.length; i++) {
+            hqIDs[i] = -1;
+        }
+
+        // add myself to hqinfo
+        if (myType == RobotType.ENLIGHTENMENT_CENTER) {
+            reportNewHQLoc(rc.getLocation());
+            reportHQInfo(knownHQCount - 1, myID, us);
+        }
+
+        Debug.printBuffer();
     }
 
     /*
@@ -108,6 +126,7 @@ public abstract class Robot extends Constants {
     public static int myInfluence;
     public static int myConviction;
 
+    public static RobotInfo[] sensedRobots;
     public static RobotInfo[] sensedAllies;
     public static RobotInfo[] sensedEnemies;
     public static RobotInfo[] sensedNeutrals;
@@ -128,10 +147,12 @@ public abstract class Robot extends Constants {
     public static int myMaster = -1;
     public static MapLocation myMasterLoc = null;
 
-    public static MapLocation[] enemyHQLocs = new MapLocation[MAX_HQ_COUNT];
-    // for enemyHQIDs, if negative, it represents the value of the robot that signalled the corresponding location
-    public static int[] enemyHQIDs = new int[MAX_HQ_COUNT];
-    public static int enemyHQCount = 0;
+    public static MapLocation[] hqLocs = new MapLocation[MAX_HQ_COUNT];
+    public static Message[] hqLocMsgs = new Message[MAX_HQ_COUNT];
+    // not guaranteed to be accurate, however if hqIDs[i] is known, then hqTeams[i] should be accurate
+    public static Team[] hqTeams = new Team[MAX_HQ_COUNT];
+    public static int[] hqIDs = new int[MAX_HQ_COUNT];
+    public static int knownHQCount = 0;
 
     public static MapLocation targetEnemyHQLoc;
     public static int targetEnemyHQID;
@@ -142,42 +163,28 @@ public abstract class Robot extends Constants {
 
     public static void updateTurnInfo() throws GameActionException {
         Debug.clearBuffer();
-
-        // independent, always first
-        updateBasicInfo();
-
-        sortEnemyTypes();
+        CommManager.updateQueuedMessage();
 
         // independent
+        updateBasicInfo();
+
+        // independent
+        sortEnemyTypes();
         updateIsDirMoveable();
 
         // TODO symmetry checks
-        // independent
+        // TODO use symmetry to determine hq locs
         updateMapBounds();
 
-        // independent
-        CommManager.updateQueuedMessage();
+        // after updateMapBounds & symmetry stuff
+        updateKnownHQs();
+        updateTargetEnemyHQ();
 
-        // after updateMapBounds
-        updateEnemyHQs();
-
-        // independent
+        // after updateKnownHQs
         updateMaster();
 
         // after updateMaster
-        // before readMasterComms
-        printMyInfo();
-        printBuffer();
-
-        // after updateMaster, updateEnemyHQs, updateMapBounds
         readMasterComms();
-
-        // after readMasterComms, updateEnemyHQs
-        if (myType != RobotType.ENLIGHTENMENT_CENTER) {
-            reportEnemyHQs();
-        }
-
-        updateTargetEnemyHQ();
 
         // independent
         CommManager.updateQueuedMessage();
@@ -186,10 +193,10 @@ public abstract class Robot extends Constants {
         log("MAP X " + new MapLocation(XMIN, XMAX));
         log("MAP Y " + new MapLocation(YMIN, YMAX));
 
-        // enemy hq info
-        log("Enemy HQs " + enemyHQCount);
-        for (int i = 0; i < enemyHQCount; i++) {
-            tlog(enemyHQLocs[i] + " " + enemyHQIDs[i]);
+        // hq info
+        log("HQs: " + knownHQCount);
+        for (int i = 0; i < knownHQCount; i++) {
+            tlog(hqLocs[i] + " " + hqIDs[i] + " " + hqTeams[i]);
         }
 
         printBuffer();
@@ -207,6 +214,7 @@ public abstract class Robot extends Constants {
         myInfluence = rc.getInfluence();
         myConviction = rc.getConviction();
 
+        sensedRobots = rc.senseNearbyRobots();
         sensedAllies = rc.senseNearbyRobots(-1, us);
         sensedEnemies = rc.senseNearbyRobots(-1, them);
         sensedNeutrals = rc.senseNearbyRobots(-1, neutral);
@@ -214,6 +222,10 @@ public abstract class Robot extends Constants {
         adjAllies = rc.senseNearbyRobots(2, us);
 
         CommManager.resetFlag();
+
+        // print basic info
+        printMyInfo();
+        printBuffer();
     }
 
     public static void sortEnemyTypes() throws GameActionException {
@@ -250,6 +262,7 @@ public abstract class Robot extends Constants {
         if (myType == RobotType.ENLIGHTENMENT_CENTER) {
             return;
         }
+
         // check if master is dead
         if (!rc.canGetFlag(myMaster)) {
             myMaster = -1;
@@ -257,27 +270,31 @@ public abstract class Robot extends Constants {
         }
 
         // if no master, try to find new master
-        if (myMaster == -1) {
+        if (myMaster < 0) {
+            // updates myMaster and myMasterLoc
             int bestDist = P_INF;
-            for (RobotInfo ri: sensedAllies) {
-                if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
-                    int dist = here.distanceSquaredTo(ri.location);
+            for (int i = knownHQCount; --i >= 0;) {
+                int id = hqIDs[i];
+                // checks if this is an ally hq with known id
+                if (id > 0 && hqTeams[i] == us) {
+                    int dist = here.distanceSquaredTo(hqLocs[i]);
                     if (dist < bestDist) {
-                        myMaster = ri.getID();
-                        myMasterLoc = ri.location;
+                        myMaster = id;
+                        myMasterLoc = hqLocs[i];
                         bestDist = dist;
                     }
-                    return;
                 }
             }
         }
+
+        log("Master: " + myMaster + "@" + myMasterLoc);
     }
 
     public static void readMasterComms() throws GameActionException {
         if (myType == RobotType.ENLIGHTENMENT_CENTER) {
             return;
         }
-        if (myMaster != -1) {
+        if (myMaster > 0) {
             Comms.readMessage(myMaster);
         }
     }
@@ -294,67 +311,13 @@ public abstract class Robot extends Constants {
     }
 
     /*
-    Enemy hq code
-     */
-
-    public static void updateEnemyHQs() throws GameActionException {
-        // TODO merge with politician/muckraker targetting
-        // delete dead enemies
-        for (int i = enemyHQCount; --i >= 0;) {
-            int id = enemyHQIDs[i];
-            MapLocation loc = enemyHQLocs[i];
-            if (id > 0 && !rc.canGetFlag(id)) {
-                enemyHQCount--;
-                swap(enemyHQIDs, i, enemyHQCount);
-                swap(enemyHQLocs, i, enemyHQCount);
-            } else if (rc.canSenseLocation(loc)) {
-                if (rc.senseRobotAtLocation(loc).team != them) {
-                    enemyHQCount--;
-                    swap(enemyHQIDs, i, enemyHQCount);
-                    swap(enemyHQLocs, i, enemyHQCount);
-                }
-            }
-        }
-
-        // MOVED: adding seen enemy hq's is done in the 'reportEnemyHQs' method
-    }
-
-    public static void reportEnemyHQs() throws GameActionException {
-        for (int i = sensedEnemyHQCount; --i >= 0;) {
-            RobotInfo ri = sensedEnemyHQs[i];
-            int id = ri.getID();
-            if (!inArray(enemyHQIDs, id, enemyHQCount)) {
-                // add to array
-                enemyHQLocs[enemyHQCount] = ri.location;
-                enemyHQIDs[enemyHQCount] = id;
-                enemyHQCount++;
-                // add messages to queue
-                writeEnemyHQLoc(ri.location, false);
-                writeEnemyHQID(id, false);
-            }
-        }
-    }
-
-    public static void updateTargetEnemyHQ() throws GameActionException {
-        // update targetEnemyHQLoc
-        if (enemyHQCount > 0) {
-            targetEnemyHQLoc = enemyHQLocs[0];
-            targetEnemyHQID = enemyHQIDs[0];
-        } else {
-            targetEnemyHQLoc = null;
-            targetEnemyHQID = -1;
-        }
-        log("targetEnemyHQ " + targetEnemyHQLoc + " " + targetEnemyHQID);
-    }
-
-    /*
     Exploration code
      */
 
     public static void initExploreLoc() throws GameActionException {
         // default exploreDir is randomized
         exploreDir = DIRS[myID % 8];
-        if (myMaster != -1) {
+        if (myMaster > 0) {
             int status = Comms.getStatusFromFlag(rc.getFlag(myMaster));
             exploreDir = DIRS[status % 8];
         }
@@ -397,7 +360,7 @@ public abstract class Robot extends Constants {
     Checks if we exceeded the bytecode limit
      */
     public static void endTurn() throws GameActionException {
-        CommManager.printMessages();
+        CommManager.printMessageQueue();
         CommManager.updateMessageCount();
 
         int status = CommManager.getStatus();
@@ -434,7 +397,6 @@ public abstract class Robot extends Constants {
         log("Robot: " + myType);
         log("roundNum: " + roundNum);
         log("ID: " + myID);
-        log("Master: " + myMaster + "@" + myMasterLoc);
         log("*Location: " + here);
         log("*Conv/Infl: " + rc.getInfluence() + "/" + rc.getConviction());
         log("*Cooldown: " + rc.getCooldownTurns());

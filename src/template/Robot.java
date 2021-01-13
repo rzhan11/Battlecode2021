@@ -151,9 +151,6 @@ public abstract class Robot extends Constants {
     public static int[] extraAllyHQs = new int[MAX_HQ_COUNT];
     public static int extraAllyHQCount = 0;
 
-    public static MapLocation targetEnemyHQLoc;
-    public static int targetEnemyHQID;
-
     public static Direction exploreDir;
     public static MapLocation exploreLoc;
 
@@ -175,7 +172,6 @@ public abstract class Robot extends Constants {
 
         // after updateMapBounds & symmetry stuff
         updateKnownHQs();
-        updateTargetEnemyHQ();
 
         // after updateKnownHQs
         updateMaster();

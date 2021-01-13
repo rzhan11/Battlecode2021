@@ -126,26 +126,33 @@ public class Slanderer extends Robot {
     }
 
 
-    final public static int SLANDERER_WANDER_RADIUS = 8;
+    final public static int SLANDERER_WANDER_RADIUS = 4;
     final public static int POLITICIAN_WANDER_RADIUS = 13;
 
     public static boolean wanderLeft = true;
 
+    public static MapLocation wanderCenter;
+
     public static boolean canWander(Direction dir, int radius) {
         MapLocation loc = rc.adjacentLocation(dir);
-        return isDirMoveable[dir2int(dir)] && !loc.isWithinDistanceSquared(spawnLoc, radius);
+        ttlog(isDirMoveable[dir2int(dir)] + " " + !wanderCenter.isWithinDistanceSquared(loc, radius));
+        return isDirMoveable[dir2int(dir)] && !wanderCenter.isWithinDistanceSquared(loc, radius);
     }
 
     public static Direction[] getWanderDirs(Direction dir) {
         Direction[] dirs = new Direction[8];
-        dirs[0] = dir; // straight
-        dirs[1] = wanderLeft ? dir.rotateLeft() : dir.rotateRight(); // in
+        Direction opp = dir.opposite();
+        // init direction
+        dirs[0] = wanderLeft ? dir.rotateLeft() : dir.rotateRight(); // in
+        dirs[1] = dir; // straight
         dirs[2] = wanderLeft ? dir.rotateRight() : dir.rotateLeft(); // out
-        dirs[3] = wanderLeft ? dirs[1].rotateLeft() : dirs[1].rotateRight(); // in
-        dirs[4] = wanderLeft ? dirs[2].rotateRight() : dirs[2].rotateLeft(); // out
-        dirs[5] = dir.opposite(); // straight
-        dirs[6] = wanderLeft ? dirs[5].rotateRight() : dirs[5].rotateLeft(); // in
-        dirs[7] = wanderLeft ? dirs[5].rotateLeft() : dirs[5].rotateRight(); // in
+        // perpendicular
+        dirs[3] = wanderLeft ? dir.rotateLeft().rotateLeft() : dir.rotateRight().rotateRight(); // in
+        dirs[4] = wanderLeft ? dir.rotateRight().rotateRight() : dir.rotateLeft().rotateLeft(); // out
+        // turning around
+        dirs[5] = wanderLeft ? opp.rotateRight() : opp.rotateLeft(); // in
+        dirs[6] = opp; // straight
+        dirs[7] = wanderLeft ? opp.rotateLeft() : opp.rotateRight(); // out
         return dirs;
     }
 
@@ -154,25 +161,31 @@ public class Slanderer extends Robot {
      */
     public static Direction wander(int radius) throws GameActionException {
         log("Trying to wander");
+        tlog(wanderLeft ? "Going left": "Going right");
+
+        updateWanderCenter();
+        tlog("wanderCenter " + wanderCenter);
 
         // check if too close to spawn
-        if (here.isWithinDistanceSquared(spawnLoc, radius)) {
-            tlog("Too close to spawn");
-            return flee(spawnLoc);
+        if (here.isWithinDistanceSquared(wanderCenter, radius)) {
+            tlog("Too close to wanderCenter");
+            return flee(wanderCenter);
         }
 
         // try to circle
-        Direction spawnDir = here.directionTo(spawnLoc);
+        Direction dir2center = wanderCenter.directionTo(here);
         Direction wanderDir;
         if (wanderLeft) {
-            wanderDir = spawnDir.rotateLeft().rotateLeft();
+            wanderDir = dir2center.rotateLeft().rotateLeft();
         } else {
-            wanderDir = spawnDir.rotateRight().rotateRight();
+            wanderDir = dir2center.rotateRight().rotateRight();
         }
 
         Direction[] wanderDirs = getWanderDirs(wanderDir);
+        log("Init wanderDir " + wanderDir + " " + dir2center);
 
         for (int i = 0; i < 8; i++) {
+            log("Considering " + i + " " + wanderDirs[i]);
             if (canWander(wanderDirs[i], radius)) {
                 if (i >= 5) {
                     wanderLeft = !wanderLeft;
@@ -186,9 +199,19 @@ public class Slanderer extends Robot {
         return null;
     }
 
+    public static void updateWanderCenter() {
+        if (myMasterLoc != null) {
+            log("Using master");
+            wanderCenter = myMasterLoc;
+        } else {
+            log("Using spawn");
+            wanderCenter = spawnLoc;
+        }
+    }
+
 //    public static boolean isCrowded() {
 //        // check if too close to spawn
-//        if (here.isWithinDistanceSquared(spawnLoc, MIN_WANDER_RADIUS)) {
+//        if (here.isWithinDistanceSquared(wanderCenter, MIN_WANDER_RADIUS)) {
 //            return true;
 //        }
 //
@@ -197,7 +220,7 @@ public class Slanderer extends Robot {
 //        RobotInfo[] closeAllies = rc.senseNearbyRobots(center, CROWD_RADIUS, us);
 //
 //        drawDot(center, BLACK);
-//        drawLine(here, spawnLoc, GREEN);
+//        drawLine(here, wanderCenter, GREEN);
 //        log("center " + center);
 //        log("spawnDir " + spawnDir);
 //        log("crowd size " + closeAllies.length);

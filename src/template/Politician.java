@@ -2,11 +2,9 @@ package template;
 
 import battlecode.common.*;
 
-import java.util.Arrays;
-
 import static template.Debug.*;
 import static template.Nav.*;
-import static template.Utils.getClosest;
+import static template.Utils.*;
 
 
 public class Politician extends Robot {
@@ -30,13 +28,16 @@ public class Politician extends Robot {
 
 
     // attacker variables
-    public static int noEnemyHQTimer;
+    public static int noTargetHQTimer;
 
 
     // defender variables
     public static MapLocation closestEnemyMuckraker;
     public static MapLocation closestEnemy;
 
+    public static int targetHQIndex = -1;
+    public static MapLocation targetHQLoc = null;
+    public static int targetHQID = -1;
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
@@ -64,6 +65,7 @@ public class Politician extends Robot {
 
         updateExploreLoc();
         updateEnemies();
+        updateTargetHQ();
 
         if (myRole == ROLE_ATTACK) {
             log("[ROLE_ATTACK]");
@@ -79,17 +81,17 @@ public class Politician extends Robot {
         }
 
         if(myRole == ROLE_ATTACK) {
-            // target enemy hq
-            if (targetEnemyHQLoc != null) {
-                noEnemyHQTimer = 0;
-                tryAttackChase(targetEnemyHQLoc);
+            // target hq
+            if (targetHQIndex != -1) {
+                noTargetHQTimer = 0;
+                tryAttackChase(targetHQLoc);
                 return;
             }
 
-            noEnemyHQTimer++;
+            noTargetHQTimer++;
 
-            log("Aggression timer " + noEnemyHQTimer);
-            if (noEnemyHQTimer >= 25) {
+            log("Aggression timer " + noTargetHQTimer);
+            if (noTargetHQTimer >= 25) {
                 tlog("EXTREME AGGRESSION");
                 extremeAggression = true;
             }
@@ -99,11 +101,11 @@ public class Politician extends Robot {
                 tryAttackChase(closestEnemyMuckraker);
                 return;
             } else {
-                noEnemyHQTimer++;
+                noTargetHQTimer++;
             }
 
             // target any enemies
-            if (noEnemyHQTimer > 10 && closestEnemy != null) {
+            if (noTargetHQTimer > 10 && closestEnemy != null) {
                 extremeAggression = true;
                 tryAttackChase(closestEnemy);
                 return;
@@ -141,6 +143,50 @@ public class Politician extends Robot {
             closestEnemy = null;
         }
         log("Closest enemy: " + closestEnemy);
+    }
+
+    public static void updateTargetHQ() throws GameActionException {
+        if (targetHQIndex != -1) {
+            // reset if the target hq has changed to our team
+            if (hqTeams[targetHQIndex] == us) {
+                targetHQIndex = -1;
+                targetHQLoc = null;
+                targetHQID = -1;
+            } else if (targetHQID > 0 && !rc.canGetFlag(targetHQID)) {
+                // reset if target hq is dead
+                targetHQIndex = -1;
+                targetHQLoc = null;
+                targetHQID = -1;
+            }
+        }
+
+        if (targetHQIndex == -1) {
+            int bestDist = P_INF;
+            for (int i = knownHQCount; --i >= 0;) {
+                if (hqTeams[i] == them || hqTeams[i] == neutral) {
+                    if (hqIDs[i] > 0) {
+                        int dist = here.distanceSquaredTo(hqLocs[i]);
+                        if (dist < bestDist) {
+                            targetHQIndex = i;
+                            bestDist = dist;
+                        }
+                    }
+                }
+            }
+            // if we found a targethq, assign other relevant variables
+            if (targetHQIndex != -1) {
+                targetHQLoc = hqLocs[targetHQIndex];
+                targetHQID = hqIDs[targetHQIndex];
+            }
+        }
+        log("targetHQ: " + targetHQIndex + " " + targetHQID + " " + targetHQLoc);
+    }
+
+    public static void getNewTargetHQ() throws GameActionException {
+        // find a new targetHQLoc and targetHQID
+        targetHQLoc = null;
+        targetHQID = -1;
+
     }
 
     public static void tryAttackChase(MapLocation targetLoc) throws GameActionException {

@@ -26,6 +26,9 @@ public class Muckraker extends Robot {
     public static int targetHQChecked = -100;
     public final static int CHECK_HQ_TURNS = 200;
 
+    public static MapLocation targetEnemyHQLoc;
+    public static int targetEnemyHQID;
+
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
         initExploreLoc();
@@ -36,8 +39,9 @@ public class Muckraker extends Robot {
     // code run each turn
     public static void turn() throws GameActionException {
         updateDetectedLocs();
-        updateCloseEnemySlanderers();
         updateExploreLoc();
+        updateTargetEnemyHQ();
+        updateCloseEnemySlanderers();
 
         if (!rc.isReady()) {
             return;
@@ -51,9 +55,9 @@ public class Muckraker extends Robot {
         }
 
         //if early game and on a diagonal from our HQ, don't move
-        if (myMasterLoc!=null && here.distanceSquaredTo(myMasterLoc) == 2 && roundNum<350) {
-            return;
-        }
+//        if (myMasterLoc!=null && here.distanceSquaredTo(myMasterLoc) == 2 && roundNum<350) {
+//            return;
+//        }
 
         // TODO add better target locking
         // move towards sensed enemy slanderers
@@ -136,6 +140,20 @@ public class Muckraker extends Robot {
         } else {
             return bestExpose.getLocation();
         }
+    }
+
+    public static void updateTargetEnemyHQ() throws GameActionException {
+        // update targetEnemyHQLoc
+        targetEnemyHQLoc = null;
+        targetEnemyHQID = -1;
+        for (int i = knownHQCount; --i >= 0; ) {
+            if (hqTeams[i] == them) {
+                targetEnemyHQLoc = hqLocs[i];
+                targetEnemyHQID = hqIDs[i];
+                break;
+            }
+        }
+        log("targetEnemyHQ " + targetEnemyHQLoc + " " + targetEnemyHQID);
     }
 
     private static void updateCloseEnemySlanderers() {

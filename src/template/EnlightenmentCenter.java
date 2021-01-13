@@ -27,8 +27,6 @@ public class EnlightenmentCenter extends Robot {
 
     public static int scoutCount = 0;
 
-    public static int slanderersMade;
-
     public static int liveMuckrakers = 0;
     public static int liveSlanderers = 0;
     public static int livePoliticians = 0;
@@ -36,8 +34,8 @@ public class EnlightenmentCenter extends Robot {
     public static int enemyMuckrakerDanger = 0;
     public static MapLocation closestEnemyMuckraker;
 
-    public static double muckrakerRatio = 4.0;
-    public static double politicianRatio = 4.0;
+    public static double muckrakerRatio = 1.0;
+    public static double politicianRatio = 3.0;
     public static double slandererRatio = 1.0;
 
 //    public static int enemyHQIndex = 0;
@@ -70,7 +68,7 @@ public class EnlightenmentCenter extends Robot {
         if (rc.getTeamVotes() < GameConstants.GAME_MAX_NUMBER_OF_ROUNDS / 2) {
             if (roundNum >= 500) {
                 int roundsLeft = GameConstants.GAME_MAX_NUMBER_OF_ROUNDS - roundNum + 1;
-                int amt = rc.getInfluence() / Math.min(25, roundsLeft);
+                int amt = rc.getInfluence() / Math.min(10, roundsLeft);
                 if (amt > 0) {
                     rc.bid(amt);
                 }
@@ -78,10 +76,10 @@ public class EnlightenmentCenter extends Robot {
         }
 
         // TESTING PURPOSES ONLY
-        if (roundNum >= 400) {
-            log("RESIGNING");
-            rc.resign();
-        }
+//        if (roundNum >= 400) {
+//            log("RESIGNING");
+//            rc.resign();
+//        }
 
         if (!rc.isReady()) {
             return;
@@ -104,6 +102,12 @@ public class EnlightenmentCenter extends Robot {
         log("Muckraker: " + muckrakerScore);
         log("Politician: " + politicianScore);
         log("Slanderer: " + slandererScore);
+
+        if (rc.getRobotCount() > 600) {
+            log("Greed");
+            makeSlanderer();
+            return;
+        }
 
         if (enemyMuckrakerCount > 0) {
             log("Emergency defense");

@@ -70,20 +70,6 @@ public class HQTracker {
         }
     }
 
-    public static void updateTargetEnemyHQ() throws GameActionException {
-        // update targetEnemyHQLoc
-        targetEnemyHQLoc = null;
-        targetEnemyHQID = -1;
-        for (int i = knownHQCount; --i >= 0; ) {
-            if (hqTeams[i] == them) {
-                targetEnemyHQLoc = hqLocs[i];
-                targetEnemyHQID = hqIDs[i];
-                break;
-            }
-        }
-        log("targetEnemyHQ " + targetEnemyHQLoc + " " + targetEnemyHQID);
-    }
-
     public static void saveHQLoc(MapLocation loc) throws GameActionException {
         hqLocs[knownHQCount++] = loc;
     }

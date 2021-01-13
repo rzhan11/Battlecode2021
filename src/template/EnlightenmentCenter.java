@@ -9,7 +9,7 @@ import static template.Utils.*;
 public class EnlightenmentCenter extends Robot {
     // final constants
 
-    final public static int MAX_KNOWN_ALLIES = 1000;
+    final public static int MAX_KNOWN_ALLIES = 300;
 
     final public static int[] SLANDERER_COSTS = new int[] {21, 41, 63, 85, 107, 130, 154, 178, 203, 228, 255, 282, 310, 339, 368, 399};
     final public static int MIN_SLANDERER_COST = 21;
@@ -20,21 +20,25 @@ public class EnlightenmentCenter extends Robot {
 
     // variables
 
-    public static int[] knownAllies = new int[MAX_KNOWN_ALLIES];
-    public static RobotType[] knownAlliesType = new RobotType[MAX_KNOWN_ALLIES];
-    public static int knownAlliesCount = 0;
+    public static int[] myMuckrakers = new int[MAX_KNOWN_ALLIES];
+    public static int myMuckrakerCount = 0;
+
+    public static int[] myPoliticians = new int[MAX_KNOWN_ALLIES];
+    public static int myPoliticianCount = 0;
+
+    public static int[] mySlanderers = new int[MAX_KNOWN_ALLIES];
+    public static int[] mySlandererSpawnRounds = new int[MAX_KNOWN_ALLIES];
+    public static int mySlandererCount = 0;
+
+
     public static int processMessageIndex = 0;
 
     public static int scoutCount = 0;
 
-    public static int liveMuckrakers = 0;
-    public static int liveSlanderers = 0;
-    public static int livePoliticians = 0;
-
     public static int enemyMuckrakerDanger = 0;
     public static MapLocation closestEnemyMuckraker;
 
-    public static double muckrakerRatio = 1.0;
+    public static double muckrakerRatio = 2.0;
     public static double politicianRatio = 3.0;
     public static double slandererRatio = 1.0;
 
@@ -52,7 +56,9 @@ public class EnlightenmentCenter extends Robot {
     // code run each turn
     public static void turn() throws GameActionException {
         updateKnownAllies();
-        processMessages();
+        processMessages(myMuckrakers, myMuckrakerCount);
+        processMessages(myPoliticians, myPoliticianCount);
+        processMessages(mySlanderers, mySlandererCount);
 
 
         updateEnemies();
@@ -94,9 +100,9 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
-        double muckrakerScore = liveMuckrakers / muckrakerRatio;
-        double politicianScore = livePoliticians / politicianRatio;
-        double slandererScore = liveSlanderers / slandererRatio;
+        double muckrakerScore = myMuckrakerCount / muckrakerRatio;
+        double politicianScore = myPoliticianCount / politicianRatio;
+        double slandererScore = mySlandererCount / slandererRatio;
 
         log("BUILD SCORES");
         log("Muckraker: " + muckrakerScore);
@@ -137,7 +143,10 @@ public class EnlightenmentCenter extends Robot {
         }
     }
 
-    public static int frontDelete = 0;
+    // when we hit the unit cap, delete from the front
+    public static int muckrakerFrontDelete = 0;
+    public static int politicianFrontDelete = 0;
+    public static int slandererFrontDelete = 0;
 
     public static void addKnownAlly(Direction dir) throws GameActionException {
         RobotInfo ri = rc.senseRobotAtLocation(rc.adjacentLocation(dir));
@@ -145,60 +154,92 @@ public class EnlightenmentCenter extends Robot {
     }
 
     public static void addKnownAlly(int id, RobotType rt) throws GameActionException {
-        int i;
-        if (knownAlliesCount < MAX_KNOWN_ALLIES) {
-            i = knownAlliesCount;
-            knownAlliesCount++;
-        } else { // start deleting from the front
-            i = frontDelete;
-            frontDelete = (frontDelete + 1) % MAX_KNOWN_ALLIES;
+        switch(rt) {
+            case MUCKRAKER:
+                if (myMuckrakerCount < MAX_KNOWN_ALLIES) {
+                    myMuckrakers[myMuckrakerCount] = id;
+                    myMuckrakerCount++;
+                } else {
+                    muckrakerFrontDelete = (muckrakerFrontDelete + 1) % MAX_KNOWN_ALLIES;
+                    myMuckrakers[muckrakerFrontDelete] = id;
+                }
+                break;
+
+            case POLITICIAN:
+                if (myPoliticianCount < MAX_KNOWN_ALLIES) {
+                    myPoliticians[myPoliticianCount] = id;
+                    myPoliticianCount++;
+                } else {
+                    politicianFrontDelete = (politicianFrontDelete + 1) % MAX_KNOWN_ALLIES;
+                    myPoliticians[politicianFrontDelete] = id;
+                }
+                break;
+
+            case SLANDERER:
+                if (mySlandererCount < MAX_KNOWN_ALLIES) {
+                    mySlanderers[mySlandererCount] = id;
+                    mySlandererSpawnRounds[mySlandererCount] = roundNum + 1;
+                    mySlandererCount++;
+                } else {
+                    slandererFrontDelete = (slandererFrontDelete + 1) % MAX_KNOWN_ALLIES;
+                    mySlanderers[slandererFrontDelete] = id;
+                    mySlandererSpawnRounds[slandererFrontDelete] = roundNum + 1;
+                }
+                break;
+
+            default:
+                return;
         }
-        knownAllies[i] = id;
-        knownAlliesType[i] = rt;
     }
 
     // todo rename known allies to "my children"
     // todo have slanderers send messages when they get converted to politicians
     public static void updateKnownAllies() throws GameActionException {
-        liveMuckrakers = 0;
-        livePoliticians = 0;
-        liveSlanderers = 0;
-        for (int i = knownAlliesCount; --i >= 0;) {
-            if (!rc.canGetFlag(knownAllies[i])) {
-                // delete dead allies
-                knownAlliesCount--;
-                knownAllies[i] = knownAllies[knownAlliesCount];
-                knownAlliesType[i] = knownAlliesType[knownAlliesCount];
-            } else { // ally is alive
-                switch (knownAlliesType[i]) {
-                    case MUCKRAKER:
-                        liveMuckrakers++;
-                        break;
-                    case POLITICIAN:
-                        livePoliticians++;
-                        break;
-                    case SLANDERER:
-                        liveSlanderers++;
-                        break;
-                    default:
-                        break;
-                }
+        for (int i = myMuckrakerCount; --i >= 0;) {
+            if (!rc.canGetFlag(myMuckrakers[i])) {
+                // delete dead muckrakers
+                myMuckrakerCount--;
+                myMuckrakers[i] = myMuckrakers[myMuckrakerCount];
+            }
+        }
+
+        for (int i = myPoliticianCount; --i >= 0;) {
+            if (!rc.canGetFlag(myPoliticians[i])) {
+                // delete dead politicians
+                myPoliticianCount--;
+                myPoliticians[i] = myPoliticians[myPoliticianCount];
+            }
+        }
+
+        for (int i = mySlandererCount; --i >= 0;) {
+            if (!rc.canGetFlag(mySlanderers[i])) {
+                // delete dead slanderers
+                mySlandererCount--;
+                mySlanderers[i] = mySlanderers[mySlandererCount];
+                mySlandererSpawnRounds[i] = mySlandererSpawnRounds[mySlandererCount];
+            } else if (roundNum - mySlandererSpawnRounds[i] >= GameConstants.CAMOUFLAGE_NUM_ROUNDS) {
+                // checks if slanderers have turned to politicians
+                // if so, delete from slanderer array and add to politician array
+                addKnownAlly(mySlanderers[i], RobotType.POLITICIAN);
+                mySlandererCount--;
+                mySlanderers[i] = mySlanderers[mySlandererCount];
+                mySlandererSpawnRounds[i] = mySlandererSpawnRounds[mySlandererCount];
             }
         }
     }
 
-    public static void processMessages() throws GameActionException {
-        if (knownAlliesCount == 0) {
+    public static void processMessages(int[] ids, int length) throws GameActionException {
+        if (length == 0) {
             return;
         }
 
-        processMessageIndex = processMessageIndex % knownAlliesCount;
-        int count = knownAlliesCount;
+        processMessageIndex = processMessageIndex % length;
+        int count = length;
 
         Debug.SILENCE_LOGS = true;
-        for (int i = 0; i < knownAlliesCount; i++) {
+        for (int i = 0; i < length; i++) {
             if (Clock.getBytecodesLeft() > 5000) {
-                Comms.readMessage(knownAllies[(i + processMessageIndex) % knownAlliesCount]);
+                Comms.readMessage(ids[(i + processMessageIndex) % length]);
             } else {
                 count = i;
                 break;
@@ -206,11 +247,11 @@ public class EnlightenmentCenter extends Robot {
         }
         Debug.SILENCE_LOGS = false;
 
-        logi("Processed " + count + "/" + knownAlliesCount + " messages");
-        if (count == knownAlliesCount) {
+        logi("Processed " + count + "/" + length + " messages");
+        if (count == length) {
             processMessageIndex = 0;
         } else {
-            processMessageIndex = (processMessageIndex + count) % knownAlliesCount;
+            processMessageIndex = (processMessageIndex + count) % length;
         }
     }
 
@@ -232,8 +273,21 @@ public class EnlightenmentCenter extends Robot {
     public static Direction makeMuckraker() throws GameActionException {
         log("Trying to build muckraker");
 
-        int targetConviction = (int) Math.ceil(1.0 * (age + 1) / 25);
+        if (rc.getInfluence() < 1) {
+            return null;
+        }
+
+        // make increasingly expensive muckers over time
+        // cap at 33, since this is the max cost of muckeres that allows for positive trades against politicians
+        // 33 influence = 24 conviction = politician of 34 has to kill
+        int scalingConviction = (int) Math.ceil(1.0 * (age + 1) / 50);
+        int targetConviction = Math.min(33, scalingConviction);
         int cost = RobotType.MUCKRAKER.getInfluenceCostForConviction(targetConviction);
+        // if we can't make the muckraker at the cost we want, then just make a super cheap one
+        if (cost > rc.getInfluence()) {
+            cost = 1;
+        }
+
 
         int scoutDirIndex = scoutCount % 8;
         Direction scoutDir = DIRS[scoutDirIndex];

@@ -31,51 +31,62 @@ public class Message {
             return type + " " + info + " " + repeat;
         }
 
+        String str = "";
+        if (repeat) {
+            if (!checkRepeat(this)) {
+                str += "INVALID ";
+            }
+            str += "~";
+        }
+
         switch (type) {
             case EMPTY_MSG:
-                return "[BLANK MESSAGE]";
+                str += "[BLANK]"; break;
 
-//            case ENEMY_HQ_LOC_MSG:
-//                return "[ENEMY HQ LOC] " + bits2loc(info);
-//            case OLD_ENEMY_HQ_ID_MSG:
-//                return "[ENEMY HQ ID] " + (info + MIN_ID);
-
-//            case ALL_TARGET_LOC_MSG:
-//                return "[ALL TARGET LOC] " + bits2loc(info);
-//            case MUCKRAKER_TARGET_LOC_MSG:
-//                return "[MUCKRAKER TARGET LOC]" + bits2loc(info);
-
-            case XBOUNDS_MSG:
-                return "[X]" + bits2loc(info);
-            case XMIN_MSG:
-                return "[X]" + new MapLocation(bits2loc(info).x, -1);
-            case XMAX_MSG:
-                return "[X]" + new MapLocation(-1, bits2loc(info).y);
-            case XNONE_MSG:
-                return "[X]" + new MapLocation(-1, -1);
-
-            case YBOUNDS_MSG:
-                return "[Y]" + bits2loc(info);
-            case YMIN_MSG:
-                return "[Y]" + new MapLocation(bits2loc(info).x, -1);
-            case YMAX_MSG:
-                return "[Y]" + new MapLocation(-1, bits2loc(info).y);
-            case YNONE_MSG:
-                return "[Y]" + new MapLocation(-1, -1);
-
-            case HQ_LOC_MSG:
-                return "[HQ LOC] " + bits2loc(info);
+            case HQ_LOC_SOLO_MSG:
+                str += "[HQ LOC 1] " + bits2loc(info); break;
+            case HQ_LOC_PAIRED_MSG:
+                str += "[HQ LOC 2] " + bits2loc(info); break;
 
             case ALLY_HQ_INFO_MSG:
-                return "[HQ INFO] ALLY " + (info + MIN_ID);
+                str += "[HQ ID ALLY] " + (info + MIN_ID); break;
             case ENEMY_HQ_INFO_MSG:
-                return "[HQ INFO] ENEMY " + (info + MIN_ID);
+                str += "[HQ ID ENEMY] " + (info + MIN_ID); break;
             case NEUTRAL_HQ_INFO_MSG:
-                return "[HQ INFO] NEUTRAL " + (info + MIN_ID);
+                str += "[HQ ID NEUTRAL] " + (info + MIN_ID); break;
+
+            case XBOUNDS_MSG:
+                str += "[X]" + bits2loc(info); break;
+            case XMIN_MSG:
+                str += "[X]" + new MapLocation(bits2loc(info).x, -1); break;
+            case XMAX_MSG:
+                str += "[X]" + new MapLocation(-1, bits2loc(info).y); break;
+            case XNONE_MSG:
+                str += "[X]" + new MapLocation(-1, -1); break;
+
+            case YBOUNDS_MSG:
+                str += "[Y]" + bits2loc(info); break;
+            case YMIN_MSG:
+                str += "[Y]" + new MapLocation(bits2loc(info).x, -1); break;
+            case YMAX_MSG:
+                str += "[Y]" + new MapLocation(-1, bits2loc(info).y); break;
+            case YNONE_MSG:
+                str += "[Y]" + new MapLocation(-1, -1); break;
+
+            case UNIT_BROADCAST_ALLY_HQ_MSG:
+                str += "[UNIT ALLY HQ] " + (info + MIN_ID); break;
+
+
+//            case ALL_TARGET_LOC_MSG:
+//                str += "[ALL TARGET LOC] " + bits2loc(info); break;
+//            case MUCKRAKER_TARGET_LOC_MSG:
+//                str += "[MUCKRAKER TARGET LOC]" + bits2loc(info); break;
+
 
             default:
-                return type + " " + info + " " + repeat;
+                str += type + " " + info + " " + repeat; break;
         }
+        return str;
     }
 
     public Message getMessageFront() {

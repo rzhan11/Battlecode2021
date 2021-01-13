@@ -16,4 +16,6 @@ package-lock.json
 scripts/log
 scripts/log.txt
 
-src/template.zip
+src/*_nolog
+
+src/*.zip

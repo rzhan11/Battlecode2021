@@ -10,7 +10,7 @@ import static template.Nav.*;
 public class Utils {
 
     public static boolean inArray(Object[] arr, Object item, int length) {
-        for(int i = 0; i < length; i++) {
+        for(int i = length; --i >= 0;) {
             if(arr[i].equals(item)) {
                 return true;
             }
@@ -19,7 +19,7 @@ public class Utils {
     }
 
     public static boolean inArray(int[] arr, int item, int length) {
-        for(int i = 0; i < length; i++) {
+        for(int i = length; --i >= 0;) {
             if(arr[i] == item) {
                 return true;
             }

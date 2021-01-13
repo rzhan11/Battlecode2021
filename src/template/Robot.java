@@ -4,12 +4,10 @@ import battlecode.common.*;
 
 import java.util.Random;
 
-import static template.Comms.*;
 import static template.Debug.*;
 import static template.HQTracker.*;
 import static template.Map.*;
 import static template.Nav.*;
-import static template.Utils.*;
 
 public abstract class Robot extends Constants {
 
@@ -73,7 +71,7 @@ public abstract class Robot extends Constants {
 
         rand = new Random(myID);
 
-        // after simple updates
+        // after simple updates, since log needs myType
 
         Debug.clearBuffer();
         log("INIT ROBOT");
@@ -103,12 +101,6 @@ public abstract class Robot extends Constants {
 
         for (int i = 0; i < hqLocs.length; i++) {
             hqIDs[i] = -1;
-        }
-
-        // add myself to hqinfo
-        if (myType == RobotType.ENLIGHTENMENT_CENTER) {
-            reportNewHQLoc(rc.getLocation());
-            reportHQInfo(knownHQCount - 1, myID, us);
         }
 
         Debug.printBuffer();
@@ -148,11 +140,16 @@ public abstract class Robot extends Constants {
     public static MapLocation myMasterLoc = null;
 
     public static MapLocation[] hqLocs = new MapLocation[MAX_HQ_COUNT];
-    public static Message[] hqLocMsgs = new Message[MAX_HQ_COUNT];
+    public static Message[] hqBroadcasts = new Message[MAX_HQ_COUNT]; // only used if myType == HQ
     // not guaranteed to be accurate, however if hqIDs[i] is known, then hqTeams[i] should be accurate
     public static Team[] hqTeams = new Team[MAX_HQ_COUNT];
     public static int[] hqIDs = new int[MAX_HQ_COUNT];
     public static int knownHQCount = 0;
+
+    // ALLY hq ids that we know and want to read from
+    // but we don't know their locs
+    public static int[] extraAllyHQs = new int[MAX_HQ_COUNT];
+    public static int extraAllyHQCount = 0;
 
     public static MapLocation targetEnemyHQLoc;
     public static int targetEnemyHQID;
@@ -185,6 +182,12 @@ public abstract class Robot extends Constants {
 
         // after updateMaster
         readMasterComms();
+
+        // after readMasterComms, updateKnownHQs
+        readHQComms();
+
+        // after readHQComms
+        readUnitComms();
 
         // independent
         CommManager.updateQueuedMessage();
@@ -299,15 +302,61 @@ public abstract class Robot extends Constants {
         }
     }
 
-    public static void readAllComms() throws GameActionException {
-        // TODO: maybe make an exception for slanderers, due to low bytecode
-//        if (myType == RobotType.SLANDERER) {
-//            return;
-//        }
-        //
-        for (RobotInfo ri: sensedAllies) {
-            Comms.readMessage(ri.getID());
+    public static void readHQComms() throws GameActionException {
+        // should be safe, no need for "rc.canGetFlag"
+        for (int i = knownHQCount; --i >= 0;) {
+            int id = hqIDs[i];
+            if (hqTeams[i] == us && id > 0) {
+                if (id != myID && id != myMaster) {
+                    Comms.readMessage(id);
+                }
+            }
         }
+        for (int i = extraAllyHQCount; --i >= 0;) {
+            int id = extraAllyHQs[i];
+            if (id != myID && id != myMaster) {
+                Comms.readMessage(id);
+            }
+        }
+    }
+
+    public static void readUnitComms() throws GameActionException {
+        // TODO: maybe make an exception for slanderers, due to low bytecode
+        if (myType == RobotType.ENLIGHTENMENT_CENTER) {
+            return;
+        }
+
+        if (sensedAllies.length == 0) {
+            return;
+        }
+
+        int minByte;
+        switch(myType) {
+            case MUCKRAKER:
+            case POLITICIAN:
+                minByte = 11000;
+                break;
+            case SLANDERER:
+                minByte = 3000;
+                break;
+            default:
+                return;
+        }
+
+        int count = sensedAllies.length;
+
+        Debug.SILENCE_LOGS = true;
+        for (int i = sensedAllies.length; --i >= 0;) {
+            if (Clock.getBytecodesLeft() > minByte) {
+                Comms.readMessage(sensedAllies[i].getID());
+            } else {
+                count = sensedAllies.length - i;
+                break;
+            }
+        }
+        Debug.SILENCE_LOGS = false;
+
+        logi("Processed " + count + "/" + sensedAllies.length + " messages");
     }
 
     /*
@@ -391,15 +440,16 @@ public abstract class Robot extends Constants {
         Clock.yield();
     }
 
+    final public static int cooldownRounding = 100;
+    final public static double cooldownRoundingDouble = (double) cooldownRounding;
+
     public static void printMyInfo () {
         if (NO_TURN_LOGS) return;
         logline();
-        log("Robot: " + myType);
-        log("roundNum: " + roundNum);
-        log("ID: " + myID);
-        log("*Location: " + here);
-        log("*Conv/Infl: " + rc.getInfluence() + "/" + rc.getConviction());
-        log("*Cooldown: " + rc.getCooldownTurns());
+        log(myType + " " + myID);
+        log("Loc: " + here + ". R: " + roundNum);
+        log("Conv/Infl: " + rc.getConviction() + "/" + rc.getInfluence());
+        log("Cooldown: " + (int) (rc.getCooldownTurns() * cooldownRounding) / cooldownRoundingDouble);
         logline();
     }
 }

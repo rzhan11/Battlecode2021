@@ -41,9 +41,10 @@ public class Politician extends Robot {
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
         // init my role
-        if (myMaster < 0) {
+        if (myMaster > 0) {
             int status = Comms.getStatusFromFlag(rc.getFlag(myMaster));
             boolean bit3 = (status & (1 << 3)) != 0;
+            log("Master status " + status + " " + bit3);
             if (bit3) {
                 myRole = ROLE_DEFEND;
             } else {
@@ -244,10 +245,16 @@ public class Politician extends Robot {
     public static double getEmpowerScore(RobotInfo ri, int dmg) {
         double score = 0;
         if (ri.team == us) {
-            if (ri.type == RobotType.POLITICIAN) {
-                score += Math.min(dmg, ri.influence - ri.conviction);
-            } else {
-                score += 0;
+            switch (ri.type) {
+                case ENLIGHTENMENT_CENTER:
+                    score += dmg;
+                    break;
+                case POLITICIAN:
+                    score += Math.min(dmg, ri.influence - ri.conviction);
+                    break;
+                default:
+                    // don't increase if it is a muckraker
+                    break;
             }
         } else if (ri.team == them) {
             switch (ri.type) {

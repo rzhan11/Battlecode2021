@@ -51,7 +51,7 @@ public strictfp class RobotPlayer {
                 Muckraker.firstTurnSetup();
                 break;
             default:
-                log("WARNING: 'firstTurnSetup' Unknown unit!");
+                logi("WARNING: 'firstTurnSetup' Unknown unit!");
         }
     }
 
@@ -70,7 +70,7 @@ public strictfp class RobotPlayer {
                 Muckraker.turn();
                 break;
             default:
-                log("WARNING: 'turn' Unknown unit!");
+                logi("WARNING: 'turn' Unknown unit!");
         }
         printBuffer();
     }

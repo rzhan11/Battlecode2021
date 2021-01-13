@@ -7,7 +7,6 @@ import static template.Debug.*;
 import static template.HQTracker.*;
 import static template.Map.*;
 import static template.Robot.*;
-import static template.Utils.*;
 
 
 public class Comms {
@@ -17,7 +16,7 @@ public class Comms {
     2. Add a "read" and "write" method
     1. Add it to the switch statement in 'readMessage()'
     3. Add it to the switch statement in 'checkRepeat()' (if you want to do custom things for repeated msgs)
-    4. Add it to the switch statement in 'Message.getBaseString()' (for nicer printing =) )
+    4. Add it to the switch statement in 'Message.toString()' for nicer printing :)
      */
 
     /** TERMINOLOGY (Subject to change)
@@ -53,19 +52,22 @@ public class Comms {
     // MESSAGE TYPE CONSTANTS
     final public static int EMPTY_MSG = 0;
 
-    final public static int HQ_LOC_MSG = 1;
-    final public static int ALLY_HQ_INFO_MSG = 2;
-    final public static int ENEMY_HQ_INFO_MSG = 3;
-    final public static int NEUTRAL_HQ_INFO_MSG = 4;
+    final public static int HQ_LOC_SOLO_MSG = 1;
+    final public static int HQ_LOC_PAIRED_MSG = 2;
+    final public static int ALLY_HQ_INFO_MSG = 3;
+    final public static int ENEMY_HQ_INFO_MSG = 4;
+    final public static int NEUTRAL_HQ_INFO_MSG = 5;
 
-    final public static int XBOUNDS_MSG = 5;
-    final public static int XMIN_MSG = 6;
-    final public static int XMAX_MSG = 7;
-    final public static int XNONE_MSG = 8;
-    final public static int YBOUNDS_MSG = 9;
-    final public static int YMIN_MSG = 10;
-    final public static int YMAX_MSG = 11;
-    final public static int YNONE_MSG = 12;
+    final public static int UNIT_BROADCAST_ALLY_HQ_MSG = 6;
+
+    final public static int XBOUNDS_MSG = 7;
+    final public static int XMIN_MSG = 8;
+    final public static int XMAX_MSG = 9;
+    final public static int XNONE_MSG = 10;
+    final public static int YBOUNDS_MSG = 11;
+    final public static int YMIN_MSG = 12;
+    final public static int YMAX_MSG = 13;
+    final public static int YNONE_MSG = 14;
 
 //    final public static int ALL_TARGET_LOC_MSG = ;
 //    final public static int MUCKRAKER_TARGET_LOC_MSG = ;
@@ -161,13 +163,17 @@ public class Comms {
             case YNONE_MSG:
                 readYBounds(msg.info, msg.type);
                 break;
-            case HQ_LOC_MSG:
-                readHQLoc(msg.info, id);
+            case HQ_LOC_SOLO_MSG:
+            case HQ_LOC_PAIRED_MSG:
+                readHQLoc(msg.info, msg.type, id);
                 break;
             case ALLY_HQ_INFO_MSG:
             case ENEMY_HQ_INFO_MSG:
             case NEUTRAL_HQ_INFO_MSG:
                 readHQInfo(msg.info, msg.type, id);
+                break;
+            case UNIT_BROADCAST_ALLY_HQ_MSG:
+                readUnitBroadcastAllyHQ(msg.info);
                 break;
 
 //            case ALL_TARGET_LOC_MSG:
@@ -186,7 +192,6 @@ public class Comms {
     public static boolean checkRepeat(Message msg) {
         if (!msg.repeat) return false;
         switch(msg.type) {
-
             case XBOUNDS_MSG:
             case XMIN_MSG:
             case XMAX_MSG:
@@ -204,6 +209,9 @@ public class Comms {
                 msg.info = loc2bits(new MapLocation(YMIN, YMAX));
                 return true;
             }
+
+            case UNIT_BROADCAST_ALLY_HQ_MSG:
+                return rc.canGetFlag(msg.info + MIN_ID);
 
             default:
                 return true;
@@ -359,43 +367,49 @@ public class Comms {
     /*
     14 | HQ LOCATION
      */
-    public static Message getHQLocMsg(MapLocation loc, boolean repeat) {
-        return new Message(HQ_LOC_MSG, loc2bits(loc), repeat);
+    public static Message getHQLocMsg(MapLocation loc, boolean paired, boolean repeat) {
+        return new Message(paired?HQ_LOC_PAIRED_MSG:HQ_LOC_SOLO_MSG, loc2bits(loc), repeat);
     }
 
-    public static void writeHQLoc(MapLocation loc, boolean repeat) throws GameActionException {
-        log("Writing 'HQ Loc' message");
-        tlog("Loc: " + loc);
+    public static void writeHQLocSolo(MapLocation loc, boolean repeat) throws GameActionException {
+        log("Writing 'HQ Loc' " + loc);
 
-        Message msg = getHQLocMsg(loc, repeat);
+        Message msg = getHQLocMsg(loc, false, repeat);
         queueMessage(msg, false);
     }
 
-    public static void readHQLoc(int msgInfo, int id) throws GameActionException {
+    public static void readHQLoc(int msgInfo, int msgType, int id) throws GameActionException {
+        boolean paired = (msgType == HQ_LOC_PAIRED_MSG);
+        // todo make this able to receive from any hq
+        // only receive paired messages from my master
+        if (myType != RobotType.ENLIGHTENMENT_CENTER && id != myMaster) {
+            paired = false;
+        }
+
         MapLocation loc = bits2loc(msgInfo);
         // check if this hq is known
         for (int i = knownHQCount; --i >= 0;) {
             if (loc.equals(hqLocs[i])) {
                 // this hq is known
-                tlog("Known Loc: " + loc);
-                if (hqIDs[i] < 0) { // if the hqid is unknown, setup receiving
-                    tlog("Unknown ID, receiving from " + id);
+                if (paired && hqIDs[i] < 0) { // if the hqid is unknown, setup receiving
+                    tlog("Known loc " + loc + " will receive " + id);
                     hqIDs[i] = -id;
-                } else {
-                    tlog("Known ID: " + hqIDs[i]);
                 }
                 return;
             }
         }
 
         // by this point, we know that this is a new HQ loc
-        tlog("New HQ Loc: " + loc);
-        tlog("Receiving from " + id);
-        knownHQCount++;
-        hqLocs[knownHQCount - 1] = loc;
-        hqIDs[knownHQCount - 1] = -id;
-        if (myType == RobotType.ENLIGHTENMENT_CENTER) {
-            broadcastHQLoc(knownHQCount - 1);
+        tlog("New HQ " + loc);
+        saveHQLoc(loc);
+
+        if (paired) {
+            tlog("Receiving from " + id);
+            hqIDs[knownHQCount - 1] = -id;
+        } else {
+            if (myType == RobotType.ENLIGHTENMENT_CENTER) {
+                updateHQBroadcast(knownHQCount - 1);
+            }
         }
     }
 
@@ -455,15 +469,12 @@ public class Comms {
 
         for (int i = knownHQCount; --i >= 0;) {
             if (hqIDs[i] == -id) {
-                hqIDs[i] = hqid;
-                hqTeams[i] = team;
+                saveHQInfo(i, hqid, team);
                 tlog("Receiving from " + id);
                 tlog("HQ " + hqLocs[i] + " " + hqIDs[i] + " " + hqTeams[i]);
 
                 if (myType == RobotType.ENLIGHTENMENT_CENTER) {
-                    // if I am an enlightenment center
-                    // then notify allies of new hq ids/teams
-                    broadcastHQInfo(i);
+                    updateHQBroadcast(i);
                 }
                 return;
             } else if (hqIDs[i] == hqid) {
@@ -473,5 +484,46 @@ public class Comms {
         }
 
         tlog("No receiving ID found");
+    }
+
+    /*
+    Assumes MAX_ID = 2^14 + 10000
+    14 | ENEMY HQ ID
+    Note: this message should only be written by non-hq robots (aka units)
+     */
+    public static void writeUnitBroadcastAllyHQ(int id, boolean repeat) throws GameActionException {
+        log("Writing 'Unit Broadcast Ally HQ' message " + id);
+
+        Message msg = new Message(UNIT_BROADCAST_ALLY_HQ_MSG, id - MIN_ID, repeat);
+        queueMessage(msg, false);
+    }
+
+    public static void readUnitBroadcastAllyHQ(int msgInfo) throws GameActionException {
+        int hqid = msgInfo + MIN_ID;
+
+        // check if hq id is still alive
+        if (!rc.canGetFlag(hqid)) {
+            tlog("Ally HQ is dead");
+            return;
+        }
+
+        for (int i = knownHQCount; --i >= 0;) {
+            if (hqid == hqIDs[i]) {
+                return;
+            }
+        }
+
+        for (int i = extraAllyHQCount; --i >= 0;) {
+            if (hqid == extraAllyHQs[i]) {
+                return;
+            }
+        }
+
+        tlog("Saving extra ally hq");
+        extraAllyHQCount++;
+        extraAllyHQs[extraAllyHQCount - 1] = hqid;
+        if (myType != RobotType.ENLIGHTENMENT_CENTER) {
+            writeUnitBroadcastAllyHQ(hqid, true);
+        }
     }
 }

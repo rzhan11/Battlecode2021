@@ -9,6 +9,7 @@ public class Constants {
     final public static int MAX_MAP_SIZE = 64;
 
     final public static int MIN_ID = 10000;
+    final public static int MAX_NUM_IDS = 4100;
 
     final public static int[] YELLOW = {255, 255, 0}; // moving
 

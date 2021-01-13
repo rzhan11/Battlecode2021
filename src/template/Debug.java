@@ -6,7 +6,7 @@ import static template.Robot.*;
 
 public class Debug {
 
-    final public static boolean SILENCE_LOGS = false;
+    public static boolean SILENCE_LOGS = false;
     final public static boolean SILENCE_INDICATORS = false;
 
     // Robot.endTurn and Robot.printMyInfo

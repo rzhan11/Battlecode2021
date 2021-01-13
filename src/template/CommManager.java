@@ -103,6 +103,7 @@ public class CommManager {
 
         int index;
         // todo chained messages vs urgent messages
+        // todo add 2 queues, 1 for repeated messages, 1 for one-time message
         if (urgent) {
             index = (msgQueueIndex - 1 + MSG_QUEUE_LEN) % MSG_QUEUE_LEN;
             msgQueueIndex = index;

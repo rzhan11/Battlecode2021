@@ -23,6 +23,7 @@ public class EnlightenmentCenter extends Robot {
     public static int[] knownAllies = new int[MAX_KNOWN_ALLIES];
     public static RobotType[] knownAlliesType = new RobotType[MAX_KNOWN_ALLIES];
     public static int knownAlliesCount = 0;
+    public static int processMessageIndex = 0;
 
     public static int scoutCount = 0;
 
@@ -48,10 +49,13 @@ public class EnlightenmentCenter extends Robot {
 
     }
 
+    // todo different behavior when we have a significant number of units
+    // e.g. units > 1000
     // code run each turn
     public static void turn() throws GameActionException {
         updateKnownAllies();
         processMessages();
+
 
         updateEnemies();
 
@@ -63,16 +67,18 @@ public class EnlightenmentCenter extends Robot {
 
         // TODO: make better bidding strategy
         // crude bidding based on num rounds left
-        if (roundNum >= 500) {
-            int roundsLeft = GameConstants.GAME_MAX_NUMBER_OF_ROUNDS - roundNum + 1;
-            int amt = rc.getInfluence() / Math.min(25, roundsLeft);
-            if (amt > 0) {
-                rc.bid(amt);
+        if (rc.getTeamVotes() < GameConstants.GAME_MAX_NUMBER_OF_ROUNDS / 2) {
+            if (roundNum >= 500) {
+                int roundsLeft = GameConstants.GAME_MAX_NUMBER_OF_ROUNDS - roundNum + 1;
+                int amt = rc.getInfluence() / Math.min(25, roundsLeft);
+                if (amt > 0) {
+                    rc.bid(amt);
+                }
             }
         }
 
         // TESTING PURPOSES ONLY
-        if (roundNum >= 750) {
+        if (roundNum >= 400) {
             log("RESIGNING");
             rc.resign();
         }
@@ -100,6 +106,7 @@ public class EnlightenmentCenter extends Robot {
         log("Slanderer: " + slandererScore);
 
         if (enemyMuckrakerCount > 0) {
+            log("Emergency defense");
             makeDefendPolitician();
             return;
         }
@@ -146,6 +153,8 @@ public class EnlightenmentCenter extends Robot {
         knownAlliesType[i] = rt;
     }
 
+    // todo rename known allies to "my children"
+    // todo have slanderers send messages when they get converted to politicians
     public static void updateKnownAllies() throws GameActionException {
         liveMuckrakers = 0;
         livePoliticians = 0;
@@ -175,10 +184,29 @@ public class EnlightenmentCenter extends Robot {
     }
 
     public static void processMessages() throws GameActionException {
-//        log("Processing " + knownAlliesCount + " messages");
-        for (int i = knownAlliesCount; --i >= 0;) {
-//            tlog(knownAllies[i] + " " + knownAlliesType[i]);
-            Comms.readMessage(knownAllies[i]);
+        if (knownAlliesCount == 0) {
+            return;
+        }
+
+        processMessageIndex = processMessageIndex % knownAlliesCount;
+        int count = knownAlliesCount;
+
+        Debug.SILENCE_LOGS = true;
+        for (int i = 0; i < knownAlliesCount; i++) {
+            if (Clock.getBytecodesLeft() > 5000) {
+                Comms.readMessage(knownAllies[(i + processMessageIndex) % knownAlliesCount]);
+            } else {
+                count = i;
+                break;
+            }
+        }
+        Debug.SILENCE_LOGS = false;
+
+        logi("Processed " + count + "/" + knownAlliesCount + " messages");
+        if (count == knownAlliesCount) {
+            processMessageIndex = 0;
+        } else {
+            processMessageIndex = (processMessageIndex + count) % knownAlliesCount;
         }
     }
 

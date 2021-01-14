@@ -13,7 +13,8 @@ public class Politician extends Robot {
 
     final public static int MAX_EMPOWER = RobotType.POLITICIAN.actionRadiusSquared;
     final public static int[] EMPOWER_DISTS = new int[]{1, 2, 4, 5, 8, 9};
-    final public static int[][] ALL_EMPOWER_DISTS = new int[][] {{1, 2, 4, 5, 8, 9}, {1, 2, 4, 5, 8, 9}, {2, 4, 5, 8, 9}, {4, 5, 8, 9}, {4, 5, 8, 9}, {5, 8, 9}, {8, 9}, {8, 9}, {8, 9}, {9}};
+//    final public static int[][] ALL_EMPOWER_DISTS = new int[][] {{1, 2, 4, 5, 8, 9}, {1, 2, 4, 5, 8, 9}, {2, 4, 5, 8, 9}, {4, 5, 8, 9}, {4, 5, 8, 9}, {5, 8, 9}, {8, 9}, {8, 9}, {8, 9}, {9}};
+//    final public static int[] ALL_EMPOWER_DISTS = new int[] {0, 1, 2, 4, 5, 8, 9};
 
     // Role Allocation
     final public static int ROLE_ATTACK = 1;
@@ -199,14 +200,18 @@ public class Politician extends Robot {
         log("Trying attack");
         if (targetLoc != null) {
             int dist = here.distanceSquaredTo(targetLoc);
-            int ed = getBestEmpower(dist);
-            log("Empower dist " + dist + " " + ed);
-            if (ed != -1) {
-                tlog("Attacking " + ed);
-                Actions.doEmpower(ed);
-                return ed;
+            if (dist <= MAX_EMPOWER) {
+                tlog("Empower dist " + dist);
+                if (shouldEmpower(dist)) {
+                    ttlog("Attacking " + dist);
+                    Actions.doEmpower(dist);
+                    return dist;
+                } else {
+                    ttlog("Attack is inefficient");
+                    return -1;
+                }
             } else {
-                tlog("Attack is inefficient");
+                tlog("Too far");
                 return -1;
             }
         }
@@ -227,9 +232,44 @@ public class Politician extends Robot {
     }
 
     /*
+    Simply checks if we should empower at a given distance
+     */
+    public static boolean shouldEmpower(int dist) throws GameActionException {
+        if (dist > MAX_EMPOWER) {
+            return false;
+        }
+
+        RobotInfo[] hitRobots = rc.senseNearbyRobots(dist);
+        int numHit = hitRobots.length;
+
+        double totalScore = 0.0;
+        for (int i = hitRobots.length; --i >= 0;) {
+            RobotInfo ri = hitRobots[i];
+            if (here.isWithinDistanceSquared(ri.location, dist)) {
+                int dmg = myDamage / numHit;
+                double score = getEmpowerScore(ri, dmg);
+                totalScore += score;
+            }
+        }
+
+        if (totalScore <= 0) {
+            return false;
+        }
+
+        // best score must be at least better than some threshold
+        double threshold = 0.5 * (myConviction - GameConstants.EMPOWER_TAX);
+        log("Score/Threshold: " + totalScore + " / " + threshold);
+        if (totalScore >= threshold) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /*
     Get best empower that hits at least 'dist' away
      */
-    public static int getBestEmpower(int dist) throws GameActionException {
+    /*public static int getBestEmpower(int dist) throws GameActionException {
         if (dist > MAX_EMPOWER) {
             return -1;
         }
@@ -286,7 +326,7 @@ public class Politician extends Robot {
         } else {
             return -1;
         }
-    }
+    }*/
 
     public static double getEmpowerScore(RobotInfo ri, int dmg) {
         double score = 0;

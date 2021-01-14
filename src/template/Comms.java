@@ -50,7 +50,7 @@ public class Comms {
     final public static int MAX_STATUS = (1 << STATUS_BITS) - 1;
 
     // MESSAGE TYPE CONSTANTS
-    final public static int EMPTY_MSG = 0;
+    final public static int EMPTY_MSG = 63;
 
     final public static int HQ_LOC_SOLO_MSG = 1;
     final public static int HQ_LOC_PAIRED_MSG = 2;
@@ -58,7 +58,9 @@ public class Comms {
     final public static int ENEMY_HQ_INFO_MSG = 4;
     final public static int NEUTRAL_HQ_INFO_MSG = 5;
 
-    final public static int UNIT_BROADCAST_ALLY_HQ_MSG = 6;
+    // NOTE: CHANGING THIS FROM 0 WILL PROBABLY BREAK THINGS
+    final public static int BROADCAST_MY_MASTER_MSG = 0;
+    final public static int REPORT_NON_MASTER_MSG = 6;
 
     final public static int XBOUNDS_MSG = 7;
     final public static int XMIN_MSG = 8;
@@ -151,6 +153,24 @@ public class Comms {
             case EMPTY_MSG:
                 readBlank(msg.info, id);
                 break;
+
+            case HQ_LOC_SOLO_MSG:
+            case HQ_LOC_PAIRED_MSG:
+                readHQLoc(msg.info, msg.type, id);
+                break;
+            case ALLY_HQ_INFO_MSG:
+            case ENEMY_HQ_INFO_MSG:
+            case NEUTRAL_HQ_INFO_MSG:
+                readHQInfo(msg.info, msg.type, id);
+                break;
+
+            case BROADCAST_MY_MASTER_MSG:
+                readBroadcastMyMaster(msg.info);
+                break;
+            case REPORT_NON_MASTER_MSG:
+                readReportNonMaster(msg.info);
+                break;
+
             case XBOUNDS_MSG:
             case XMIN_MSG:
             case XMAX_MSG:
@@ -162,18 +182,6 @@ public class Comms {
             case YMAX_MSG:
             case YNONE_MSG:
                 readYBounds(msg.info, msg.type);
-                break;
-            case HQ_LOC_SOLO_MSG:
-            case HQ_LOC_PAIRED_MSG:
-                readHQLoc(msg.info, msg.type, id);
-                break;
-            case ALLY_HQ_INFO_MSG:
-            case ENEMY_HQ_INFO_MSG:
-            case NEUTRAL_HQ_INFO_MSG:
-                readHQInfo(msg.info, msg.type, id);
-                break;
-            case UNIT_BROADCAST_ALLY_HQ_MSG:
-                readUnitBroadcastAllyHQ(msg.info);
                 break;
 
 //            case ALL_TARGET_LOC_MSG:
@@ -210,7 +218,7 @@ public class Comms {
                 return true;
             }
 
-            case UNIT_BROADCAST_ALLY_HQ_MSG:
+            case BROADCAST_MY_MASTER_MSG:
                 return rc.canGetFlag(msg.info + MIN_ID);
 
             default:
@@ -220,8 +228,7 @@ public class Comms {
 
     public static void readBlank(int msgInfo, int id) {
         /*
-        NOTE: THIS DOES NOT WORK IF YOU WRITE CODE HERE
-        LMK IF YOU ACC NEED THIS, YOU PROB DONT
+        NOTE: THIS IS A PLACEHOLDER, no touch
          */
     }
 
@@ -489,21 +496,21 @@ public class Comms {
     /*
     Assumes MAX_ID = 2^14 + 10000
     14 | ENEMY HQ ID
-    Note: this message should only be written by non-hq robots (aka units)
+    Note: this message should only be written/read by non-hq robots (aka units)
      */
-    public static void writeUnitBroadcastAllyHQ(int id, boolean repeat) throws GameActionException {
-        log("Writing 'Unit Broadcast Ally HQ' message " + id);
+    public static void writeBroadcastMyMaster(boolean repeat) throws GameActionException {
+        log("Writing 'Broadcast My Master' message " + myMaster);
 
-        Message msg = new Message(UNIT_BROADCAST_ALLY_HQ_MSG, id - MIN_ID, repeat);
+        Message msg = new Message(BROADCAST_MY_MASTER_MSG, myMaster - MIN_ID, repeat);
         queueMessage(msg, false);
     }
 
-    public static void readUnitBroadcastAllyHQ(int msgInfo) throws GameActionException {
+    public static void readBroadcastMyMaster(int msgInfo) throws GameActionException {
         int hqid = msgInfo + MIN_ID;
 
         // check if hq id is still alive
         if (!rc.canGetFlag(hqid)) {
-            tlog("Ally HQ is dead");
+            tlog("HQ is dead");
             return;
         }
 
@@ -523,7 +530,47 @@ public class Comms {
         extraAllyHQCount++;
         extraAllyHQs[extraAllyHQCount - 1] = hqid;
         if (myType != RobotType.ENLIGHTENMENT_CENTER) {
-            writeUnitBroadcastAllyHQ(hqid, true);
+            writeReportNonMaster(hqid, true);
         }
+    }
+
+    public static void writeReportNonMaster(int id, boolean repeat) throws GameActionException {
+        log("Writing 'Report Non Master' message " + id);
+
+        Message msg = new Message(REPORT_NON_MASTER_MSG, id - MIN_ID, repeat);
+        queueMessage(msg, false);
+    }
+
+    /*
+    Only enlightenment centers should read this
+     */
+    public static void readReportNonMaster(int msgInfo) throws GameActionException {
+        if (myType != RobotType.ENLIGHTENMENT_CENTER) {
+            return;
+        }
+
+        int hqid = msgInfo + MIN_ID;
+
+        // check if hq id is still alive
+        if (!rc.canGetFlag(hqid)) {
+            tlog("HQ is dead");
+            return;
+        }
+
+        for (int i = knownHQCount; --i >= 0;) {
+            if (hqid == hqIDs[i]) {
+                return;
+            }
+        }
+
+        for (int i = extraAllyHQCount; --i >= 0;) {
+            if (hqid == extraAllyHQs[i]) {
+                return;
+            }
+        }
+
+        tlog("Saving extra ally hq");
+        extraAllyHQCount++;
+        extraAllyHQs[extraAllyHQCount - 1] = hqid;
     }
 }

@@ -92,10 +92,6 @@ public class HQTracker {
 
                 Message infoMsg = getHQInfoMsg(hqIDs[index], hqTeams[index], false);
                 chainMessages(locMsg, infoMsg);
-
-                if (hqTeams[index] == us) {
-                    writeUnitBroadcastAllyHQ(hqIDs[index], true);
-                }
             } else {
                 writeHQLocSolo(hqLocs[index], false);
             }

@@ -2,6 +2,7 @@ package template;
 
 import battlecode.common.*;
 
+import static template.Comms.*;
 import static template.Debug.*;
 import static template.Map.*;
 import static template.Utils.*;
@@ -59,6 +60,7 @@ public class EnlightenmentCenter extends Robot {
         processMessages(myMuckrakers, myMuckrakerCount);
         processMessages(myPoliticians, myPoliticianCount);
         processMessages(mySlanderers, mySlandererCount);
+        log(myMuckrakerCount + " " + myPoliticianCount + " " + mySlandererCount);
 
 
         updateEnemies();
@@ -72,7 +74,7 @@ public class EnlightenmentCenter extends Robot {
         // TODO: make better bidding strategy
         // crude bidding based on num rounds left
         if (rc.getTeamVotes() < GameConstants.GAME_MAX_NUMBER_OF_ROUNDS / 2) {
-            if (roundNum >= 500) {
+            if (roundNum >= 300) {
                 int roundsLeft = GameConstants.GAME_MAX_NUMBER_OF_ROUNDS - roundNum + 1;
                 int amt = rc.getInfluence() / Math.min(10, roundsLeft);
                 if (amt > 0) {
@@ -82,10 +84,10 @@ public class EnlightenmentCenter extends Robot {
         }
 
         // TESTING PURPOSES ONLY
-//        if (roundNum >= 400) {
-//            log("RESIGNING");
-//            rc.resign();
-//        }
+        if (roundNum >= 400) {
+            log("RESIGNING");
+            rc.resign();
+        }
 
         if (!rc.isReady()) {
             return;
@@ -108,12 +110,6 @@ public class EnlightenmentCenter extends Robot {
         log("Muckraker: " + muckrakerScore);
         log("Politician: " + politicianScore);
         log("Slanderer: " + slandererScore);
-
-        if (rc.getRobotCount() > 600) {
-            log("Greed");
-            makeSlanderer();
-            return;
-        }
 
         if (enemyMuckrakerCount > 0) {
             log("Emergency defense");
@@ -228,6 +224,8 @@ public class EnlightenmentCenter extends Robot {
         }
     }
 
+    final public static int MIN_MESSAGE_BYTECODE = 5000;
+
     public static void processMessages(int[] ids, int length) throws GameActionException {
         if (length == 0) {
             return;
@@ -236,22 +234,39 @@ public class EnlightenmentCenter extends Robot {
         processMessageIndex = processMessageIndex % length;
         int count = length;
 
-        Debug.SILENCE_LOGS = true;
-        for (int i = 0; i < length; i++) {
-            if (Clock.getBytecodesLeft() > 5000) {
-                Comms.readMessage(ids[(i + processMessageIndex) % length]);
+//        Debug.SILENCE_LOGS = true;
+        // first part
+        for (int i = processMessageIndex; --i >= 0;) {
+            if (Clock.getBytecodesLeft() > MIN_MESSAGE_BYTECODE) {
+                if ((rc.getFlag(ids[i]) & TYPE_MASK) == 0) continue; // if it is a unit broadcast
+                Comms.readMessage(ids[i]);
             } else {
-                count = i;
+                count = processMessageIndex - 1 - i;
                 break;
             }
         }
-        Debug.SILENCE_LOGS = false;
+        if (Clock.getBytecodesLeft() > MIN_MESSAGE_BYTECODE) {
+            // second part
+            for (int i = length; --i >= 0;) { // intentionally i >= 0 to save bytecode
+                if (Clock.getBytecodesLeft() > MIN_MESSAGE_BYTECODE) {
+                    if ((rc.getFlag(ids[i]) & TYPE_MASK) == 0) continue; // if it is a unit broadcast
+                    Comms.readMessage(ids[i]);
+                } else {
+                    count = processMessageIndex + length - 1 - i;
+                    break;
+                }
+            }
+        }
+//        if (count > length) {
+//            count = length;
+//        }
+//        Debug.SILENCE_LOGS = false;
 
         logi("Processed " + count + "/" + length + " messages");
-        if (count == length) {
+        if (count >= length) {
             processMessageIndex = 0;
         } else {
-            processMessageIndex = (processMessageIndex + count) % length;
+            processMessageIndex = (processMessageIndex - count + length) % length;
         }
     }
 

@@ -9,7 +9,7 @@ public class Slanderer extends Robot {
 
     // final constants
 
-    final public static int FLEE_MEMORY = 50;
+    final public static int FLEE_MEMORY = 25;
 
     // variables
 

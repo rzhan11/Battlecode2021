@@ -55,6 +55,11 @@ public class Message {
             case NEUTRAL_HQ_INFO_MSG:
                 str += "[HQ ID NEUTRAL] " + (info + MIN_ID); break;
 
+            case BROADCAST_MY_MASTER_MSG:
+                str += "[MY MASTER] " + (info + MIN_ID); break;
+            case REPORT_NON_MASTER_MSG:
+                str += "[NON MASTER] " + (info + MIN_ID); break;
+
             case XBOUNDS_MSG:
                 str += "[X]" + bits2loc(info); break;
             case XMIN_MSG:
@@ -72,9 +77,6 @@ public class Message {
                 str += "[Y]" + new MapLocation(-1, bits2loc(info).y); break;
             case YNONE_MSG:
                 str += "[Y]" + new MapLocation(-1, -1); break;
-
-            case UNIT_BROADCAST_ALLY_HQ_MSG:
-                str += "[UNIT ALLY HQ] " + (info + MIN_ID); break;
 
 
 //            case ALL_TARGET_LOC_MSG:

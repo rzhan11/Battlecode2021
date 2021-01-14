@@ -4,6 +4,7 @@ import battlecode.common.*;
 
 import java.util.Random;
 
+import static template.Comms.*;
 import static template.Debug.*;
 import static template.HQTracker.*;
 import static template.Map.*;
@@ -153,6 +154,7 @@ public abstract class Robot extends Constants {
 
     public static Direction exploreDir;
     public static MapLocation exploreLoc;
+    public static MapLocation exploreCornerLoc;
 
 
     public static void updateTurnInfo() throws GameActionException {
@@ -181,9 +183,6 @@ public abstract class Robot extends Constants {
 
         // after readMasterComms, updateKnownHQs
         readHQComms();
-
-        // after readHQComms
-        readUnitComms();
 
         // independent
         CommManager.updateQueuedMessage();
@@ -284,6 +283,10 @@ public abstract class Robot extends Constants {
                     }
                 }
             }
+            // if found a new master, broadcast this master
+            if (myMaster > 0) {
+                writeBroadcastMyMaster(true);
+            }
         }
 
         log("Master: " + myMaster + "@" + myMasterLoc);
@@ -317,42 +320,31 @@ public abstract class Robot extends Constants {
     }
 
     public static void readUnitComms() throws GameActionException {
-        // TODO: maybe make an exception for slanderers, due to low bytecode
         if (myType == RobotType.ENLIGHTENMENT_CENTER) {
             return;
         }
+        log("Reading Unit Comms");
 
+        // must reset here
+        sensedAllies = rc.senseNearbyRobots(-1, us);
         if (sensedAllies.length == 0) {
             return;
-        }
-
-        int minByte;
-        switch(myType) {
-            case MUCKRAKER:
-            case POLITICIAN:
-                minByte = 11000;
-                break;
-            case SLANDERER:
-                minByte = 3000;
-                break;
-            default:
-                return;
         }
 
         int count = sensedAllies.length;
 
         Debug.SILENCE_LOGS = true;
         for (int i = sensedAllies.length; --i >= 0;) {
-            if (Clock.getBytecodesLeft() > minByte) {
+            if (Clock.getBytecodesLeft() > 1000 && roundNum == rc.getRoundNum()) {
                 Comms.readMessage(sensedAllies[i].getID());
             } else {
-                count = sensedAllies.length - i;
+                count = sensedAllies.length - 1 - i;
                 break;
             }
         }
         Debug.SILENCE_LOGS = false;
 
-        logi("Processed " + count + "/" + sensedAllies.length + " messages");
+        tlog("Processed " + count + "/" + sensedAllies.length + " messages");
     }
 
     /*
@@ -367,12 +359,14 @@ public abstract class Robot extends Constants {
             exploreDir = DIRS[status % 8];
         }
 
-        exploreLoc = addDir(spawnLoc, exploreDir, MAX_MAP_SIZE);
+        exploreCornerLoc = convertToKnownBounds(addDir(spawnLoc, exploreDir, MAX_MAP_SIZE));
+        exploreLoc = processExploreLoc(exploreCornerLoc);
     }
 
     public static void updateExploreLoc() {
-        exploreLoc = processExploreLoc(exploreLoc);
-        if (rc.canSenseLocation(exploreLoc)) {
+        exploreCornerLoc = convertToKnownBounds(exploreCornerLoc);
+        exploreLoc = processExploreLoc(exploreCornerLoc);
+        if (rc.canSenseLocation(exploreCornerLoc)) {
             // chose new exploreDir, either rotate 1 or 3
             if ((rc.getID() & 8) == 0) { //initial directions is ID%8, so this is independent
                 exploreDir = exploreDir.rotateLeft();
@@ -388,7 +382,8 @@ public abstract class Robot extends Constants {
 
             MapLocation mapCenter = new MapLocation(xmid, ymid);
 
-            exploreLoc = processExploreLoc(addDir(mapCenter, exploreDir, MAX_MAP_SIZE));
+            exploreCornerLoc = convertToKnownBounds(addDir(mapCenter, exploreDir, MAX_MAP_SIZE));
+            exploreLoc = processExploreLoc(exploreCornerLoc);
             log("Exploring " + exploreLoc + " " + exploreDir + " " + mapCenter);
         }
     }
@@ -408,8 +403,8 @@ public abstract class Robot extends Constants {
         CommManager.printMessageQueue();
         CommManager.updateMessageCount();
 
-        int status = CommManager.getStatus();
-        Message msg = CommManager.getMessage();
+        // reads unit comms at destination
+        readUnitComms();
 
         // check if we went over the bytecode limit
         int endTurn = rc.getRoundNum();

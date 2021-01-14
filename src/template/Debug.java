@@ -59,8 +59,10 @@ public class Debug {
     }
 
     public static void printBuffer() {
-        System.out.println(buffer);
-        buffer = new StringBuilder();
+        if (buffer.length() > 0) {
+            System.out.println(buffer);
+            buffer = new StringBuilder();
+        }
     }
 
     /*

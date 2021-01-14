@@ -8,7 +8,7 @@ if [ "$#" -ne 1 ] || ! [ -d "src/$1" ]; then
 	exit 1
 fi
 
-cd src/$1
-zip createdFromScript_$1.zip * -r
-mv createdFromScript_$1.zip ../../uploads
+cd src/
+zip createdFromScript_$1.zip $1 -r
+mv createdFromScript_$1.zip ../uploads
 echo "Done"

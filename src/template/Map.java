@@ -207,4 +207,15 @@ public class Map {
     public static Direction[] getClosestDirs(Direction dir) {
         return HardCode.CLOSEST_DIRS[dir2int(dir)];
     }
+
+    public static int getNumOpenDirs() throws GameActionException {
+        int count = 0;
+        for (int i = DIRS.length; --i >= 0;) {
+            MapLocation loc = rc.adjacentLocation(DIRS[i]);
+            if (rc.onTheMap(loc) && !rc.isLocationOccupied(loc)) {
+                count++;
+            }
+        }
+        return count;
+    }
 }

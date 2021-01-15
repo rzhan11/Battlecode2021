@@ -85,7 +85,7 @@ public class Politician extends Robot {
             // target hq
             if (targetHQIndex != -1) {
                 noTargetHQTimer = 0;
-                tryAttackChase(targetHQLoc);
+                tryAttackChase(targetHQLoc, true);
                 return;
             }
 
@@ -99,7 +99,7 @@ public class Politician extends Robot {
 
             // target enemy muckrakers
             if (closestEnemyMuckraker != null) {
-                tryAttackChase(closestEnemyMuckraker);
+                tryAttackChase(closestEnemyMuckraker, false);
                 return;
             } else {
                 noTargetHQTimer++;
@@ -108,7 +108,7 @@ public class Politician extends Robot {
             // target any enemies
             if (noTargetHQTimer > 10 && closestEnemy != null) {
                 extremeAggression = true;
-                tryAttackChase(closestEnemy);
+                tryAttackChase(closestEnemy, false);
                 return;
             }
 
@@ -119,11 +119,11 @@ public class Politician extends Robot {
         else if (myRole == ROLE_DEFEND) {
             if (closestEnemyMuckraker != null) {
                 killHungryTarget = rc.senseRobotAtLocation(closestEnemyMuckraker).getID();
-                tryAttackChase(closestEnemyMuckraker);
+                tryAttackChase(closestEnemyMuckraker, false);
                 return;
             }
             // no seen muckrakers
-            Slanderer.wander(Slanderer.POLITICIAN_WANDER_RADIUS);
+            wander(POLITICIAN_WANDER_RADIUS);
             return;
         }
     }
@@ -190,9 +190,9 @@ public class Politician extends Robot {
 
     }
 
-    public static void tryAttackChase(MapLocation targetLoc) throws GameActionException {
+    public static void tryAttackChase(MapLocation targetLoc, boolean useBug) throws GameActionException {
         if (tryAttack(targetLoc) == -1) {
-            tryChase(targetLoc);
+            tryChase(targetLoc, useBug);
         }
     }
 
@@ -219,13 +219,17 @@ public class Politician extends Robot {
         return -1;
     }
 
-    public static Direction tryChase(MapLocation targetLoc) throws GameActionException {
+    public static Direction tryChase(MapLocation targetLoc, boolean useBug) throws GameActionException {
         log("Trying chasing");
         if (targetLoc != null) {
             // have not exploded, try chasing instead
             drawLine(here, targetLoc, PINK);
             tlog("Chasing " + targetLoc);
-            return moveLog(targetLoc);
+            if (useBug) {
+                return moveLog(targetLoc);
+            } else {
+                return fuzzyTo(targetLoc);
+            }
         }
         tlog("Could not chase");
         return null;

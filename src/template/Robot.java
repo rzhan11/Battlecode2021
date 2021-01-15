@@ -232,7 +232,9 @@ public abstract class Robot extends Constants {
         enemySlandererCount = 0;
         sensedEnemyHQCount = 0;
 
-        for (RobotInfo ri: sensedEnemies) {
+        for (int i = sensedEnemies.length; --i >= 0;) {
+//        for (RobotInfo ri: sensedEnemies) {
+            RobotInfo ri = sensedEnemies[i];
             switch(ri.type) {
                 case MUCKRAKER:
                     enemyMuckrakers[enemyMuckrakerCount++] = ri;

@@ -28,7 +28,7 @@ public class Debug {
         switch (myType) {
             case ENLIGHTENMENT_CENTER: return true; // this unit prints debug logs
             case POLITICIAN:           return true; // change to 'return false' to not print debug logs
-            case SLANDERER:            return true;
+            case SLANDERER:            return false;
             case MUCKRAKER:            return true;
             default:
                 logi("ERROR: Sanity check failed - unknown class " + myType);

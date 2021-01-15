@@ -414,7 +414,9 @@ public class EnlightenmentCenter extends Robot {
 
         int cost = GameConstants.EMPOWER_TAX + enemyMuckrakerDanger;
         cost = Math.max(minCost, cost);
+        tlog("Min cost is " + cost);
         if (cost > rc.getInfluence()) {
+            ttlog("Cannot afford");
             return null;
         }
 

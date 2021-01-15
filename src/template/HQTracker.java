@@ -88,7 +88,7 @@ public class HQTracker {
         } else {
             if (hqIDs[index] > 0) {
                 Message locMsg = getHQLocMsg(hqLocs[index], true, false);
-                queueMessage(locMsg, false);
+                queueMessage(locMsg);
 
                 Message infoMsg = getHQInfoMsg(hqIDs[index], hqTeams[index], false);
                 chainMessages(locMsg, infoMsg);
@@ -110,7 +110,7 @@ public class HQTracker {
         if (hqBroadcasts[index] == null) {
             tlog("Initializing");
             hqBroadcasts[index] = getHQLocMsg(hqLocs[index], paired, true);
-            queueMessage(hqBroadcasts[index], false);
+            queueMessage(hqBroadcasts[index]);
         }
 
         if (paired) {

@@ -74,6 +74,10 @@ public class Politician extends Robot {
             log("[ROLE_DEFEND]");
         }
 
+        if (wasSlanderer) {
+            log("Slanderer -> politician");
+        }
+
         // update damage
         myDamage = (int) (myConviction * rc.getEmpowerFactor(us, 0) - GameConstants.EMPOWER_TAX);
 

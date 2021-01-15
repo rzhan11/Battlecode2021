@@ -7,12 +7,17 @@ import static template.Debug.*;
 import static template.Robot.*;
 
 public class CommManager {
-    final public static int MSG_QUEUE_LEN = 100;
+    public static int QUEUE_LEN; // different for each RobotType
 
-    public static Message[] msgQueue = new Message[MSG_QUEUE_LEN];
-
+    public static Message[] msgQueue;
     public static int msgQueueIndex = 0;
     public static int msgQueueCount = 0;
+
+    public static Message[] repeatQueue;
+    public static int repeatQueueIndex = 0;
+    public static int repeatQueueCount = 0;
+
+    public static boolean useRepeatQueue;
 
     // private variables - use getter/setter methods
 
@@ -20,6 +25,24 @@ public class CommManager {
     private static int nextStatus;
     private static int myStatus;
     private static Message myMessage;
+
+    public static void initQueues() {
+        if (msgQueue != null) {
+            return;
+        }
+        switch(myType) {
+            case ENLIGHTENMENT_CENTER:
+                QUEUE_LEN = 50;
+                break;
+            case MUCKRAKER:
+            case POLITICIAN:
+            case SLANDERER:
+                QUEUE_LEN = 25;
+                break;
+        }
+        msgQueue = new Message[QUEUE_LEN];
+        repeatQueue = new Message[QUEUE_LEN];
+    }
 
     public static int getStatus() {
         return myStatus;
@@ -38,7 +61,8 @@ public class CommManager {
         updateFlag();
     }
 
-    public static void setMessage(Message msg) throws GameActionException {
+    // leave this private, use queueMessage instead
+    private static void setMessage(Message msg) throws GameActionException {
         myMessage = msg;
         updateFlag();
     }
@@ -50,6 +74,7 @@ public class CommManager {
         myStatus = nextStatus;
         nextStatus = 0;
         myMessage = new Message(EMPTY_MSG, 0);
+        updateMyMessage();
         updateFlag();
     }
 
@@ -58,19 +83,22 @@ public class CommManager {
     Updates relevant variables
      */
     public static void updateMessageCount() throws GameActionException {
-        if (msgQueueCount > 0) {
+        if (useRepeatQueue) {
+            repeatQueue[repeatQueueIndex] = myMessage.next;
+            if (myMessage.next == null) {
+                // readd to queue
+                repeatQueue[(repeatQueueIndex + repeatQueueCount) % QUEUE_LEN] = myMessage.getMessageFront();
+                repeatQueueIndex = (repeatQueueIndex + 1) % QUEUE_LEN;
+                useRepeatQueue = false; // switch
+            } else {} // do nothing
+        } else {
             msgQueue[msgQueueIndex] = myMessage.next;
             if (myMessage.next == null) {
-                // if repeated, readd it to the queue
-                if (checkRepeat(myMessage)) {
-//                log("YES REPEAT");
-                    msgQueue[(msgQueueIndex + msgQueueCount) % MSG_QUEUE_LEN] = myMessage.getMessageFront();
-                } else {
-//                log("NO REPEAT");
-                    msgQueueCount--;
-                }
-                msgQueueIndex = (msgQueueIndex + 1) % MSG_QUEUE_LEN;
-            }
+                // delete from queue
+                msgQueueIndex = (msgQueueIndex + 1) % QUEUE_LEN;
+                msgQueueCount--;
+                useRepeatQueue = true;
+            } else {} // do nothing
         }
     }
 
@@ -81,52 +109,117 @@ public class CommManager {
         rc.setFlag((myMessage.info << INFO_OFFSET) + (myMessage.type << TYPE_OFFSET) + myStatus);
     }
 
-    public static void updateQueuedMessage() throws GameActionException {
-        while (msgQueueCount > 0) {
-            Message msg = msgQueue[msgQueueIndex];
-            boolean valid = !msg.repeat || checkRepeat(msg);
-            if (valid) {
-                setMessage(msg);
+    public static void updateMyMessage() throws GameActionException {
+        // clear invalid repeat messages
+        while (repeatQueueCount > 0) {
+            Message msg = repeatQueue[repeatQueueIndex];
+            if (checkRepeat(msg)) {
                 break;
             } else {
-                msgQueueCount--;
-                msgQueueIndex = (msgQueueIndex + 1) % MSG_QUEUE_LEN;
+                repeatQueueCount--;
+                repeatQueueIndex = (repeatQueueIndex + 1) % QUEUE_LEN;
             }
+        }
+
+        if (msgQueueCount + repeatQueueCount == 0) {
+            return;
+        }
+
+        if (useRepeatQueue) {
+            if (repeatQueueCount == 0) {
+                useRepeatQueue = false;
+            }
+        } else {
+            if (msgQueueCount == 0) {
+                useRepeatQueue = true;
+            }
+        }
+
+        if (useRepeatQueue) {
+            setMessage(repeatQueue[repeatQueueIndex]);
+        } else {
+            setMessage(msgQueue[msgQueueIndex]);
         }
     }
 
+    /*
+    Repeated messages default to urgent
+    Non-repeated messages deafult to not urgent
+     */
+    public static void queueMessage(Message msg) throws GameActionException {
+        queueMessage(msg, msg.repeat);
+    }
+
     public static void queueMessage(Message msg, boolean urgent) throws GameActionException {
-        if (msgQueueCount >= MSG_QUEUE_LEN) {
+        if (msg.repeat) {
+            queueRepeatMessage(msg, urgent);
+        } else {
+            queueNormalMessage(msg, urgent);
+        }
+    }
+
+    public static void queueNormalMessage(Message msg, boolean urgent) throws GameActionException {
+        if (msgQueueCount >= QUEUE_LEN) {
             logi("WARNING: msgQueueCount reached MSG_QUEUE_LEN");
             return;
         }
 
-        int index;
-        // todo chained messages vs urgent messages
-        // todo add 2 queues, 1 for repeated messages, 1 for one-time message
         if (urgent) {
-            index = (msgQueueIndex - 1 + MSG_QUEUE_LEN) % MSG_QUEUE_LEN;
+            int index = (msgQueueIndex - 1 + QUEUE_LEN) % QUEUE_LEN;
+            msgQueue[index] = msgQueue[msgQueueIndex];
+            msgQueue[msgQueueIndex] = msg;
             msgQueueIndex = index;
         } else {
-            index = (msgQueueIndex + msgQueueCount) % MSG_QUEUE_LEN;
+            int index = (msgQueueIndex + msgQueueCount) % QUEUE_LEN;
+            msgQueue[index] = msg;
         }
-        msgQueue[index] = msg;
-
         msgQueueCount++;
+        updateMyMessage();
+    }
 
-        if (urgent || msgQueueCount == 1) { // if this is urgent or if its the only message in the queue
-            updateQueuedMessage();
+    public static void queueRepeatMessage(Message msg, boolean urgent) throws GameActionException {
+        if (repeatQueueCount >= QUEUE_LEN) {
+            logi("WARNING: repeatQueueCount reached MSG_QUEUE_LEN");
+            return;
         }
+
+        if (urgent && repeatQueueCount > 0) {
+            int index = (repeatQueueIndex - 1 + QUEUE_LEN) % QUEUE_LEN;
+            repeatQueue[index] = repeatQueue[repeatQueueIndex];
+            repeatQueue[repeatQueueIndex] = msg;
+            repeatQueueIndex = index;
+        } else {
+            int index = (repeatQueueIndex + repeatQueueCount) % QUEUE_LEN;
+            repeatQueue[index] = msg;
+        }
+        repeatQueueCount++;
+        updateMyMessage();
     }
 
     public static void printMessageQueue() throws GameActionException {
         log("Queued Messages: " + msgQueueCount);
         for (int i = 0; i < msgQueueCount; i++) {
-            int index = (msgQueueIndex + i) % MSG_QUEUE_LEN;
+            int index = (msgQueueIndex + i) % QUEUE_LEN;
             if (msgQueue[index] != null) {
                 tlog(msgQueue[index].toString());
                 if (msgQueue[index].isChained()) {
                     log(msgQueue[index].getFullString());
+                }
+            } else {
+                tlog(null);
+            }
+            log();
+        }
+    }
+
+    public static void printRepeatQueue() throws GameActionException {
+        log("Queued Repeat Messages: " + repeatQueueCount);
+        for (int i = 0; i < repeatQueueCount; i++) {
+            int index = (repeatQueueIndex + i) % QUEUE_LEN;
+            if (repeatQueue[index] != null) {
+                tlog(repeatQueue[index].toString());
+                if (repeatQueue[index].isChained()) {
+                    log(repeatQueue[index].getFullString());
                 }
             } else {
                 tlog(null);

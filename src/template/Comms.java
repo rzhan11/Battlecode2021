@@ -323,7 +323,7 @@ public class Comms {
 
         log("Writing 'X Bounds' " + msgType + " " + loc);
         Message msg = new Message(msgType, loc2bits(loc), myType == RobotType.ENLIGHTENMENT_CENTER);
-        queueMessage(msg, false);
+        queueMessage(msg);
     }
 
     public static void readXBounds(int msgInfo, int msgType) throws GameActionException {
@@ -352,7 +352,7 @@ public class Comms {
 
         log("Writing 'Y Bounds' " + msgType + " " + loc);
         Message msg = new Message(msgType, loc2bits(loc), myType == RobotType.ENLIGHTENMENT_CENTER);
-        queueMessage(msg, false);
+        queueMessage(msg);
     }
 
     public static void readYBounds(int msgInfo, int msgType) throws GameActionException {
@@ -382,7 +382,7 @@ public class Comms {
         log("Writing 'HQ Loc' " + loc);
 
         Message msg = getHQLocMsg(loc, false, repeat);
-        queueMessage(msg, false);
+        queueMessage(msg);
     }
 
     public static void readHQLoc(int msgInfo, int msgType, int id) throws GameActionException {
@@ -453,7 +453,7 @@ public class Comms {
         tlog("Team: " + team);
 
         Message msg = getHQInfoMsg(id, team, repeat);
-        queueMessage(msg, false);
+        queueMessage(msg);
     }
 
     public static void readHQInfo(int msgInfo, int msgType, int id) throws GameActionException {
@@ -502,7 +502,7 @@ public class Comms {
         log("Writing 'Broadcast My Master' message " + myMaster);
 
         Message msg = new Message(BROADCAST_MY_MASTER_MSG, myMaster - MIN_ID, repeat);
-        queueMessage(msg, false);
+        queueMessage(msg);
     }
 
     public static void readBroadcastMyMaster(int msgInfo) throws GameActionException {
@@ -538,7 +538,7 @@ public class Comms {
         log("Writing 'Report Non Master' message " + id);
 
         Message msg = new Message(REPORT_NON_MASTER_MSG, id - MIN_ID, repeat);
-        queueMessage(msg, false);
+        queueMessage(msg);
     }
 
     /*

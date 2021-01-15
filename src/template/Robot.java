@@ -78,6 +78,7 @@ public abstract class Robot extends Constants {
         log("INIT ROBOT");
 
         Comms.initBaseCoords(rc.getLocation());
+        CommManager.initQueues();
 
         HardCode.initHardCode();
         switch(myType) {
@@ -95,6 +96,7 @@ public abstract class Robot extends Constants {
                 break;
         }
         maxSensedUnits = senseDirections.length - 1;
+        log("max " + maxSensedUnits);
 
         enemyMuckrakers = new RobotInfo[maxSensedUnits];
         enemyPoliticians = new RobotInfo[maxSensedUnits];
@@ -114,6 +116,7 @@ public abstract class Robot extends Constants {
     public static MapLocation here;
     public static int roundNum;
     public static int age;
+    public static boolean wasSlanderer = false;
 
     public static double myPassability;
     public static int myInfluence;
@@ -159,7 +162,8 @@ public abstract class Robot extends Constants {
 
     public static void updateTurnInfo() throws GameActionException {
         Debug.clearBuffer();
-        CommManager.updateQueuedMessage();
+
+        CommManager.resetFlag();
 
         // independent
         updateBasicInfo();
@@ -183,9 +187,6 @@ public abstract class Robot extends Constants {
 
         // after readMasterComms, updateKnownHQs
         readHQComms();
-
-        // independent
-        CommManager.updateQueuedMessage();
 
         // map info
         log("MAP X " + new MapLocation(XMIN, XMAX));
@@ -218,8 +219,6 @@ public abstract class Robot extends Constants {
         sensedNeutrals = rc.senseNearbyRobots(-1, neutral);
 
         adjAllies = rc.senseNearbyRobots(2, us);
-
-        CommManager.resetFlag();
 
         // print basic info
         printMyInfo();
@@ -402,7 +401,9 @@ public abstract class Robot extends Constants {
     Checks if we exceeded the bytecode limit
      */
     public static void endTurn() throws GameActionException {
+        log("Using " + (CommManager.useRepeatQueue ? "repeat queue" : "normal queue"));
         CommManager.printMessageQueue();
+        CommManager.printRepeatQueue();
         CommManager.updateMessageCount();
 
         // reads unit comms at destination

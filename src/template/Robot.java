@@ -83,20 +83,18 @@ public abstract class Robot extends Constants {
         HardCode.initHardCode();
         switch(myType) {
             case ENLIGHTENMENT_CENTER:
-                senseDirections = HardCode.BFS40;
-                break;
-            case POLITICIAN:
-                senseDirections = HardCode.BFS25;
-                break;
-            case SLANDERER:
-                senseDirections = HardCode.BFS20;
+                maxSensedUnits = 128;
                 break;
             case MUCKRAKER:
-                senseDirections = HardCode.BFS30;
+                maxSensedUnits = 96;
+                break;
+            case POLITICIAN:
+                maxSensedUnits = 80;
+                break;
+            case SLANDERER:
+                maxSensedUnits = 68;
                 break;
         }
-        maxSensedUnits = senseDirections.length - 1;
-        log("max " + maxSensedUnits);
 
         enemyMuckrakers = new RobotInfo[maxSensedUnits];
         enemyPoliticians = new RobotInfo[maxSensedUnits];
@@ -161,7 +159,11 @@ public abstract class Robot extends Constants {
 
 
     public static void updateTurnInfo() throws GameActionException {
-        Debug.clearBuffer();
+        // TESTING PURPOSES ONLY
+//        if (roundNum >= 400) {
+//            log("RESIGNING");
+//            rc.resign();
+//        }
 
         CommManager.resetFlag();
 

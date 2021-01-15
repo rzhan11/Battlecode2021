@@ -83,6 +83,9 @@ public class CommManager {
     Updates relevant variables
      */
     public static void updateMessageCount() throws GameActionException {
+        if (msgQueueCount + repeatQueueCount == 0) {
+            return;
+        }
         if (useRepeatQueue) {
             repeatQueue[repeatQueueIndex] = myMessage.next;
             if (myMessage.next == null) {

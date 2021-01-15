@@ -41,10 +41,12 @@ public class EnlightenmentCenter extends Robot {
 
     public static int myUnitCount = 0; // myMuckrakersCount + myPoliticianCount + mySlandererCount
 
-
     public static int processMessageIndex = 0;
 
     public static int scoutCount = 0;
+
+    public static int mySafetyBudget;
+    public static int enemyPoliticianDanger = 0;
 
     public static int enemyMuckrakerDanger = 0;
     public static MapLocation closestEnemyMuckraker;
@@ -53,6 +55,8 @@ public class EnlightenmentCenter extends Robot {
     public static double politicianRatio = 3.0;
     public static double slandererRatio = 1.0;
 
+
+
 //    public static int enemyHQIndex = 0;
 
     // things to do on turn 1 of existence
@@ -60,7 +64,7 @@ public class EnlightenmentCenter extends Robot {
         Comms.writeXBounds();
         Comms.writeYBounds();
 
-        SLANDERER_COSTS = new int[] {-1, 21, 41, 63, 85, 107, 130, 154, 178, 203, 228, 255, 282, 310, 339, 368, 399};
+        SLANDERER_COSTS = new int[] {-1, 21, 41, 63, 85, 107, 130, 154, 178, 203, 228, 255, 282, 310, 339, 368, 399, 431, 463, 497, 532, 568, 605, 643, 683, 724, 766, 810, 855, 902, 949};
 
         myMuckrakers = new int[MAX_KNOWN_ALLIES];
         myPoliticians = new int[MAX_KNOWN_ALLIES];
@@ -76,13 +80,12 @@ public class EnlightenmentCenter extends Robot {
     // code run each turn
     public static void turn() throws GameActionException {
         updateKnownAllies();
-        processMessages(myMuckrakers, myMuckrakerCount);
-        processMessages(myPoliticians, myPoliticianCount);
-        processMessages(mySlanderers, mySlandererCount);
-
+        processMessages(myMuckrakers, myMuckrakerCount, "muck");
+        processMessages(myPoliticians, myPoliticianCount, "poli");
+        processMessages(mySlanderers, mySlandererCount, "slan");
         log(myMuckrakerCount + " " + myPoliticianCount + " " + mySlandererCount);
 
-
+        updateMaxBudget();
         updateEnemies();
 
         // make a slanderer on the first turn
@@ -96,18 +99,16 @@ public class EnlightenmentCenter extends Robot {
         if (rc.getTeamVotes() < GameConstants.GAME_MAX_NUMBER_OF_ROUNDS / 2) {
             if (roundNum >= 300) {
                 int roundsLeft = GameConstants.GAME_MAX_NUMBER_OF_ROUNDS - roundNum + 1;
-                int amt = rc.getInfluence() / Math.min(10, roundsLeft);
+                int amt = mySafetyBudget/ Math.min(15, roundsLeft);
                 if (amt > 0) {
                     rc.bid(amt);
                 }
             }
         }
 
-        // TESTING PURPOSES ONLY
-        if (roundNum >= 400) {
-            log("RESIGNING");
-            rc.resign();
-        }
+        // calculate max budget AFTER making bets
+        updateMaxBudget();
+        logi("budget " + mySafetyBudget + " = " + rc.getInfluence() + " - " + enemyPoliticianDanger);
 
         if (!rc.isReady()) {
             return;
@@ -115,7 +116,7 @@ public class EnlightenmentCenter extends Robot {
 
         // spawn muck scouts
         if (scoutCount < EARLY_MUCKRAKERS_COUNT) {
-            Direction dir = makeMuckraker();
+            Direction dir = makeMuckraker(true);
             if (dir != null) {
                 scoutCount++;
             }
@@ -141,7 +142,7 @@ public class EnlightenmentCenter extends Robot {
         if (politicianScore < slandererScore) {
             // 2/3 of politicans are defend
             // 1/3 of politicians are attack
-            if (Math.random() < 2.0 / 3) {
+            if (Math.random() < 0.66) {
                 Direction dir = makeDefendPolitician();
                 if (dir != null) {
                     return;
@@ -154,7 +155,7 @@ public class EnlightenmentCenter extends Robot {
             }
         } else { // consider muckraker vs slanderer
             if (muckrakerScore < slandererScore) {
-                Direction dir = makeMuckraker();
+                Direction dir = makeMuckraker(false);
                 if (dir != null) {
                     return;
                 }
@@ -282,8 +283,9 @@ public class EnlightenmentCenter extends Robot {
 
     final public static int MIN_MESSAGE_BYTECODE = 5000;
 
-    public static void processMessages(int[] ids, int length) throws GameActionException {
+    public static void processMessages(int[] ids, int length, String str) throws GameActionException {
         if (length == 0) {
+            logi("No " + str + " messages");
             return;
         }
 
@@ -313,12 +315,12 @@ public class EnlightenmentCenter extends Robot {
                 }
             }
         }
-//        if (count > length) {
-//            count = length;
-//        }
+        if (count > length) {
+            count = length;
+        }
 //        Debug.SILENCE_LOGS = false;
 
-        logi("Processed " + count + "/" + length + " messages");
+        logi("Processed " + count + "/" + length + " " + str + " messages");
         if (count >= length) {
             processMessageIndex = 0;
         } else {
@@ -326,7 +328,12 @@ public class EnlightenmentCenter extends Robot {
         }
     }
 
+    public static void updateMaxBudget() {
+        mySafetyBudget = rc.getInfluence() - enemyPoliticianDanger;
+    }
+
     public static void updateEnemies() throws GameActionException {
+        // calculate closest enemymuckraker
         RobotInfo ri = getClosest(here, enemyMuckrakers, enemyMuckrakerCount);
         if (ri != null) {
             closestEnemyMuckraker = ri.location;
@@ -335,21 +342,26 @@ public class EnlightenmentCenter extends Robot {
         }
         log("Mucker " + closestEnemyMuckraker);
 
+        // calculate enemyMuckrakerDanger
         enemyMuckrakerDanger = 0;
         for (int i = enemyMuckrakerCount; --i >= 0;) {
             // u have to deal conviction + 1 damage to kill
             enemyMuckrakerDanger += 1 + enemyMuckrakers[i].conviction;
         }
-    }
 
-    public static Direction makeMuckraker() throws GameActionException {
-        return makeMuckraker(false);
+        // calculate enemyPolitician danger
+        double enemyRatio = rc.getEmpowerFactor(them, 0);
+        enemyPoliticianDanger = 0;
+        for (int i = enemyPoliticianCount; --i >= 0;) {
+            // u have to deal conviction + 1 damage to kill
+            enemyPoliticianDanger += Math.max(enemyPoliticians[i].conviction * enemyRatio - GameConstants.EMPOWER_TAX, 0);
+        }
     }
 
     public static Direction makeMuckraker(boolean cheap) throws GameActionException {
         log("Trying to build muckraker");
 
-        if (rc.getInfluence() < 1) {
+        if (mySafetyBudget < 1) {
             return null;
         }
 
@@ -359,7 +371,7 @@ public class EnlightenmentCenter extends Robot {
         // if we can afford it, 50% chance we make an "expensive" muckraker
         int targetConviction = (int) Math.ceil(1.0 * (age + 1) / 100);
         int targetCost = RobotType.MUCKRAKER.getInfluenceCostForConviction(targetConviction);
-        if (!cheap && targetCost < rc.getInfluence() / 2.0) {
+        if (!cheap && targetCost < mySafetyBudget) {
             if (Math.random() < 0.5) {
                 cost = targetCost;
             }
@@ -382,7 +394,7 @@ public class EnlightenmentCenter extends Robot {
         log("Trying to build slanderer");
 
         // determine cost of slanderer
-        int budget = rc.getInfluence();
+        int budget = mySafetyBudget;
         int cost = -1;
         if (budget >= MAX_SLANDERER_COST) {
             cost = MAX_SLANDERER_COST;
@@ -393,6 +405,10 @@ public class EnlightenmentCenter extends Robot {
                     break;
                 }
             }
+        }
+
+        if (cost > mySafetyBudget) {
+            return null;
         }
 
         // check for min cost
@@ -415,7 +431,7 @@ public class EnlightenmentCenter extends Robot {
         int cost = GameConstants.EMPOWER_TAX + enemyMuckrakerDanger;
         cost = Math.max(minCost, cost);
         tlog("Min cost is " + cost);
-        if (cost > rc.getInfluence()) {
+        if (cost > mySafetyBudget) {
             ttlog("Cannot afford");
             return null;
         }
@@ -439,7 +455,7 @@ public class EnlightenmentCenter extends Robot {
         log("Trying to build attack politician");
 
         int cost = Math.min(250, Math.max(roundNum, GameConstants.EMPOWER_TAX + 4));
-        if (cost > 0.5 * rc.getInfluence()) {
+        if (cost > 0.5 * mySafetyBudget) {
             return null;
         }
 

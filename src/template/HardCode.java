@@ -21,17 +21,17 @@ public class HardCode {
     public static void initHardCode() {
         switch(myType) {
             case ENLIGHTENMENT_CENTER:
-                initBFS40();
+//                initBFS40();
                 break;
             case POLITICIAN:
                 initBFS9();
-                initBFS25();
+//                initBFS25();
                 break;
             case SLANDERER:
-                initBFS20();
+//                initBFS20();
                 break;
             case MUCKRAKER:
-                initBFS30();
+//                initBFS30();
                 break;
         }
     }

@@ -65,8 +65,9 @@ public class Politician extends Robot {
         extremeAggression = false;
 
         updateExploreLoc();
-        updateEnemies();
         updateTargetHQ();
+        updateTargetMuckraker();
+        updateEnemies();
 
         if (myRole == ROLE_ATTACK) {
             log("[ROLE_ATTACK]");
@@ -75,7 +76,7 @@ public class Politician extends Robot {
         }
 
         if (wasSlanderer) {
-            log("Slanderer -> politician");
+            log("[SLAN2POLI]");
         }
 
         // update damage
@@ -96,7 +97,7 @@ public class Politician extends Robot {
             noTargetHQTimer++;
 
             log("Aggression timer " + noTargetHQTimer);
-            if (noTargetHQTimer >= 25) {
+            if (noTargetHQTimer >= 100) {
                 tlog("EXTREME AGGRESSION");
                 extremeAggression = true;
             }
@@ -110,8 +111,7 @@ public class Politician extends Robot {
             }
 
             // target any enemies
-            if (noTargetHQTimer > 10 && closestEnemy != null) {
-                extremeAggression = true;
+            if (extremeAggression && closestEnemy != null) {
                 tryAttackChase(closestEnemy, false);
                 return;
             }
@@ -130,24 +130,6 @@ public class Politician extends Robot {
             wander(POLITICIAN_WANDER_RADIUS);
             return;
         }
-    }
-
-    public static void updateEnemies() throws GameActionException {
-        RobotInfo ri = getClosest(here, enemyMuckrakers, enemyMuckrakerCount);
-        if (ri != null) {
-            closestEnemyMuckraker = ri.location;
-        } else {
-            closestEnemyMuckraker = null;
-        }
-        log("Closest muck: " + closestEnemyMuckraker);
-
-        ri = getClosest(here, sensedEnemies, sensedEnemies.length);
-        if (ri != null) {
-            closestEnemy = ri.location;
-        } else {
-            closestEnemy = null;
-        }
-        log("Closest enemy: " + closestEnemy);
     }
 
     public static void updateTargetHQ() throws GameActionException {
@@ -187,11 +169,45 @@ public class Politician extends Robot {
         log("targetHQ: " + targetHQIndex + " " + targetHQID + " " + targetHQLoc);
     }
 
-    public static void getNewTargetHQ() throws GameActionException {
-        // find a new targetHQLoc and targetHQID
-        targetHQLoc = null;
-        targetHQID = -1;
+    public static void updateTargetMuckraker() throws GameActionException {
+        closestEnemyMuckraker = null;
+        if (myRole == ROLE_DEFEND) {
+            RobotInfo ri = getClosest(here, enemyMuckrakers, enemyMuckrakerCount);
+            if (ri != null) {
+                closestEnemyMuckraker = ri.location;
+            }
+            log("Closest enemy: " + closestEnemyMuckraker);
+        } else {
+            // role == ROLE_ATTACK
+            int bestDist = P_INF;
+            double minConviction = 0.5 * (myConviction - GameConstants.EMPOWER_TAX);
+            double maxConviction = 4 * (myConviction - GameConstants.EMPOWER_TAX);
+            if (myConviction <= 20) {
+                minConviction = 0;
+            }
+            for (int i = enemyMuckrakerCount; --i >= 0;) {
+                RobotInfo ri = enemyMuckrakers[i];
+                int killAmt = ri.conviction + 1;
+                if (minConviction <= killAmt && killAmt <= maxConviction) {
+                    int dist = here.distanceSquaredTo(ri.location);
+                    if (dist < bestDist) {
+                        closestEnemyMuckraker = ri.location;
+                        bestDist = dist;
+                    }
+                }
+            }
+        }
+        log("Closest muck: " + closestEnemyMuckraker);
+    }
 
+    public static void updateEnemies() throws GameActionException {
+        RobotInfo ri = getClosest(here, sensedEnemies, sensedEnemies.length);
+        if (ri != null) {
+            closestEnemy = ri.location;
+        } else {
+            closestEnemy = null;
+        }
+        log("Closest enemy: " + closestEnemy);
     }
 
     public static void tryAttackChase(MapLocation targetLoc, boolean useBug) throws GameActionException {

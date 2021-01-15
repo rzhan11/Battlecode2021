@@ -2,9 +2,9 @@ package template;
 
 import battlecode.common.*;
 
-import java.util.Comparator;
-
+import static template.Debug.*;
 import static template.Robot.*;
+import static template.Map.*;
 import static template.Nav.*;
 
 public class Utils {
@@ -81,10 +81,63 @@ public class Utils {
         }
         return bestLoc;
     }
-}
 
-class RobotCompare implements Comparator<RobotInfo> {
-    public int compare(RobotInfo ri1, RobotInfo ri2) {
-        return ri1.getID() - ri2.getID();
+    public static int getMaxSurround(MapLocation loc, int offset) {
+        // these are closest x/y distance to map edges
+        int dx = P_INF;
+        int dy = P_INF;
+        if (XMIN != -1) {
+            dx = Math.min(dx, loc.x - XMIN);
+        }
+        if (XMAX != -1) {
+            dx = Math.min(dx, XMAX - loc.x);
+        }
+        if (YMIN != -1) {
+            dy = Math.min(dy, loc.y - YMIN);
+        }
+        if (YMAX != -1) {
+            dy = Math.min(dy, YMAX - loc.y);
+        }
+
+        // guarantees dx <= dy
+        if (dx > dy) {
+            int temp = dx;
+            dx = dy;
+            dy = temp;
+        }
+
+        switch(offset) {
+            case 1:
+                if (dy == 0) {
+                    return 3; // 0, 0
+                } else {
+                    if (dx == 0) {
+                        return 5; // 0, 1+
+                    } else {
+                        return 8; // default, 1+, 1+
+                    }
+                }
+
+            case 2:
+                if (dy == 0) {
+                    return 8; // 0, 0
+                } else if (dy == 1) { // dx <= 1
+                    if (dx == 0) {
+                        return 11; // 0, 1
+                    } else {
+                        return 15; // 1, 1
+                    }
+                } else {
+                    switch(dx) {
+                        case 0: return 14; // 0, 2
+                        case 1: return 19; // 1, 2
+                        default: return 24; // default, 2+, 2+
+                    }
+                }
+
+            default:
+                logi("WARNING: Tried to get max surround of unknown offset " + offset);
+                return -1;
+        }
     }
 }

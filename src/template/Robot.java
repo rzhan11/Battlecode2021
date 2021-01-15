@@ -102,6 +102,7 @@ public abstract class Robot extends Constants {
 
         for (int i = 0; i < hqLocs.length; i++) {
             hqIDs[i] = -1;
+            hqSurroundRounds[i] = DEFAULT_SURROUND;
         }
 
         Debug.printBuffer();
@@ -148,6 +149,8 @@ public abstract class Robot extends Constants {
     public static int[] hqIDs = new int[MAX_HQ_COUNT];
     public static int knownHQCount = 0;
 
+    public static int[] hqSurroundRounds = new int[MAX_HQ_COUNT];
+
     // ALLY hq ids that we know and want to read from
     // but we don't know their locs
     public static int[] extraAllyHQs = new int[MAX_HQ_COUNT];
@@ -160,12 +163,13 @@ public abstract class Robot extends Constants {
 
     public static void updateTurnInfo() throws GameActionException {
         // TESTING PURPOSES ONLY
-//        if (roundNum >= 400) {
-//            log("RESIGNING");
-//            rc.resign();
-//        }
+        if (roundNum >= 400) {
+            log("RESIGNING");
+            rc.resign();
+        }
 
         CommManager.resetFlag();
+        Comms.resetPrevEcho();
 
         // independent
         updateBasicInfo();
@@ -197,7 +201,15 @@ public abstract class Robot extends Constants {
         // hq info
         log("HQs: " + knownHQCount);
         for (int i = 0; i < knownHQCount; i++) {
-            tlog(hqLocs[i] + " " + hqIDs[i] + " " + hqTeams[i]);
+            String teamName;
+            if (hqTeams[i] == Team.NEUTRAL) {
+                teamName = "N";
+            } else if (hqTeams[i] == null) {
+                teamName = "U"; // unknown
+            } else {
+                teamName = hqTeams[i].toString();
+            }
+            tlog(hqLocs[i] + " " + hqIDs[i] + " " + teamName + " " + hqSurroundRounds[i]);
         }
 
         printBuffer();
@@ -309,6 +321,7 @@ public abstract class Robot extends Constants {
         for (int i = knownHQCount; --i >= 0;) {
             int id = hqIDs[i];
             if (hqTeams[i] == us && id > 0) {
+                Debug.printBuffer();
                 if (id != myID && id != myMaster) {
                     Comms.readMessage(id);
                 }
@@ -336,20 +349,23 @@ public abstract class Robot extends Constants {
 
         int count = sensedAllies.length;
 
-        Debug.SILENCE_LOGS = true;
+//        Debug.SILENCE_LOGS = true;
         for (int i = sensedAllies.length; --i >= 0;) {
             if (Clock.getBytecodesLeft() > 1000 && roundNum == rc.getRoundNum()) {
-                Comms.readMessage(sensedAllies[i].getID());
+                Comms.readMessage(sensedAllies[i].ID);
             } else {
                 count = sensedAllies.length - 1 - i;
                 break;
             }
         }
-        Debug.SILENCE_LOGS = false;
+//        Debug.SILENCE_LOGS = false;
 
         tlog("Processed " + count + "/" + sensedAllies.length + " messages");
+        printBuffer();
     }
 
+
+    public static int lastExploreLocChangeRound = -1;
     /*
     Exploration code
      */
@@ -369,21 +385,20 @@ public abstract class Robot extends Constants {
     public static void updateExploreLoc() {
         exploreCornerLoc = convertToKnownBounds(exploreCornerLoc);
         exploreLoc = processExploreLoc(exploreCornerLoc);
-        if (rc.canSenseLocation(exploreCornerLoc)) {
+
+        // get new explore location if we can see the corner
+        // or if it has been too long
+        if (rc.canSenseLocation(exploreCornerLoc) || roundNum - lastExploreLocChangeRound > 200) {
             // chose new exploreDir, either rotate 1 or 3
-            if ((rc.getID() & 8) == 0) { //initial directions is ID%8, so this is independent
+            if ((myID & 8) == 0) { //initial directions is ID%8, so this is independent
                 exploreDir = exploreDir.rotateLeft();
             } else {
                 exploreDir = exploreDir.rotateLeft().rotateLeft().rotateLeft();
             }
+            lastExploreLocChangeRound = roundNum;
 
-            int xmid, ymid;
-            if (isMapXKnown()) xmid = XMIN + XLEN / 2;
-            else xmid = spawnLoc.x;
-            if (isMapYKnown()) ymid = YMIN + YLEN / 2;
-            else ymid = spawnLoc.y;
-
-            MapLocation mapCenter = new MapLocation(xmid, ymid);
+            MapLocation mapCenter = new MapLocation(isMapXKnown() ? (XMIN + XLEN / 2) : spawnLoc.x,
+                    isMapYKnown() ? (YMIN + YLEN / 2) : spawnLoc.y);
 
             exploreCornerLoc = convertToKnownBounds(addDir(mapCenter, exploreDir, MAX_MAP_SIZE));
             exploreLoc = processExploreLoc(exploreCornerLoc);
@@ -403,13 +418,13 @@ public abstract class Robot extends Constants {
     Checks if we exceeded the bytecode limit
      */
     public static void endTurn() throws GameActionException {
-        log("Using " + (CommManager.useRepeatQueue ? "repeat queue" : "normal queue"));
+        // reads unit comms at destination
+        readUnitComms();
+
+        log("Using " + (CommManager.useRepeatQueue ? "REPEAT Queue" : "NORMAL Queue"));
         CommManager.printMessageQueue();
         CommManager.printRepeatQueue();
         CommManager.updateMessageCount();
-
-        // reads unit comms at destination
-        readUnitComms();
 
         // check if we went over the bytecode limit
         int endTurn = rc.getRoundNum();

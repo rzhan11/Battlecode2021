@@ -75,8 +75,6 @@ public class EnlightenmentCenter extends Robot {
 
     }
 
-    // todo different behavior when we have a significant number of units
-    // e.g. units > 500
     // code run each turn
     public static void turn() throws GameActionException {
         updateKnownAllies();
@@ -138,6 +136,12 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
+        if (myMuckrakerCount < 5 && myPoliticianCount > 3 && rc.getRoundNum() > 50) {
+            log("muck spam");
+            makeMuckraker(true);
+            return;
+        }
+
         // no visible enemy muckrakers
         if (politicianScore < slandererScore) {
             // 2/3 of politicans are defend
@@ -183,13 +187,13 @@ public class EnlightenmentCenter extends Robot {
         RobotInfo ri = rc.senseRobotAtLocation(rc.adjacentLocation(dir));
         switch(ri.type) {
             case MUCKRAKER:
-                addKnownMuckraker(ri.getID());
+                addKnownMuckraker(ri.ID);
                 return;
             case POLITICIAN:
-                addKnownPolitician(ri.getID());
+                addKnownPolitician(ri.ID);
                 return;
             case SLANDERER:
-                addKnownSlanderer(ri.getID(), ri.influence);
+                addKnownSlanderer(ri.ID, ri.influence);
                 return;
         }
     }
@@ -296,7 +300,7 @@ public class EnlightenmentCenter extends Robot {
         // first part
         for (int i = processMessageIndex; --i >= 0;) {
             if (Clock.getBytecodesLeft() > MIN_MESSAGE_BYTECODE) {
-                if ((rc.getFlag(ids[i]) & TYPE_MASK) == 0) continue; // if it is a unit broadcast
+                if ((rc.getFlag(ids[i]) & IGNORE_UNIT2UNIT_MASK) == 0) continue; // if it is a unit broadcast
                 Comms.readMessage(ids[i]);
             } else {
                 count = processMessageIndex - 1 - i;
@@ -307,7 +311,7 @@ public class EnlightenmentCenter extends Robot {
             // second part
             for (int i = length; --i >= 0;) { // intentionally i >= 0 to save bytecode
                 if (Clock.getBytecodesLeft() > MIN_MESSAGE_BYTECODE) {
-                    if ((rc.getFlag(ids[i]) & TYPE_MASK) == 0) continue; // if it is a unit broadcast
+                    if ((rc.getFlag(ids[i]) & IGNORE_UNIT2UNIT_MASK) == 0) continue; // if it is a unit broadcast
                     Comms.readMessage(ids[i]);
                 } else {
                     count = processMessageIndex + length - 1 - i;

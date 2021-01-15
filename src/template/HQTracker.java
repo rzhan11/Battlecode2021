@@ -11,28 +11,32 @@ import static template.Utils.*;
 
 public class HQTracker {
 
-
+    final public static int SURROUND_MEMORY = 100;
+    final public static int DEFAULT_SURROUND = -100;
+    final public static int SURROUND_UPDATE_FREQUENCY = 10;
 
     public static void updateKnownHQs() throws GameActionException {
         // add myself to hqinfo
         if (age == 0 && myType == RobotType.ENLIGHTENMENT_CENTER) {
             saveHQLoc(here);
             saveHQInfo(knownHQCount - 1, myID, us);
-            updateHQBroadcast(knownHQCount - 1);
         }
 
         // loop through sensed hqs, update their info
-        for (RobotInfo ri : sensedRobots) {
+        for (int i = sensedRobots.length; --i >= 0;) {
+            RobotInfo ri = sensedRobots[i];
             if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
                 boolean isKnown = false;
-                for (int i = knownHQCount; --i >= 0; ) {
-                    if (hqLocs[i].equals(ri.location)) {
+                for (int j = knownHQCount; --j >= 0; ) {
+                    if (hqLocs[j].equals(ri.location)) {
                         // this is a known location
                         isKnown = true;
-                        if (hqIDs[i] != ri.getID()) {
+                        if (hqIDs[j] != ri.ID) {
                             // we have found new information, save and report
-                            saveHQInfo(i, ri.getID(), ri.getTeam());
-                            reportHQ(i);
+                            saveHQInfo(j, ri.ID, ri.getTeam());
+                            if (myType != RobotType.ENLIGHTENMENT_CENTER) {
+                                reportHQ(j);
+                            }
                         }
                         break;
                     }
@@ -40,8 +44,10 @@ public class HQTracker {
                 // adds new hq loc if not known
                 if (!isKnown) {
                     saveHQLoc(ri.location);
-                    saveHQInfo(knownHQCount - 1, ri.getID(), ri.getTeam());
-                    reportHQ(knownHQCount - 1);
+                    saveHQInfo(knownHQCount - 1, ri.ID, ri.getTeam());
+                    if (myType != RobotType.ENLIGHTENMENT_CENTER) {
+                        reportHQ(knownHQCount - 1);
+                    }
                 }
             }
         }
@@ -50,13 +56,7 @@ public class HQTracker {
         for (int i = knownHQCount; --i >= 0; ) {
             int id = hqIDs[i];
             if (id > 0 && !rc.canGetFlag(id)) {
-                if (myType == RobotType.ENLIGHTENMENT_CENTER) {
-                    updateHQBroadcast(i);
-                }
-                // reset hqIDs to default value of -1
-                hqIDs[i] = -1;
-                // flip the team of the killed hq
-                hqTeams[i] = hqTeams[i].opponent(); // assume that the team has flipped
+                updateHQDead(i);
             }
         }
 
@@ -70,31 +70,41 @@ public class HQTracker {
         }
     }
 
+    // reset hqIDs to default value of -1
+    // flip the team of the killed hq, (if team was NEUTRAL, now it's unknown)
+    public static void updateHQDead(int index) throws GameActionException {
+        saveHQInfo(index, -1, (hqTeams[index] == Team.NEUTRAL) ? null: hqTeams[index].opponent());
+    }
+
     public static void saveHQLoc(MapLocation loc) throws GameActionException {
-        hqLocs[knownHQCount++] = loc;
+        knownHQCount++;
+        hqLocs[knownHQCount - 1] = loc;
+        if (myType == RobotType.ENLIGHTENMENT_CENTER) {
+            updateHQBroadcast(knownHQCount - 1);
+        }
     }
 
     public static void saveHQInfo(int index, int hqid, Team team) throws GameActionException {
         hqIDs[index] = hqid;
         hqTeams[index] = team;
+        hqSurroundRounds[index] = DEFAULT_SURROUND;
+        if (myType == RobotType.ENLIGHTENMENT_CENTER) {
+            updateHQBroadcast(index);
+        }
     }
 
     /*
     HQ loc is known, but hq id/team has changed
      */
     public static void reportHQ(int index) throws GameActionException {
-        if (myType == RobotType.ENLIGHTENMENT_CENTER) {
-            updateHQBroadcast(index);
-        } else {
-            if (hqIDs[index] > 0) {
-                Message locMsg = getHQLocMsg(hqLocs[index], true, false);
-                queueMessage(locMsg);
+        if (hqIDs[index] > 0) {
+            Message locMsg = getHQLocMsg(hqLocs[index], true, false);
+            queueMessage(locMsg);
 
-                Message infoMsg = getHQInfoMsg(hqIDs[index], hqTeams[index], false);
-                chainMessages(locMsg, infoMsg);
-            } else {
-                writeHQLocSolo(hqLocs[index], false);
-            }
+            Message infoMsg = getHQInfoMsg(hqIDs[index], hqTeams[index], false);
+            chainMessages(locMsg, infoMsg);
+        } else {
+            writeHQLocSolo(hqLocs[index], false);
         }
     }
 
@@ -115,6 +125,7 @@ public class HQTracker {
 
         if (paired) {
             tlog("Paired");
+            hqBroadcasts[index].type = HQ_LOC_PAIRED_MSG;
             Message infoMsg = getHQInfoMsg(hqIDs[index], hqTeams[index], true);
             chainMessages(hqBroadcasts[index], infoMsg);
         } else {
@@ -122,5 +133,17 @@ public class HQTracker {
             hqBroadcasts[index].next = null;
             // do not alter prev of infoMsg, allows for backtracking
         }
+    }
+
+    public static void updateHQSurroundRound(int index, boolean isSurrounded) throws GameActionException {
+        if (isSurrounded) {
+            hqSurroundRounds[index] = roundNum;
+        } else {
+            hqSurroundRounds[index] = DEFAULT_SURROUND;
+        }
+    }
+
+    public static boolean checkIfSurrounded(int index) {
+        return (roundNum - hqSurroundRounds[index] <= SURROUND_MEMORY);
     }
 }

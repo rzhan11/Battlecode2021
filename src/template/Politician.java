@@ -55,7 +55,7 @@ public class Politician extends Robot {
         } else { // default to attacker role
             myRole = ROLE_ATTACK;
         }
-
+        
         initExploreLoc();
     }
 
@@ -65,7 +65,7 @@ public class Politician extends Robot {
         extremeAggression = false;
 
         updateExploreLoc();
-        updateTargetHQ();
+        Politician.updateTargetHQ();
         updateTargetMuckraker();
         updateEnemies();
 
@@ -122,7 +122,7 @@ public class Politician extends Robot {
         }
         else if (myRole == ROLE_DEFEND) {
             if (closestEnemyMuckraker != null) {
-                killHungryTarget = rc.senseRobotAtLocation(closestEnemyMuckraker).getID();
+                killHungryTarget = rc.senseRobotAtLocation(closestEnemyMuckraker).ID;
                 tryAttackChase(closestEnemyMuckraker, false);
                 return;
             }
@@ -402,13 +402,13 @@ public class Politician extends Robot {
             }
         }
 
-//        log("score " + extremeAggression + " " + killHungryTarget + " " + ri.getID());
+//        log("score " + extremeAggression + " " + killHungryTarget + " " + ri.ID);
         // modifiers
         if (extremeAggression && ri.team != us) {
 //            log("extreme aggro");
             score += 1e6;
         }
-        if (ri.getID() == killHungryTarget && dmg > ri.conviction) {
+        if (ri.ID == killHungryTarget && dmg > ri.conviction) {
 //            log("kill hungry");
             score += 1e6;
         }

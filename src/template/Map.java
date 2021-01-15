@@ -218,4 +218,38 @@ public class Map {
         }
         return count;
     }
+
+    public static Direction getCircleDirLeft(MapLocation loc, MapLocation center) {
+        int dx = loc.x - center.x;
+        int dy = loc.y - center.y;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return (dx > 0) ? Direction.NORTH : Direction.SOUTH;
+        } else if (Math.abs(dx) < Math.abs(dy)) {
+            return (dy > 0) ? Direction.WEST : Direction.EAST;
+        } else {
+            if (dx > 0) {
+                return (dy > 0) ? Direction.WEST : Direction.NORTH;
+            } else {
+                return (dy > 0) ? Direction.SOUTH : Direction.EAST;
+            }
+        }
+    }
+
+    public static Direction getCircleDirRight(MapLocation loc, MapLocation center) {
+        int dx = loc.x - center.x;
+        int dy = loc.y - center.y;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return (dx > 0) ? Direction.SOUTH : Direction.NORTH;
+        } else if (Math.abs(dx) < Math.abs(dy)) {
+            return (dy > 0) ? Direction.EAST : Direction.WEST;
+        } else {
+            if (dx > 0) {
+                return (dy > 0) ? Direction.SOUTH : Direction.WEST;
+            } else {
+                return (dy > 0) ? Direction.EAST : Direction.NORTH;
+            }
+        }
+    }
 }

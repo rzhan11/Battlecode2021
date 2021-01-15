@@ -47,32 +47,38 @@ public class Comms {
     final public static int TYPE_MASK = ((1 << TYPE_BITS) - 1) << TYPE_OFFSET;
     final public static int INFO_MASK = ((1 << INFO_BITS) - 1) << INFO_OFFSET;
 
+    final public static int IGNORE_UNIT2UNIT_MASK = 0b1110000000;
+
     final public static int MAX_STATUS = (1 << STATUS_BITS) - 1;
 
     // MESSAGE TYPE CONSTANTS
     final public static int EMPTY_MSG = 63;
 
-    final public static int HQ_LOC_SOLO_MSG = 1;
-    final public static int HQ_LOC_PAIRED_MSG = 2;
-    final public static int ALLY_HQ_INFO_MSG = 3;
-    final public static int ENEMY_HQ_INFO_MSG = 4;
-    final public static int NEUTRAL_HQ_INFO_MSG = 5;
-
-    // NOTE: CHANGING THIS FROM 0 WILL PROBABLY BREAK THINGS
+    // Values of 0-7 are reserved for UNIT2UNIT comms (which are ignored by hqs)
+    // Not following this WILL BREAK THINGS
     final public static int BROADCAST_MY_MASTER_MSG = 0;
-    final public static int REPORT_NON_MASTER_MSG = 6;
+    final public static int ECHO_SURROUNDED_MSG = 1;
+    final public static int ECHO_NOT_SURROUNDED_MSG = 2;
+    //
 
-    final public static int XBOUNDS_MSG = 7;
-    final public static int XMIN_MSG = 8;
-    final public static int XMAX_MSG = 9;
-    final public static int XNONE_MSG = 10;
-    final public static int YBOUNDS_MSG = 11;
-    final public static int YMIN_MSG = 12;
-    final public static int YMAX_MSG = 13;
-    final public static int YNONE_MSG = 14;
+    final public static int HQ_LOC_SOLO_MSG = 8;
+    final public static int HQ_LOC_PAIRED_MSG = 9;
+    final public static int ALLY_HQ_INFO_MSG = 10;
+    final public static int ENEMY_HQ_INFO_MSG = 11;
+    final public static int NEUTRAL_HQ_INFO_MSG = 12;
 
-//    final public static int ALL_TARGET_LOC_MSG = ;
-//    final public static int MUCKRAKER_TARGET_LOC_MSG = ;
+    final public static int XBOUNDS_MSG = 13;
+    final public static int XMIN_MSG = 14;
+    final public static int XMAX_MSG = 15;
+    final public static int XNONE_MSG = 16;
+    final public static int YBOUNDS_MSG = 17;
+    final public static int YMIN_MSG = 18;
+    final public static int YMAX_MSG = 19;
+    final public static int YNONE_MSG = 20;
+
+    final public static int REPORT_NON_MASTER_MSG = 21;
+    final public static int REPORT_SURROUNDED_MSG = 22;
+    final public static int REPORT_NOT_SURROUNDED_MSG = 23;
 
 
     // constants for coordinates
@@ -124,6 +130,13 @@ public class Comms {
         return new MapLocation(x, y);
     }
 
+    public static int prevEchoType = -1;
+    public static int prevEchoInfo = -1;
+    public static void resetPrevEcho() {
+        prevEchoType = -1;
+        prevEchoInfo = -1;
+    }
+
     /*
     "Read" method header:
 
@@ -144,55 +157,80 @@ public class Comms {
      */
     public static void readMessage(int id) throws GameActionException {
         int flag = rc.getFlag(id);
-        Message msg = getMessageFromFlag(flag);
-        if (msg.type == EMPTY_MSG) return;
+
+        int msgType = (flag & TYPE_MASK) >>> TYPE_OFFSET;
+        int msgInfo = (flag & INFO_MASK) >>> INFO_OFFSET;
+
+        // check for echoes to skip
+        if ((flag & IGNORE_UNIT2UNIT_MASK) == 0) {
+            if (msgType == prevEchoType && msgInfo == prevEchoInfo) {
+                return;
+            } else {
+                prevEchoType = msgType;
+                prevEchoInfo = msgInfo;
+            }
+        }
+
+        // skip empty messages
+        if (msgType == EMPTY_MSG) return;
 
         log("Reading message from " + id);
-        tlog(msg.toString());
-        switch(msg.type) {
-            case EMPTY_MSG:
-                readBlank(msg.info, id);
+        tlog(new Message(msgType, msgInfo).toString());
+        switch(msgType) {
+            case EMPTY_MSG: // will never actually reach here
+                readEmptyMessage(msgInfo, id);
+                break;
+
+            case BROADCAST_MY_MASTER_MSG:
+                readBroadcastMyMaster(msgInfo);
+                break;
+            case ECHO_SURROUNDED_MSG:
+                readEchoSurrounded(msgInfo, true);
+                break;
+            case ECHO_NOT_SURROUNDED_MSG:
+                readEchoSurrounded(msgInfo, false);
                 break;
 
             case HQ_LOC_SOLO_MSG:
             case HQ_LOC_PAIRED_MSG:
-                readHQLoc(msg.info, msg.type, id);
-                break;
-            case ALLY_HQ_INFO_MSG:
-            case ENEMY_HQ_INFO_MSG:
-            case NEUTRAL_HQ_INFO_MSG:
-                readHQInfo(msg.info, msg.type, id);
+                readHQLoc(msgInfo, msgType, id);
                 break;
 
-            case BROADCAST_MY_MASTER_MSG:
-                readBroadcastMyMaster(msg.info);
+            case ALLY_HQ_INFO_MSG:
+                readHQInfo(msgInfo, us, id);
                 break;
-            case REPORT_NON_MASTER_MSG:
-                readReportNonMaster(msg.info);
+            case ENEMY_HQ_INFO_MSG:
+                readHQInfo(msgInfo, them, id);
+                break;
+            case NEUTRAL_HQ_INFO_MSG:
+                readHQInfo(msgInfo, neutral, id);
                 break;
 
             case XBOUNDS_MSG:
             case XMIN_MSG:
             case XMAX_MSG:
             case XNONE_MSG:
-                readXBounds(msg.info, msg.type);
+                readXBounds(msgInfo, msgType);
                 break;
             case YBOUNDS_MSG:
             case YMIN_MSG:
             case YMAX_MSG:
             case YNONE_MSG:
-                readYBounds(msg.info, msg.type);
+                readYBounds(msgInfo, msgType);
                 break;
 
-//            case ALL_TARGET_LOC_MSG:
-//                readAllTargetLoc(msg.info);
-//                break;
-//            case MUCKRAKER_TARGET_LOC_MSG:
-//                readMuckrakerTargetLoc(msg.info);
-//                break;
+            case REPORT_NON_MASTER_MSG:
+                readReportNonMaster(msgInfo);
+                break;
+            case REPORT_SURROUNDED_MSG:
+                readReportSurrounded(msgInfo, true);
+                break;
+            case REPORT_NOT_SURROUNDED_MSG:
+                readReportSurrounded(msgInfo, false);
+                break;
 
             default:
-                logi("ERROR: Unknown msg.type " + msg.type + " from id " + id);
+                logi("ERROR: Unknown msgType " + msgType);
                 break;
         }
     }
@@ -226,57 +264,91 @@ public class Comms {
         }
     }
 
-    public static void readBlank(int msgInfo, int id) {
+    public static void readEmptyMessage(int msgInfo, int id) {
         /*
         NOTE: THIS IS A PLACEHOLDER, no touch
          */
     }
 
-//    /*
-//    14 | ENEMY HQ LOC
-//     */
-//    public static void writeAllTargetEnemyHQ(MapLocation loc) throws GameActionException {
-//        log("Writing 'All Target Enemy HQ' message");
-//        tlog("Loc: " + loc);
-//
-//        Message msg = new Message(ALL_TARGET_LOC_MSG, loc2bits(loc));
-//        queueMessage(msg, false);
-//    }
-//
-//    public static void readAllTargetLoc(int msgInfo) throws GameActionException {
-//        switch (myType) {
-//            case MUCKRAKER: break;
-//            case POLITICIAN: break;
-//            default: return;
-//        }
-//
-//        MapLocation loc = bits2loc(msgInfo);
-//        tlog("Target HQ loc: " + loc);
-//
-//        targetEnemyHQLoc = loc;
-//    }
-//
-//    /*
-//    14 | ENEMY HQ LOC
-//     */
-//    public static void writeMuckrakerTargetEnemyHQ(MapLocation loc) throws GameActionException {
-//        log("Writing 'Muckraker Target Enemy HQ' message");
-//        tlog("Loc: " + loc);
-//
-//        Message msg = new Message(MUCKRAKER_TARGET_LOC_MSG, loc2bits(loc));
-//        queueMessage(msg, false);
-//    }
-//
-//    public static void readMuckrakerTargetLoc(int msgInfo) throws GameActionException {
-//        if (myType != RobotType.MUCKRAKER) {
-//            return;
-//        }
-//
-//        MapLocation loc = bits2loc(msgInfo);
-//        tlog("Target HQ loc: " + loc);
-//
-//        targetEnemyHQLoc = loc;
-//    }
+    /*
+    Assumes MAX_ID = 2^14 + 10000
+    14 | ENEMY HQ ID
+    Note: this message should only be written/read by non-hq robots (aka units)
+     */
+    public static void writeBroadcastMyMaster(boolean repeat) throws GameActionException {
+        log("Writing 'Broadcast My Master' message " + myMaster);
+
+        Message msg = new Message(BROADCAST_MY_MASTER_MSG, myMaster - MIN_ID, repeat);
+        queueMessage(msg);
+    }
+
+    public static void readBroadcastMyMaster(int msgInfo) throws GameActionException {
+        int hqid = msgInfo + MIN_ID;
+
+        // check if hq id is still alive
+        if (!rc.canGetFlag(hqid)) {
+            tlog("HQ is dead");
+            return;
+        }
+
+        for (int i = knownHQCount; --i >= 0;) {
+            if (hqid == hqIDs[i]) {
+                return;
+            }
+        }
+
+        for (int i = extraAllyHQCount; --i >= 0;) {
+            if (hqid == extraAllyHQs[i]) {
+                return;
+            }
+        }
+
+        tlog("Saving extra ally hq");
+        extraAllyHQCount++;
+        extraAllyHQs[extraAllyHQCount - 1] = hqid;
+        if (myType != RobotType.ENLIGHTENMENT_CENTER) {
+            writeReportNonMaster(hqid, false);
+        }
+    }
+
+    /*
+    14 | ENEMY HQ LOC
+    Note: this message should only be written/read by non-hq robots (aka units)
+     */
+    public static void writeEchoSurrounded(MapLocation loc, boolean isSurrounded) throws GameActionException {
+        Message msg;
+        if (isSurrounded) {
+            log("Writing 'Echo Surrounded' message " + loc);
+            msg = new Message(ECHO_SURROUNDED_MSG, loc2bits(loc), false);
+        } else {
+            log("Writing 'Echo Not Surrounded' message " + loc);
+            msg = new Message(ECHO_NOT_SURROUNDED_MSG, loc2bits(loc), false);
+        }
+        queueMessage(msg);
+    }
+
+    public static void readEchoSurrounded(int msgInfo, boolean isSurrounded) throws GameActionException {
+        MapLocation loc = bits2loc(msgInfo);
+
+        int index = -1;
+        for (int i = knownHQCount; --i >= 0;) {
+            if (loc.equals(hqLocs[i])) {
+                index = i;
+                break;
+            }
+        }
+
+        if (index < 0) {
+            return;
+        }
+
+        boolean wasSurrounded = checkIfSurrounded(index);
+        updateHQSurroundRound(index, isSurrounded);
+
+        if (wasSurrounded != isSurrounded) {
+            writeEchoSurrounded(loc, isSurrounded);
+        }
+    }
 
     /*
     Converts 14 bits into a MapLocation(XMIN, XMAX) or MapLocation(YMIN, YMAX)
@@ -413,10 +485,6 @@ public class Comms {
         if (paired) {
             tlog("Receiving from " + id);
             hqIDs[knownHQCount - 1] = -id;
-        } else {
-            if (myType == RobotType.ENLIGHTENMENT_CENTER) {
-                updateHQBroadcast(knownHQCount - 1);
-            }
         }
     }
 
@@ -456,33 +524,18 @@ public class Comms {
         queueMessage(msg);
     }
 
-    public static void readHQInfo(int msgInfo, int msgType, int id) throws GameActionException {
+    public static void readHQInfo(int msgInfo, Team team, int id) throws GameActionException {
         int hqid = msgInfo + MIN_ID;
-        Team team;
-        switch (msgType) {
-            case ALLY_HQ_INFO_MSG:
-                team = us;
-                break;
-            case ENEMY_HQ_INFO_MSG:
-                team = them;
-                break;
-            case NEUTRAL_HQ_INFO_MSG:
-                team = neutral;
-                break;
-            default:
-                logi("WARNING: Unknown msgType in 'readHQInfo' " + msgType);
-                return;
-        }
 
         for (int i = knownHQCount; --i >= 0;) {
             if (hqIDs[i] == -id) {
-                saveHQInfo(i, hqid, team);
-                tlog("Receiving from " + id);
-                tlog("HQ " + hqLocs[i] + " " + hqIDs[i] + " " + hqTeams[i]);
-
-                if (myType == RobotType.ENLIGHTENMENT_CENTER) {
-                    updateHQBroadcast(i);
+                // check to make sure the hq still exists
+                saveHQInfo(i, hqid, team); // keep this outside if statement, to ensure updateHQDead works
+                if (!rc.canGetFlag(hqid)) {
+                    tlog("HQ is dead, DELETED");
+                    updateHQDead(i);
                 }
+
                 return;
             } else if (hqIDs[i] == hqid) {
                 tlog("Info is already known");
@@ -491,47 +544,6 @@ public class Comms {
         }
 
         tlog("No receiving ID found");
-    }
-
-    /*
-    Assumes MAX_ID = 2^14 + 10000
-    14 | ENEMY HQ ID
-    Note: this message should only be written/read by non-hq robots (aka units)
-     */
-    public static void writeBroadcastMyMaster(boolean repeat) throws GameActionException {
-        log("Writing 'Broadcast My Master' message " + myMaster);
-
-        Message msg = new Message(BROADCAST_MY_MASTER_MSG, myMaster - MIN_ID, repeat);
-        queueMessage(msg);
-    }
-
-    public static void readBroadcastMyMaster(int msgInfo) throws GameActionException {
-        int hqid = msgInfo + MIN_ID;
-
-        // check if hq id is still alive
-        if (!rc.canGetFlag(hqid)) {
-            tlog("HQ is dead");
-            return;
-        }
-
-        for (int i = knownHQCount; --i >= 0;) {
-            if (hqid == hqIDs[i]) {
-                return;
-            }
-        }
-
-        for (int i = extraAllyHQCount; --i >= 0;) {
-            if (hqid == extraAllyHQs[i]) {
-                return;
-            }
-        }
-
-        tlog("Saving extra ally hq");
-        extraAllyHQCount++;
-        extraAllyHQs[extraAllyHQCount - 1] = hqid;
-        if (myType != RobotType.ENLIGHTENMENT_CENTER) {
-            writeReportNonMaster(hqid, true);
-        }
     }
 
     public static void writeReportNonMaster(int id, boolean repeat) throws GameActionException {
@@ -572,5 +584,49 @@ public class Comms {
         tlog("Saving extra ally hq");
         extraAllyHQCount++;
         extraAllyHQs[extraAllyHQCount - 1] = hqid;
+    }
+
+    public static void writeReportSurrounded(MapLocation loc, boolean isSurrounded) throws GameActionException {
+        Muckraker.lastReportSurroundRound = roundNum;
+
+        Message msg;
+        if (isSurrounded) {
+            log("Writing 'Report Surrounded' message");
+            msg = new Message(REPORT_SURROUNDED_MSG, loc2bits(loc), false);
+        } else {
+            log("Writing 'Report Not Surrounded' message");
+            msg = new Message(REPORT_NOT_SURROUNDED_MSG, loc2bits(loc), false);
+        }
+        queueMessage(msg);
+    }
+
+    public static void readReportSurrounded(int msgInfo, boolean isSurrounded) throws GameActionException {
+        MapLocation loc = bits2loc(msgInfo);
+
+        int index = -1;
+        for (int i = knownHQCount; --i >= 0;) {
+            if (loc.equals(hqLocs[i])) {
+                index = i;
+                break;
+            }
+        }
+
+        if (index < 0) {
+            return;
+        }
+
+        // record previous status
+        boolean wasSurrounded = checkIfSurrounded(index);
+        // update newest status
+        updateHQSurroundRound(index, isSurrounded);
+        Muckraker.lastReportSurroundRound = roundNum;
+
+        if (wasSurrounded != isSurrounded) {
+            if (myType == RobotType.ENLIGHTENMENT_CENTER) {
+                writeReportSurrounded(loc, isSurrounded);
+            } else {
+                writeEchoSurrounded(loc, isSurrounded);
+            }
+        }
     }
 }

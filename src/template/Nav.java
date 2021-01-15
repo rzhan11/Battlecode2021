@@ -142,10 +142,10 @@ public class Nav {
         }
 
         Direction[] wanderDirs = getWanderDirs(wanderDir);
-        log("Init wanderDir " + wanderDir + " " + dir2center);
+//        log("Init wanderDir " + wanderDir + " " + dir2center);
 
         for (int i = 0; i < 8; i++) {
-            log("Considering " + i + " " + wanderDirs[i]);
+//            log("Considering " + i + " " + wanderDirs[i]);
             if (canWander(wanderDirs[i], radius)) {
                 if (i >= 5) {
                     wanderLeft = !wanderLeft;
@@ -155,7 +155,7 @@ public class Nav {
             }
         }
 
-        log("Cannot wander");
+        tlog("Cannot wander");
         return null;
     }
 

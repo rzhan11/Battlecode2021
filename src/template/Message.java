@@ -25,6 +25,11 @@ public class Message {
         this.repeat = repeat;
     }
 
+    // assumes m1 and m2 != null
+    public static boolean hasSameContent(Message m1, Message m2) {
+        return m1.type == m2.type && m1.info == m2.info;
+    }
+
     @Override
     public String toString() {
         if (USE_BASIC_MESSAGES) {
@@ -43,6 +48,13 @@ public class Message {
             case EMPTY_MSG:
                 str += "[BLANK]"; break;
 
+            case BROADCAST_MY_MASTER_MSG:
+                str += "[MY MASTER] " + (info + MIN_ID); break;
+            case ECHO_SURROUNDED_MSG:
+                str += "[ECHO SURROUND] " + bits2loc(info); break;
+            case ECHO_NOT_SURROUNDED_MSG:
+                str += "[ECHO NOT SURROUND] " + bits2loc(info); break;
+
             case HQ_LOC_SOLO_MSG:
                 str += "[HQ LOC 1] " + bits2loc(info); break;
             case HQ_LOC_PAIRED_MSG:
@@ -54,11 +66,6 @@ public class Message {
                 str += "[HQ ID ENEMY] " + (info + MIN_ID); break;
             case NEUTRAL_HQ_INFO_MSG:
                 str += "[HQ ID NEUTRAL] " + (info + MIN_ID); break;
-
-            case BROADCAST_MY_MASTER_MSG:
-                str += "[MY MASTER] " + (info + MIN_ID); break;
-            case REPORT_NON_MASTER_MSG:
-                str += "[NON MASTER] " + (info + MIN_ID); break;
 
             case XBOUNDS_MSG:
                 str += "[X]" + bits2loc(info); break;
@@ -79,10 +86,12 @@ public class Message {
                 str += "[Y]" + new MapLocation(-1, -1); break;
 
 
-//            case ALL_TARGET_LOC_MSG:
-//                str += "[ALL TARGET LOC] " + bits2loc(info); break;
-//            case MUCKRAKER_TARGET_LOC_MSG:
-//                str += "[MUCKRAKER TARGET LOC]" + bits2loc(info); break;
+            case REPORT_NON_MASTER_MSG:
+                str += "[NON MASTER] " + (info + MIN_ID); break;
+            case REPORT_SURROUNDED_MSG:
+                str += "[REP SURROUND] " + bits2loc(info); break;
+            case REPORT_NOT_SURROUNDED_MSG:
+                str += "[REP NOT SURROUND] " + bits2loc(info); break;
 
 
             default:

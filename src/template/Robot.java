@@ -147,6 +147,9 @@ public abstract class Robot extends Constants {
     public static int[] hqSurroundRounds = new int[MAX_HQ_COUNT];
     public static int knownHQCount = 0;
 
+    public static MapLocation[] symHQLocs = new MapLocation[3 * MAX_HQ_COUNT];
+    public static int symHQCount = 0;
+
     // ALLY hq ids that we know and want to read from
     // but we don't know their locs
     public static int[] extraAllyHQs = new int[MAX_HQ_COUNT];
@@ -162,10 +165,6 @@ public abstract class Robot extends Constants {
         if (roundNum >= 400) {
             log("RESIGNING");
             rc.resign();
-        }
-
-        if (age == 1) {
-            HardCode.initHardCode2();
         }
 
         CommManager.resetFlag();
@@ -355,7 +354,7 @@ public abstract class Robot extends Constants {
 
 //        Debug.SILENCE_LOGS = true;
         for (int i = sensedAllies.length; --i >= 0;) {
-            if (Clock.getBytecodesLeft() > 1000 && roundNum == rc.getRoundNum()) {
+            if (Clock.getBytecodesLeft() > 1500 && roundNum == rc.getRoundNum()) {
                 Comms.readMessage(sensedAllies[i].ID);
             } else {
                 count = sensedAllies.length - 1 - i;
@@ -441,10 +440,6 @@ public abstract class Robot extends Constants {
         CommManager.printMessageQueue();
         CommManager.printRepeatQueue();
         CommManager.updateMessageCount();
-
-        if (myType == RobotType.ENLIGHTENMENT_CENTER && roundNum < 10) {
-            updateSymmetryByPassability();
-        }
 
         // check if we went over the bytecode limit
         int endTurn = rc.getRoundNum();

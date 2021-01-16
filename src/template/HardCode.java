@@ -23,21 +23,8 @@ public class HardCode {
             case ENLIGHTENMENT_CENTER:
                 break;
             case POLITICIAN:
-                initBFS9();
-                break;
-            case SLANDERER:
-                break;
-            case MUCKRAKER:
-                break;
-        }
-    }
-
-    public static void initHardCode2() {
-        switch(myType) {
-            case ENLIGHTENMENT_CENTER:
-                break;
-            case POLITICIAN:
                 initBOX_EDGES();
+                initBFS9();
                 break;
             case SLANDERER:
                 break;

@@ -377,6 +377,43 @@ public class Map {
         }
     }
 
+    public static MapLocation[] updateSymHQLocs() {
+        symHQCount = 0;
+        if (!notHSymmetry && isMapXKnown()) {
+            for (int i = knownHQCount; --i >= 0;) {
+                MapLocation loc = hqLocs[i];
+                MapLocation symLoc = getSymmetricLocation(loc, Symmetry.H);
+                if (!inArray(hqLocs, symLoc, knownHQCount)) {
+                    symHQLocs[symHQCount] = symLoc;
+                    symHQCount++;
+                }
+            }
+        }
+        if (!notVSymmetry && isMapYKnown()) {
+            for (int i = knownHQCount; --i >= 0;) {
+                MapLocation loc = hqLocs[i];
+                MapLocation symLoc = getSymmetricLocation(loc, Symmetry.V);
+                if (!inArray(hqLocs, symLoc, knownHQCount)) {
+                    symHQLocs[symHQCount] = symLoc;
+                    symHQCount++;
+                }
+            }
+        }
+        if (!notRSymmetry && isMapKnown()) {
+            for (int i = knownHQCount; --i >= 0;) {
+                MapLocation loc = hqLocs[i];
+                MapLocation symLoc = getSymmetricLocation(loc, Symmetry.R);
+                if (!inArray(hqLocs, symLoc, knownHQCount)) {
+                    symHQLocs[symHQCount] = symLoc;
+                    symHQCount++;
+                }
+            }
+        }
+
+
+        return null;
+    }
+
     public static int dir2int(Direction dir) {
         switch (dir) {
             case NORTH:

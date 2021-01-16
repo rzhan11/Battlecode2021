@@ -1,9 +1,12 @@
 package template;
 
 import battlecode.common.*;
+import muckspam.Actions;
 
+import static muckspam.Nav.moveLog;
 import static template.Debug.*;
 import static template.Nav.*;
+import static template.Comms.*;
 
 public class Slanderer extends Robot {
 
@@ -17,6 +20,10 @@ public class Slanderer extends Robot {
     public static int closestMuckerDist;
     public static MapLocation lastSeenMucker = null;
     public static int turnsSinceMucker = P_INF;
+    public static int slanderMaximumRadius = 18;
+    public static boolean recievedRendezvous = false;
+    public static MapLocation rendezvousLocation = null;
+    final public static int SLANDERER_WANDER_MINIMUM_RADIUS = 8;
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
@@ -44,11 +51,21 @@ public class Slanderer extends Robot {
         }
 
         updateDanger();
+        if(turnsSinceMucker == 0) {
+            // Found Attacker - Broadcast location
+            broadcastAttackMuckrakerLocation(closestMucker);
+        }
         if (avoidDanger() != null) {
             return;
         }
+        if(recievedRendezvous) {
+            Direction dir = moveLog(rendezvousLocation);
+            if(dir == null) return;
+            Actions.doMove(dir);
+            return;
+        }
 
-        wander(SLANDERER_WANDER_RADIUS);
+        wander(SLANDERER_WANDER_MINIMUM_RADIUS);
     }
 
     public static void updateDanger() throws GameActionException {

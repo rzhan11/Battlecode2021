@@ -2,6 +2,7 @@ package template;
 
 import battlecode.common.*;
 
+import static template.Politician.*;
 import static template.CommManager.*;
 import static template.Debug.*;
 import static template.HQTracker.*;
@@ -81,6 +82,7 @@ public class Comms {
     final public static int REPORT_NON_MASTER_MSG = 22;
     final public static int REPORT_SURROUNDED_MSG = 23;
     final public static int REPORT_NOT_SURROUNDED_MSG = 24;
+    final public static int FOUND_ATTACKING_MUCKRAKER=25;
 
 
     // constants for coordinates
@@ -235,7 +237,9 @@ public class Comms {
             case REPORT_NOT_SURROUNDED_MSG:
                 readReportSurrounded(msgInfo, false);
                 break;
-
+            case FOUND_ATTACKING_MUCKRAKER:
+                if(rc.getType() == RobotType.POLITICIAN)
+                    setAttackMuckraker(msgInfo);
             default:
                 logi("ERROR: Unknown msgType " + msgType);
                 break;
@@ -679,4 +683,14 @@ public class Comms {
             }
         }
     }
+
+    public static void broadcastAttackMuckrakerLocation(MapLocation seenLocation) throws GameActionException {
+        Message msg = new Message(FOUND_ATTACKING_MUCKRAKER, loc2bits(seenLocation), myType == RobotType.ENLIGHTENMENT_CENTER);
+        queueMessage(msg);
+    }
+
+    public static void setAttackMuckraker(int msgInfo) throws GameActionException {
+        setNewAttackTarget(bits2loc(msgInfo));
+    }
+
 }

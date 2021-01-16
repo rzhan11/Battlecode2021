@@ -19,3 +19,14 @@ scripts/log.txt
 src/*_nolog
 
 src/*.zip
+src/template.zip
+
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
+
+.DS_Store
+.gitattributes
+BattleCode21.iml

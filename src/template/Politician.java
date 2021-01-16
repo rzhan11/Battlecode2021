@@ -41,6 +41,7 @@ public class Politician extends Robot {
     public static int targetHQIndex = -1;
     public static MapLocation targetHQLoc = null;
     public static int targetHQID = -1;
+    public static MapLocation muckrakerAttackLocation;
 
     // scout variables
     public static boolean isBugScout; // true = bug, false = fuzzy
@@ -145,6 +146,10 @@ public class Politician extends Robot {
                 killHungryTarget = rc.senseRobotAtLocation(closestEnemyMuckraker).ID;
                 tryAttackChase(closestEnemyMuckraker, false);
                 return;
+            }
+            if (muckrakerAttackLocation != null) {
+                if(rc.canSenseLocation(muckrakerAttackLocation)) muckrakerAttackLocation = null;
+                else tryChase(muckrakerAttackLocation, true);
             }
             // no seen muckrakers
             wander(POLITICIAN_WANDER_RADIUS);
@@ -436,5 +441,9 @@ public class Politician extends Robot {
             score += 1e6;
         }
         return score;
+    }
+
+    public static void setNewAttackTarget(MapLocation seen) throws GameActionException {
+        if(muckrakerAttackLocation == null) muckrakerAttackLocation = seen;
     }
 }

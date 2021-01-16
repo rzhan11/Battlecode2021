@@ -200,7 +200,7 @@ public class CommManager {
     }
 
     public static void printMessageQueue() throws GameActionException {
-        log("Queued Messages: " + msgQueueCount);
+        log("Queued Normal Messages: " + msgQueueCount);
         for (int i = 0; i < msgQueueCount; i++) {
             int index = (msgQueueIndex + i) % QUEUE_LEN;
             if (msgQueue[index] != null) {

@@ -3,6 +3,7 @@ package template;
 import battlecode.common.*;
 
 import static template.Debug.*;
+import static template.Map.*;
 import static template.Nav.*;
 import static template.Utils.*;
 
@@ -19,6 +20,7 @@ public class Politician extends Robot {
     // Role Allocation
     final public static int ROLE_ATTACK = 1;
     final public static int ROLE_DEFEND = 2;
+    final public static int ROLE_SCOUT = 3;
 
     // Global Variables
     public static int myRole;
@@ -40,6 +42,10 @@ public class Politician extends Robot {
     public static MapLocation targetHQLoc = null;
     public static int targetHQID = -1;
 
+    // scout variables
+    public static boolean isBugScout; // true = bug, false = fuzzy
+
+
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
         // init my role
@@ -55,12 +61,35 @@ public class Politician extends Robot {
         } else { // default to attacker role
             myRole = ROLE_ATTACK;
         }
-        
+
+        // i am a scout
+        if (rc.getInfluence() == 1) {
+            myRole = ROLE_SCOUT;
+            isBugScout = (Math.random() < 0.5);
+        }
+
         initExploreLoc();
     }
 
     // code run each turn
     public static void turn() throws GameActionException {
+        switch(myRole) {
+            case ROLE_ATTACK:
+                log("[ROLE_ATTACK]");
+                break;
+            case ROLE_DEFEND:
+                log("[ROLE_DEFEND]");
+                break;
+            case ROLE_SCOUT:
+                log("[ROLE_SCOUT]");
+                break;
+        }
+        if (wasSlanderer) {
+            log("[SLAN2POLI]");
+        }
+
+        // update damage
+        myDamage = (int) (myConviction * rc.getEmpowerFactor(us, 0) - GameConstants.EMPOWER_TAX);
         killHungryTarget = -1;
         extremeAggression = false;
 
@@ -69,18 +98,9 @@ public class Politician extends Robot {
         updateTargetMuckraker();
         updateEnemies();
 
-        if (myRole == ROLE_ATTACK) {
-            log("[ROLE_ATTACK]");
-        } else if (myRole == ROLE_DEFEND) {
-            log("[ROLE_DEFEND]");
+        if (myRole == ROLE_SCOUT) {
+            updateSymmetryByPassability();
         }
-
-        if (wasSlanderer) {
-            log("[SLAN2POLI]");
-        }
-
-        // update damage
-        myDamage = (int) (myConviction * rc.getEmpowerFactor(us, 0) - GameConstants.EMPOWER_TAX);
 
         if (!rc.isReady()) {
             return;
@@ -117,7 +137,7 @@ public class Politician extends Robot {
             }
 
             // if no target
-            explore();
+            explore(true);
             return;
         }
         else if (myRole == ROLE_DEFEND) {
@@ -128,6 +148,9 @@ public class Politician extends Robot {
             }
             // no seen muckrakers
             wander(POLITICIAN_WANDER_RADIUS);
+            return;
+        } else if (myRole == ROLE_SCOUT) {
+            explore(isBugScout);
             return;
         }
     }

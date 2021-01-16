@@ -76,9 +76,11 @@ public class Comms {
     final public static int YMAX_MSG = 19;
     final public static int YNONE_MSG = 20;
 
-    final public static int REPORT_NON_MASTER_MSG = 21;
-    final public static int REPORT_SURROUNDED_MSG = 22;
-    final public static int REPORT_NOT_SURROUNDED_MSG = 23;
+    final public static int SYMMETRY_MSG = 21;
+
+    final public static int REPORT_NON_MASTER_MSG = 22;
+    final public static int REPORT_SURROUNDED_MSG = 23;
+    final public static int REPORT_NOT_SURROUNDED_MSG = 24;
 
 
     // constants for coordinates
@@ -217,6 +219,11 @@ public class Comms {
             case YMAX_MSG:
             case YNONE_MSG:
                 readYBounds(msgInfo, msgType);
+                break;
+
+
+            case SYMMETRY_MSG:
+                readSymmetry(msgInfo);
                 break;
 
             case REPORT_NON_MASTER_MSG:
@@ -440,6 +447,49 @@ public class Comms {
             if (msgType == YBOUNDS_MSG || msgType == YMAX_MSG) {
                 YMAX = loc.y;
             }
+        }
+    }
+
+    /*
+    1 | notHSymmetry
+    1 | notVSymmetry
+    1 | notRSymmetry
+     */
+    public static void writeSymmetry(boolean repeat) throws GameActionException {
+        log("Writing 'Symmetry' " + (notHSymmetry?1:0) + (notVSymmetry?1:0) + (notRSymmetry?1:0));
+        int info = 0;
+        if (notHSymmetry) {
+            info += 1;
+        }
+        if (notVSymmetry) {
+            info += 2;
+        }
+        if (notRSymmetry) {
+            info += 4;
+        }
+        if (info == 0 || info == 7) {
+            logi("WARNING: 'writeSymmetry' received bad inputs " + notHSymmetry + " " + notVSymmetry + " " + notRSymmetry);
+            return;
+        }
+
+        Message msg = new Message(SYMMETRY_MSG, info, repeat);
+        queueMessage(msg);
+    }
+
+    public static void readSymmetry(int msgInfo) throws GameActionException {
+        if ((msgInfo & 1) > 0) {
+            notHSymmetry = true;
+        }
+        if ((msgInfo & 2) > 0) {
+            notVSymmetry = true;
+        }
+        if ((msgInfo & 4) > 0) {
+            notRSymmetry = true;
+        }
+
+        updateTheSymmetry();
+        if (myType == RobotType.ENLIGHTENMENT_CENTER) {
+            updateSymmetryBroadcast();
         }
     }
 

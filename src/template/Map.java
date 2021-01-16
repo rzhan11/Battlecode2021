@@ -3,9 +3,10 @@ package template;
 import battlecode.common.*;
 
 import static template.Comms.*;
+import static template.CommManager.*;
 import static template.Debug.*;
-import static template.HardCode.*;
 import static template.Robot.*;
+import static template.Utils.*;
 
 public class Map {
     public static int XMIN = -1;
@@ -14,6 +15,14 @@ public class Map {
     public static int YMAX = -1;
     public static int XLEN = -1;
     public static int YLEN = -1;
+
+    public static boolean notHSymmetry = false;
+    public static boolean notVSymmetry = false;
+    public static boolean notRSymmetry = false;
+
+    public static Symmetry theSymmetry = null;
+
+    public static Message symmetryBroadcast;
 
     public static MapLocation addDir(MapLocation loc, Direction dir, int len) {
         return loc.translate(dir.dx * len, dir.dy * len);
@@ -175,6 +184,199 @@ public class Map {
         }
     }
 
+    public static void printSymmetry() {
+        if (theSymmetry != null) {
+            log("SYM " + theSymmetry);
+        } else {
+            log("SYM: " + (notHSymmetry?1:0) + (notVSymmetry?1:0) + (notRSymmetry?1:0));
+        }
+    }
+
+    public static void updateSymmetryBroadcast() throws GameActionException {
+        if (!notHSymmetry && !notVSymmetry && !notRSymmetry) {
+            return;
+        }
+
+        if (symmetryBroadcast == null) {
+            symmetryBroadcast = new Message(SYMMETRY_MSG, 0, true);
+            queueMessage(symmetryBroadcast);
+        }
+
+        int info = 0;
+        if (notHSymmetry) {
+            info += 1;
+        }
+        if (notVSymmetry) {
+            info += 2;
+        }
+        if (notRSymmetry) {
+            info += 4;
+        }
+        symmetryBroadcast.info = info;
+    }
+
+    public static void updateTheSymmetry() {
+        if (theSymmetry != null) {
+            return;
+        }
+        if (notHSymmetry && notVSymmetry) {
+            theSymmetry = Symmetry.R;
+        }
+        else if (notHSymmetry && notRSymmetry) {
+            theSymmetry = Symmetry.V;
+        }
+        else if (notVSymmetry && notRSymmetry) {
+            theSymmetry = Symmetry.H;
+        }
+    }
+
+    public static void updateSymmetryByHQ() throws GameActionException {
+        if (theSymmetry != null) {
+            return;
+        }
+
+        boolean changed = false;
+
+        // check H
+        if (isMapXKnown() && !notHSymmetry) {
+            for (int i = knownHQCount; --i >= 0;) {
+                MapLocation symLoc = getSymmetricLocation(hqLocs[i], Symmetry.H);
+                if (rc.canSenseLocation(symLoc) && !inArray(hqLocs, symLoc, knownHQCount)) {
+                    // if we can sense it by location, then we should have added it to hqLocs
+                    log("[NOT H]");
+                    notHSymmetry = true;
+                    changed = true;
+                    break;
+                }
+            }
+        }
+        // check V
+        if (isMapYKnown() && !notVSymmetry) {
+            for (int i = knownHQCount; --i >= 0;) {
+                MapLocation symLoc = getSymmetricLocation(hqLocs[i], Symmetry.V);
+                if (rc.canSenseLocation(symLoc) && !inArray(hqLocs, symLoc, knownHQCount)) {
+                    log("[NOT V]");
+                    notVSymmetry = true;
+                    changed = true;
+                    break;
+                }
+            }
+        }
+        // check R
+        if (isMapKnown() && !notRSymmetry) {
+            for (int i = knownHQCount; --i >= 0;) {
+                MapLocation symLoc = getSymmetricLocation(hqLocs[i], Symmetry.R);
+                if (rc.canSenseLocation(symLoc) && !inArray(hqLocs, symLoc, knownHQCount)) {
+                    log("[NOT R]");
+                    notRSymmetry = true;
+                    changed = true;
+                    break;
+                }
+            }
+        }
+
+        if (changed) {
+            writeSymmetry(false);
+        }
+
+        updateTheSymmetry();
+    }
+
+    public static void updateSymmetryByPassability() throws GameActionException {
+        if (theSymmetry != null) {
+            return;
+        }
+
+        int[][] relLocs;
+        switch(myType) {
+            case POLITICIAN:
+                relLocs = HardCode.BOX_EDGES;
+                break;
+            case MUCKRAKER:
+            case SLANDERER:
+            case ENLIGHTENMENT_CENTER:
+            default:
+                logi("WARNING: Tried to updateSymmetryByPassability for unsupported type " + myType);
+                return;
+        }
+
+        here = rc.getLocation();
+
+        boolean willCheckH = isMapXKnown() && !notHSymmetry;
+        boolean willCheckV = isMapYKnown() && !notVSymmetry;
+        boolean willCheckR = isMapKnown() && !notRSymmetry;
+
+        int symCount = (willCheckH?1:0) + (willCheckV?1:0) + (willCheckR?1:0);
+        if (symCount == 0) {
+            return;
+        }
+
+        boolean changed = false;
+
+        if (willCheckH) {
+            for (int i = relLocs.length; --i >= 0;) {
+                MapLocation loc = here.translate(relLocs[i][0], relLocs[i][1]);
+                drawDot(loc, BLACK);
+                drawDot(getSymmetricLocation(loc, Symmetry.H), BROWN);
+                if (checkSymmetryWrong(loc, getSymmetricLocation(loc, Symmetry.H))) {
+                    notHSymmetry = true;
+                    changed = true;
+                    break;
+                }
+            }
+        }
+
+        if (willCheckV) {
+            for (int i = relLocs.length; --i >= 0;) {
+                MapLocation loc = here.translate(relLocs[i][0], relLocs[i][1]);
+                if (checkSymmetryWrong(loc, getSymmetricLocation(loc, Symmetry.V))) {
+                    notVSymmetry = true;
+                    changed = true;
+                    break;
+                }
+            }
+        }
+
+        if (willCheckR) {
+            for (int i = relLocs.length; --i >= 0;) {
+                MapLocation loc = here.translate(relLocs[i][0], relLocs[i][1]);
+                if (checkSymmetryWrong(loc, getSymmetricLocation(loc, Symmetry.R))) {
+                    notRSymmetry = true;
+                    changed = true;
+                    break;
+                }
+            }
+        }
+
+        if (changed) {
+            writeSymmetry(false);
+        }
+
+        updateTheSymmetry();
+    }
+
+    // returns true if this DISPROVES symmetry
+    // returns false if it confirms symmetry or if test cannot be performed
+    public static boolean checkSymmetryWrong(MapLocation loc1, MapLocation loc2) throws GameActionException {
+        if (!rc.canSenseLocation(loc1) || !rc.canSenseLocation(loc2)) {
+            return false;
+        }
+        return rc.sensePassability(loc1) != rc.sensePassability(loc2);
+    }
+
+    public static MapLocation getSymmetricLocation(MapLocation loc, Symmetry sym) {
+        switch(sym) {
+            case H:
+                return new MapLocation(XMIN + XMAX - loc.x, loc.y);
+            case V:
+                return new MapLocation(loc.x, YMIN + YMAX - loc.y);
+            case R:
+                return new MapLocation(XMIN + XMAX - loc.x, YMIN + YMAX - loc.y);
+            default:
+                return null;
+        }
+    }
+
     public static int dir2int(Direction dir) {
         switch (dir) {
             case NORTH:
@@ -252,4 +454,10 @@ public class Map {
             }
         }
     }
+}
+
+enum Symmetry {
+    H,
+    V,
+    R
 }

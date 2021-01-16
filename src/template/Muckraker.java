@@ -138,8 +138,8 @@ public class Muckraker extends Robot {
             }
         }
 
-
-        explore();
+        explore(true);
+        return;
     }
 
     public static void updateEnemies() throws GameActionException {

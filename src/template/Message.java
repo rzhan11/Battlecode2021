@@ -85,6 +85,13 @@ public class Message {
             case YNONE_MSG:
                 str += "[Y]" + new MapLocation(-1, -1); break;
 
+            case SYMMETRY_MSG:
+                str += "[SYM] ";
+                str += (info & 1);
+                str += (info & 2) >> 1;
+                str += (info & 4) >> 2;
+                break;
+
 
             case REPORT_NON_MASTER_MSG:
                 str += "[NON MASTER] " + (info + MIN_ID); break;

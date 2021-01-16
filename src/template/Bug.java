@@ -32,7 +32,7 @@ public class Bug extends Nav {
     Every 'PATIENCE' turns, 'minPassability' is multiplied by 'PATIENCE_FACTOR'
      */
     final public static double DEFAULT_MIN_PASSABILITY = 0.5;;
-    final public static int PATIENCE = 10; // every 'PATIENCE' turns, minPassability decreases
+    final public static int PATIENCE = 5; // every 'PATIENCE' turns, minPassability decreases
     final public static double PATIENCE_FACTOR = 0.5;
 
 

@@ -17,7 +17,11 @@ public class EnlightenmentCenter extends Robot {
     final public static int BEST_SLANDERER_COST = 41;
     final public static int MAX_SLANDERER_COST = 399;
 
-    final public static int EARLY_MUCKRAKERS_COUNT = 4;
+    final public static int EARLY_SCOUT_COUNT = 4;
+
+
+    // the priority of directions to explore
+    public static Direction[] EXPLORE_DIRS;
 
     // variables
 
@@ -68,6 +72,9 @@ public class EnlightenmentCenter extends Robot {
         Comms.writeXBounds();
         Comms.writeYBounds();
 
+        // choose directions to explore, based on map edges that we can see
+        EXPLORE_DIRS = getExploreDirs();
+
         SLANDERER_COSTS = new int[] {-1, 21, 41, 63, 85, 107, 130, 154, 178, 203, 228, 255, 282, 310, 339, 368, 399, 431, 463, 497, 532, 568, 605, 643, 683, 724, 766, 810, 855, 902, 949};
 
         myMuckrakers = new int[MAX_KNOWN_ALLIES];
@@ -76,6 +83,7 @@ public class EnlightenmentCenter extends Robot {
         mySlanderers = new int[MAX_KNOWN_ALLIES];
         mySlandererSpawnRounds = new int[MAX_KNOWN_ALLIES];
         mySlandererEarns = new int[MAX_KNOWN_ALLIES];
+
 
     }
 
@@ -112,12 +120,9 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
-        // spawn muck scouts
-        if (scoutCount < EARLY_MUCKRAKERS_COUNT) {
-            Direction dir = makeMuckraker(true);
-            if (dir != null) {
-                scoutCount++;
-            }
+        // spawn poli scouts
+        if (scoutCount < EARLY_SCOUT_COUNT) {
+            Direction dir = makeScoutPolitician();
             return;
         }
 
@@ -175,6 +180,35 @@ public class EnlightenmentCenter extends Robot {
         if (getNumOpenDirs() >= 2) {
             makeMuckraker(true);
             return;
+        }
+    }
+
+    // for hqs only
+    public static Direction[] getExploreDirs() {
+        if (XMIN != -1) {
+            if (YMIN != -1) {
+                return new Direction[] {Direction.NORTH, Direction.EAST, Direction.NORTHEAST};
+            } else if (YMAX != -1) {
+                return new Direction[] {Direction.SOUTH, Direction.EAST, Direction.SOUTHEAST};
+            } else {
+                return new Direction[] {Direction.EAST, Direction.SOUTH, Direction.NORTH, Direction.NORTHEAST, Direction.SOUTHEAST};
+            }
+        } else if (XMAX != -1) {
+            if (YMIN != -1) {
+                return new Direction[] {Direction.NORTH, Direction.WEST, Direction.NORTHWEST};
+            } else if (YMAX != -1) {
+                return new Direction[] {Direction.SOUTH, Direction.WEST, Direction.SOUTHWEST};
+            } else {
+                return new Direction[] {Direction.WEST, Direction.NORTH, Direction.SOUTH, Direction.SOUTHWEST, Direction.NORTHWEST};
+            }
+        } else {
+            if (YMIN != -1) {
+                return new Direction[] {Direction.NORTH, Direction.EAST, Direction.WEST, Direction.NORTHWEST, Direction.NORTHEAST};
+            } else if (YMAX != -1) {
+                return new Direction[] {Direction.SOUTH, Direction.WEST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTHWEST};
+            } else {
+                return new Direction[] {Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST, Direction.SOUTHWEST, Direction.NORTHEAST, Direction.SOUTHEAST, Direction.NORTHWEST};
+            }
         }
     }
 
@@ -403,10 +437,8 @@ public class EnlightenmentCenter extends Robot {
             }
         }
 
-        int scoutDirIndex = scoutCount % 8;
-        Direction scoutDir = DIRS[scoutDirIndex];
-
-        int status = scoutDirIndex;
+        Direction scoutDir = EXPLORE_DIRS[scoutCount % EXPLORE_DIRS.length];
+        int status = dir2int(scoutDir);
         CommManager.setStatus(status);
 
         Direction buildDir = tryBuild(RobotType.MUCKRAKER, scoutDir, cost);
@@ -449,6 +481,25 @@ public class EnlightenmentCenter extends Robot {
 
     }
 
+    public static Direction makeScoutPolitician() throws GameActionException {
+        log("Trying to build scout politician");
+
+        int cost = 1;
+        if (cost > mySafetyBudget) {
+            return null;
+        }
+
+        Direction scoutDir = EXPLORE_DIRS[scoutCount % EXPLORE_DIRS.length];
+        int status = dir2int(scoutDir);
+        CommManager.setStatus(status);
+
+        Direction buildDir = tryBuild(RobotType.POLITICIAN, scoutDir, cost);
+        if (buildDir != null) {
+            scoutCount++;
+        }
+        return buildDir;
+    }
+
     public static Direction makeDefendPolitician() throws GameActionException {
         log("Trying to build defensive politician");
 
@@ -468,9 +519,8 @@ public class EnlightenmentCenter extends Robot {
         } else {
             scoutDir = getRandomDir();
         }
-        int scoutDirIndex = dir2int(scoutDir);
 
-        int status = scoutDirIndex + (1 << 3);
+        int status = dir2int(scoutDir) + (1 << 3);
         CommManager.setStatus(status);
 
         Direction buildDir = tryBuild(RobotType.POLITICIAN, scoutDir, cost);
@@ -485,10 +535,8 @@ public class EnlightenmentCenter extends Robot {
             return null;
         }
 
-        int scoutDirIndex = scoutCount % 8;
-        Direction scoutDir = DIRS[scoutDirIndex];
-
-        int status = scoutDirIndex;
+        Direction scoutDir = EXPLORE_DIRS[scoutCount % EXPLORE_DIRS.length];
+        int status = dir2int(scoutDir);
         CommManager.setStatus(status);
 
         Direction buildDir = tryBuild(RobotType.POLITICIAN, scoutDir, cost);

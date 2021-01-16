@@ -20,9 +20,6 @@ public abstract class Robot extends Constants {
     final public static Direction[] CARD_DIRS = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST}; // four cardinal directions
     final public static Direction[] DIAG_DIRS = {Direction.NORTHEAST, Direction.SOUTHEAST, Direction.SOUTHWEST, Direction.NORTHWEST}; // four diagonals
 
-    // the priority of directions to explore
-    final public static Direction[] EXPLORE_DIRS = {Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST, Direction.SOUTHWEST, Direction.NORTHEAST, Direction.SOUTHEAST, Direction.NORTHWEST};
-
     final public static Team neutral = Team.NEUTRAL;
 
     final public static int MAX_HQ_COUNT = 12;
@@ -147,9 +144,8 @@ public abstract class Robot extends Constants {
     // not guaranteed to be accurate, however if hqIDs[i] is known, then hqTeams[i] should be accurate
     public static Team[] hqTeams = new Team[MAX_HQ_COUNT];
     public static int[] hqIDs = new int[MAX_HQ_COUNT];
-    public static int knownHQCount = 0;
-
     public static int[] hqSurroundRounds = new int[MAX_HQ_COUNT];
+    public static int knownHQCount = 0;
 
     // ALLY hq ids that we know and want to read from
     // but we don't know their locs
@@ -168,6 +164,10 @@ public abstract class Robot extends Constants {
             rc.resign();
         }
 
+        if (age == 1) {
+            HardCode.initHardCode2();
+        }
+
         CommManager.resetFlag();
         Comms.resetPrevEcho();
 
@@ -178,12 +178,15 @@ public abstract class Robot extends Constants {
         sortEnemyTypes();
         updateIsDirMoveable();
 
-        // TODO symmetry checks
-        // TODO use symmetry to determine hq locs
         updateMapBounds();
 
         // after updateMapBounds & symmetry stuff
         updateKnownHQs();
+
+        // TODO add comms for symmetry
+        // todo add repeated comms for symmetry
+        // after updateKnownHQs
+        updateSymmetryByHQ();
 
         // after updateKnownHQs
         updateMaster();
@@ -197,6 +200,7 @@ public abstract class Robot extends Constants {
         // map info
         log("MAP X " + new MapLocation(XMIN, XMAX));
         log("MAP Y " + new MapLocation(YMIN, YMAX));
+        printSymmetry();
 
         // hq info
         log("HQs: " + knownHQCount);
@@ -365,6 +369,8 @@ public abstract class Robot extends Constants {
     }
 
 
+    public static boolean rotateLeftExplore;
+    public static boolean tripleRotateExplore;
     public static int lastExploreLocChangeRound = -1;
     /*
     Exploration code
@@ -377,6 +383,8 @@ public abstract class Robot extends Constants {
             int status = Comms.getStatusFromFlag(rc.getFlag(myMaster));
             exploreDir = DIRS[status % 8];
         }
+        rotateLeftExplore = (Math.random() < 0.5);
+        tripleRotateExplore = (Math.random() < 0.5);
 
         exploreCornerLoc = convertToKnownBounds(addDir(spawnLoc, exploreDir, MAX_MAP_SIZE));
         exploreLoc = processExploreLoc(exploreCornerLoc);
@@ -388,13 +396,16 @@ public abstract class Robot extends Constants {
 
         // get new explore location if we can see the corner
         // or if it has been too long
-        if (rc.canSenseLocation(exploreCornerLoc) || roundNum - lastExploreLocChangeRound > 200) {
+        if (rc.canSenseLocation(exploreCornerLoc) || roundNum - lastExploreLocChangeRound > 150) {
             // chose new exploreDir, either rotate 1 or 3
-            if ((myID & 8) == 0) { //initial directions is ID%8, so this is independent
-                exploreDir = exploreDir.rotateLeft();
+            if (tripleRotateExplore) {
+                exploreDir = rotateLeftExplore ? exploreDir.rotateLeft().rotateLeft().rotateLeft() :
+                        exploreDir.rotateRight().rotateRight().rotateRight();
             } else {
-                exploreDir = exploreDir.rotateLeft().rotateLeft().rotateLeft();
+                exploreDir = rotateLeftExplore ? exploreDir.rotateLeft() : exploreDir.rotateRight();
             }
+
+            // update last changed explore round
             lastExploreLocChangeRound = roundNum;
 
             MapLocation mapCenter = new MapLocation(isMapXKnown() ? (XMIN + XLEN / 2) : spawnLoc.x,
@@ -406,11 +417,16 @@ public abstract class Robot extends Constants {
         }
     }
 
-    public static void explore() throws GameActionException {
+    public static void explore(boolean useBug) throws GameActionException {
         // move towards explore loc
         rc.setIndicatorLine(here, exploreLoc, PURPLE[0], PURPLE[1], PURPLE[2]);
-        log("Exploring: " + exploreLoc);
-        moveLog(exploreLoc);
+        if (useBug) {
+            log("Bug exploring: " + exploreLoc);
+            moveLog(exploreLoc);
+        } else {
+            log("Fuzzy exploring: " + exploreLoc);
+            fuzzyTo(exploreLoc);
+        }
     }
 
     /*
@@ -425,6 +441,10 @@ public abstract class Robot extends Constants {
         CommManager.printMessageQueue();
         CommManager.printRepeatQueue();
         CommManager.updateMessageCount();
+
+        if (myType == RobotType.ENLIGHTENMENT_CENTER && roundNum < 10) {
+            updateSymmetryByPassability();
+        }
 
         // check if we went over the bytecode limit
         int endTurn = rc.getRoundNum();

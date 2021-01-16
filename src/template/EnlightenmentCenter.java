@@ -51,10 +51,14 @@ public class EnlightenmentCenter extends Robot {
     public static int enemyMuckrakerDanger = 0;
     public static MapLocation closestEnemyMuckraker;
 
+    public static int lastBid = 1;
+    public static int lastTurnsVotes = 0;
+    public static boolean wonLastVote = false;
+    final public static double bidScalingFactor = 1.25;
+
     public static double muckrakerRatio = 2.0;
     public static double politicianRatio = 3.0;
     public static double slandererRatio = 1.0;
-
 
 
 //    public static int enemyHQIndex = 0;
@@ -92,15 +96,11 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
-        // TODO: make better bidding strategy
-        // crude bidding based on num rounds left
+        // todo improve bidding strategy
+        // bidding is OKish now, games are not normally won by bidding so its fine
         if (rc.getTeamVotes() < GameConstants.GAME_MAX_NUMBER_OF_ROUNDS / 2) {
-            if (roundNum >= 300) {
-                int roundsLeft = GameConstants.GAME_MAX_NUMBER_OF_ROUNDS - roundNum + 1;
-                int amt = mySafetyBudget/ Math.min(15, roundsLeft);
-                if (amt > 0) {
-                    rc.bid(amt);
-                }
+            if (mySafetyBudget > 100) {
+                tryBid();
             }
         }
 
@@ -332,10 +332,6 @@ public class EnlightenmentCenter extends Robot {
         }
     }
 
-    public static void updateMaxBudget() {
-        mySafetyBudget = rc.getInfluence() - enemyPoliticianDanger;
-    }
-
     public static void updateEnemies() throws GameActionException {
         // calculate closest enemymuckraker
         RobotInfo ri = getClosest(here, enemyMuckrakers, enemyMuckrakerCount);
@@ -359,6 +355,32 @@ public class EnlightenmentCenter extends Robot {
         for (int i = enemyPoliticianCount; --i >= 0;) {
             // u have to deal conviction + 1 damage to kill
             enemyPoliticianDanger += Math.max(enemyPoliticians[i].conviction * enemyRatio - GameConstants.EMPOWER_TAX, 0);
+        }
+    }
+
+    public static void updateMaxBudget() {
+        mySafetyBudget = rc.getInfluence() - enemyPoliticianDanger;
+    }
+
+    public static void tryBid() throws GameActionException {
+        wonLastVote = (rc.getTeamVotes() > lastTurnsVotes);
+        lastTurnsVotes = rc.getTeamVotes();
+
+        int bidBudget = mySafetyBudget / 10;
+        int bidAmount;
+        if (wonLastVote) {
+            bidAmount = (int) Math.floor(lastBid / bidScalingFactor);
+        } else {
+            bidAmount = (int) Math.ceil(lastBid * bidScalingFactor);
+        }
+        bidAmount = Math.max(1, bidAmount);
+
+        if (bidAmount <= bidBudget) {
+            log("Bidding " + bidAmount);
+            rc.bid(bidAmount);
+            lastBid = bidAmount;
+        } else {
+            lastBid = bidAmount / 2;
         }
     }
 

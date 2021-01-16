@@ -86,6 +86,27 @@ public class Politician extends Robot {
             return;
         }
 
+        //If next to our HQ, no friendly units, and large empower buff, blow up.
+        //Require a profit of 4
+        if (buildKillPoliticians(0) && myDamage>myConviction+4) {
+            RobotInfo[] adjRobots = rc.senseNearbyRobots(1);
+            boolean blowup = false;
+            for (RobotInfo ri:adjRobots) {
+                if (ri.team == us) {
+                    if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
+                        blowup = true;
+                    } else {
+                        blowup = false;
+                        break;
+                    }
+                }
+            }
+            if (blowup) {
+                rc.empower(1);
+                return;
+            }
+        }
+
         if(myRole == ROLE_ATTACK) {
             // target hq
             if (targetHQIndex != -1) {

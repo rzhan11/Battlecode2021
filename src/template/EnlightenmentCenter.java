@@ -130,6 +130,18 @@ public class EnlightenmentCenter extends Robot {
         log("Politician: " + politicianScore);
         log("Slanderer: " + slandererScore);
 
+        //When we have an empower buff, use it to duplicate influence
+        if (buildKillPoliticians(11)) {
+            //80 is chosen so that we always make a profit
+            if (mySafetyBudget >= 80) {
+                //todo: make a politician in one of the 4 compass directions
+                //idk how all this comms works
+            } else {
+                //save up to make use of the buff
+                return;
+            }
+        }
+
         if (enemyMuckrakerCount > 0) {
             log("Emergency defense");
             Direction dir = makeDefendPolitician();

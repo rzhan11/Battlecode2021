@@ -1,9 +1,7 @@
 package template;
 
 import battlecode.common.*;
-import muckspam.Actions;
 
-import static muckspam.Nav.moveLog;
 import static template.Debug.*;
 import static template.Nav.*;
 import static template.Comms.*;
@@ -21,8 +19,8 @@ public class Slanderer extends Robot {
     public static MapLocation lastSeenMucker = null;
     public static int turnsSinceMucker = P_INF;
     public static int slanderMaximumRadius = 18;
-    public static boolean recievedRendezvous = false;
-    public static MapLocation rendezvousLocation = null;
+    public static boolean hasHomeLoc = false;
+    public static MapLocation homeLoc = null;
     final public static int SLANDERER_WANDER_MINIMUM_RADIUS = 8;
 
     // things to do on turn 1 of existence
@@ -33,7 +31,6 @@ public class Slanderer extends Robot {
     // code run each turn
     public static void turn() throws GameActionException {
         log("Generated influence: " + RobotType.SLANDERER.getPassiveInfluence(myInfluence, age, roundNum));
-        tlog("Less: " + RobotType.SLANDERER.getPassiveInfluence(myInfluence - 1, age, roundNum));
 
         if (age == 0) {
             return;
@@ -58,8 +55,8 @@ public class Slanderer extends Robot {
         if (avoidDanger() != null) {
             return;
         }
-        if(recievedRendezvous) {
-            Direction dir = moveLog(rendezvousLocation);
+        if(hasHomeLoc) {
+            Direction dir = moveLog(homeLoc);
             if(dir == null) return;
             Actions.doMove(dir);
             return;

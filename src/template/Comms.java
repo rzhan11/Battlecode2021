@@ -82,7 +82,7 @@ public class Comms {
     final public static int REPORT_NON_MASTER_MSG = 22;
     final public static int REPORT_SURROUNDED_MSG = 23;
     final public static int REPORT_NOT_SURROUNDED_MSG = 24;
-    final public static int FOUND_ATTACKING_MUCKRAKER=25;
+    final public static int FOUND_ATTACKING_MUCKRAKER = 25;
 
 
     // constants for coordinates

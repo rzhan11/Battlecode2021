@@ -2,8 +2,7 @@ package template;
 
 import battlecode.common.*;
 
-import static template.Comms.readMessage;
-import static template.Comms.writeReportSurrounded;
+import static template.Comms.*;
 import static template.Debug.*;
 import static template.HQTracker.*;
 import static template.Map.*;
@@ -16,6 +15,7 @@ public class Muckraker extends Robot {
     // final constants
 
     final public static int CHASE_MEMORY = 10;
+    final public static int SWITCH_TARGET_ROUNDS = 50;
 
     // max distance from an hq, such that we can kill all slanderers spawned by it
     // try to block the enemy hq from spawning slanderers
@@ -36,21 +36,26 @@ public class Muckraker extends Robot {
     public static int targetHQIndex = -1;
     public static MapLocation targetHQLoc = null;
     public static int targetHQID = -1;
+    public static int minDistToTargetHQ = P_INF;
+    public static int lastCloserRound = -1;
 
     public static int lastReportSurroundRound = -1;
 
     // for when we are medium close to targetHQ
     public static boolean circleHQLeft;
 
+    public static boolean useBug;
+
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
-        initExploreLoc();
+        initExploreTask();
+        useBug = (Math.random() < 0.75);
     }
 
     // code run each turn
     public static void turn() throws GameActionException {
         updateDetectedLocs();
-        updateExploreLoc();
+        updateExploreTask();
         updateEnemies();
 
         if (!rc.isReady()) {
@@ -82,7 +87,6 @@ public class Muckraker extends Robot {
             return;
         }
 
-        // UPDATED: 'targetHQ' updates such that it reflects changes in hq teams and stuff
         // move towards targetHQ
         if (targetHQLoc != null) {
             if (here.isWithinDistanceSquared(targetHQLoc, VERY_CLOSE_ENEMY_HQ_DIST)) {
@@ -90,33 +94,7 @@ public class Muckraker extends Robot {
 
                 // read ally messages that are super close
                 // this checks if an ally has already reported the 'surround' status
-                RobotInfo[] veryCloseAllies = rc.senseNearbyRobots(targetHQLoc, VERY_CLOSE_ENEMY_HQ_DIST, us);
-                // check if I need to report
-                if (checkIfIAmReporter(veryCloseAllies, myID, veryCloseAllies.length)) {
-                    tlog("[REPORTER]");
-                    RobotInfo[] mediumCloseAllies = rc.senseNearbyRobots(targetHQLoc, MEDIUM_CLOSE_ENEMY_HQ_DIST, us);
-
-                    int veryCloseMax = getMaxSurround(targetHQLoc, 1);
-                    int mediumCloseMax = getMaxSurround(targetHQLoc, 2);
-                    tlog("Very close " + veryCloseAllies.length + "/" + veryCloseMax);
-                    tlog("Med close " + mediumCloseAllies.length + "/" + mediumCloseMax);
-
-                    boolean wasSurrounded = checkIfSurrounded(targetHQIndex);
-                    boolean isSurrounded = (1 + veryCloseAllies.length) >= veryCloseMax
-                            || (1 + mediumCloseAllies.length) >= 0.8 * mediumCloseMax;
-
-                    tlog("was/is " + wasSurrounded + " " + isSurrounded);
-
-                    // update after reporting, to not affect the 'if' statement
-                    updateHQSurroundRound(targetHQIndex, isSurrounded);
-
-                    // report if status has changed, or it has been 10 rounds since last report
-                    if (wasSurrounded != isSurrounded) {
-                        writeReportSurrounded(targetHQLoc, isSurrounded);
-                    } else if (hqSurroundRounds[targetHQIndex] > 0 && roundNum - lastReportSurroundRound > SURROUND_UPDATE_FREQUENCY) {
-                        writeReportSurrounded(targetHQLoc, isSurrounded);
-                    }
-                }
+                checkLocalSurround();
 
                 return;
             } else if (here.isWithinDistanceSquared(targetHQLoc, MEDIUM_CLOSE_ENEMY_HQ_DIST)) {
@@ -132,13 +110,18 @@ public class Muckraker extends Robot {
                 tryCircleHQ();
                 return;
             } else {
-                log("Moving towards targetHQ");
-                moveLog(targetHQLoc);
+                if (useBug) {
+                    log("Bugging to targetHQ");
+                    moveLog(targetHQLoc);
+                } else {
+                    log("Fuzzy to targetHQ");
+                    fuzzyTo(targetHQLoc);
+                }
                 return;
             }
         }
 
-        explore(true);
+        explore(useBug);
         return;
     }
 
@@ -151,33 +134,56 @@ public class Muckraker extends Robot {
         targetHQIndex = -1;
         targetHQLoc = null;
         targetHQID = -1;
+        minDistToTargetHQ = P_INF;
+        lastCloserRound = -1;
     }
 
     public static void updateTargetHQ() throws GameActionException {
-        if (targetHQIndex != -1) { // reset if the target hq needs to be changed
-            // reset if target hq team is not enemy/unknown
+        // update closest dist
+        if (targetHQIndex != -1) {
+            int dist = here.distanceSquaredTo(targetHQLoc);
+            if (dist < minDistToTargetHQ) {
+                minDistToTargetHQ = dist;
+                lastCloserRound = roundNum;
+            }
+        }
+
+        // check if target hq needs to be reset/changed
+        if (targetHQIndex != -1) { // reset if target hq is not enemy/unknown
             if (hqTeams[targetHQIndex] != them && hqTeams[targetHQIndex] != null) {
                 log("Resetting targetHQ, not enemy");
                 resetTargetHQ();
-            } else if (targetHQID > 0 && !rc.canGetFlag(targetHQID)) { // reset if target hq is dead
+            }
+        }
+        if (targetHQIndex != -1) { // reset if target hq is dead
+            if (targetHQID > 0 && !rc.canGetFlag(targetHQID)) {
                 log("Resetting targetHQ, dead");
                 resetTargetHQ();
-            } else {
-                // reset if ignore flag has been triggered
-                if (checkIfSurrounded(targetHQIndex)) {
-                    int dist = here.distanceSquaredTo(targetHQLoc);
-                    // and we are close to it
-                    if (dist > MEDIUM_CLOSE_ENEMY_HQ_DIST) {
-                        log("Resetting targetHQ, surround & far");
+            }
+        }
+        if (targetHQIndex != -1) { // reset if its been too long since we got closer
+            if (roundNum - lastCloserRound >= SWITCH_TARGET_ROUNDS
+                    && here.distanceSquaredTo(targetHQLoc) > MEDIUM_CLOSE_ENEMY_HQ_DIST) {
+                log("Resetting targetHQ, switching");
+                hqIgnoreRounds[targetHQIndex] = roundNum; // ignoring the current target
+                resetTargetHQ();
+            }
+        }
+        if (targetHQIndex != -1) {
+            // reset if surround flag has been triggered
+            if (checkHQSurroundStatus(targetHQIndex)) {
+                int dist = here.distanceSquaredTo(targetHQLoc);
+                // and we are close to it
+                if (dist > MEDIUM_CLOSE_ENEMY_HQ_DIST) {
+                    log("Resetting targetHQ, surround & far");
+                    resetTargetHQ();
+                } else if (dist > VERY_CLOSE_ENEMY_HQ_DIST) {
+                    // or if we are medium from it, but very close has it surrounded
+                    RobotInfo[] veryCloseAllies = rc.senseNearbyRobots(targetHQLoc, VERY_CLOSE_ENEMY_HQ_DIST, us);
+                    int veryCloseMax = getMaxSurround(targetHQLoc, 1);
+                    if (veryCloseAllies.length == veryCloseMax) {
+                        log("Resetting targetHQ, surround & medium");
                         resetTargetHQ();
-                    } else if (dist > VERY_CLOSE_ENEMY_HQ_DIST) {
-                        // or if we are medium from it, but very close has it surrounded
-                        RobotInfo[] veryCloseAllies = rc.senseNearbyRobots(targetHQLoc, VERY_CLOSE_ENEMY_HQ_DIST, us);
-                        int veryCloseMax = getMaxSurround(targetHQLoc, 1);
-                        if (veryCloseAllies.length == veryCloseMax) {
-                            log("Resetting targetHQ, surround & medium");
-                            resetTargetHQ();
-                        }
                     }
                 }
             }
@@ -188,7 +194,7 @@ public class Muckraker extends Robot {
             for (int i = knownHQCount; --i >= 0;) {
                 // new targets must be enemy/unknown team and not surrounded
                 if (hqTeams[i] == them || hqTeams[i] == null) {
-                    if (!checkIfSurrounded(i)) {
+                    if (!checkHQSurroundStatus(i) && !checkHQIgnoreStatus(i)) {
                         int dist = here.distanceSquaredTo(hqLocs[i]);
                         if (dist < bestDist) {
                             targetHQIndex = i;
@@ -201,9 +207,15 @@ public class Muckraker extends Robot {
             if (targetHQIndex != -1) {
                 targetHQLoc = hqLocs[targetHQIndex];
                 targetHQID = hqIDs[targetHQIndex];
+                minDistToTargetHQ = here.distanceSquaredTo(targetHQLoc);
+                lastCloserRound = roundNum;
             }
         }
+
         log("targetHQ: " + targetHQIndex + " " + targetHQID + " " + targetHQLoc);
+        if (targetHQIndex != -1) {
+            log("switchTimer: " + (roundNum - lastCloserRound));
+        }
     }
 
     public static void updateEnemySlanderers() {
@@ -308,5 +320,35 @@ public class Muckraker extends Robot {
             }
         }
         return compareID < low1 || compareID < low2;
+    }
+
+    public static void checkLocalSurround() throws GameActionException {
+        RobotInfo[] veryCloseAllies = rc.senseNearbyRobots(targetHQLoc, VERY_CLOSE_ENEMY_HQ_DIST, us);
+        // check if I need to report
+        if (checkIfIAmReporter(veryCloseAllies, myID, veryCloseAllies.length)) {
+            tlog("[REPORTER]");
+            RobotInfo[] mediumCloseAllies = rc.senseNearbyRobots(targetHQLoc, MEDIUM_CLOSE_ENEMY_HQ_DIST, us);
+
+            int veryCloseMax = getMaxSurround(targetHQLoc, 1);
+            int mediumCloseMax = getMaxSurround(targetHQLoc, 2);
+            tlog("Very close " + veryCloseAllies.length + "/" + veryCloseMax);
+            tlog("Med close " + mediumCloseAllies.length + "/" + mediumCloseMax);
+
+            boolean wasSurrounded = checkHQSurroundStatus(targetHQIndex);
+            boolean isSurrounded = (1 + veryCloseAllies.length) >= veryCloseMax
+                    || (1 + mediumCloseAllies.length) >= 0.8 * mediumCloseMax;
+
+            tlog("was/is " + wasSurrounded + " " + isSurrounded);
+
+            // update after reporting, to not affect the 'if' statement
+            updateHQSurroundRound(targetHQIndex, isSurrounded);
+
+            // report if status has changed, or it has been 10 rounds since last report
+            if (wasSurrounded != isSurrounded) {
+                writeReportSurrounded(targetHQLoc, isSurrounded);
+            } else if (hqSurroundRounds[targetHQIndex] > 0 && roundNum - lastReportSurroundRound > SURROUND_UPDATE_FREQUENCY) {
+                writeReportSurrounded(targetHQLoc, isSurrounded);
+            }
+        }
     }
 }

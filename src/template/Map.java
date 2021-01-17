@@ -5,6 +5,7 @@ import battlecode.common.*;
 import static template.Comms.*;
 import static template.CommManager.*;
 import static template.Debug.*;
+import static template.HQTracker.*;
 import static template.Robot.*;
 import static template.Utils.*;
 
@@ -13,8 +14,6 @@ public class Map {
     public static int YMIN = -1;
     public static int XMAX = -1;
     public static int YMAX = -1;
-    public static int XLEN = -1;
-    public static int YLEN = -1;
 
     public static boolean notHSymmetry = false;
     public static boolean notVSymmetry = false;
@@ -28,7 +27,7 @@ public class Map {
         return loc.translate(dir.dx * len, dir.dy * len);
     }
 
-    public static MapLocation processExploreLoc(MapLocation loc) {
+    public static MapLocation getExploreNavLoc(MapLocation loc) {
         int radius;
         switch(myType) {
             case MUCKRAKER:
@@ -79,6 +78,29 @@ public class Map {
         return new MapLocation(x, y);
     }
 
+    public static MapLocation getFarthestLoc(MapLocation loc, Direction dir) {
+        MapLocation temp = addDir(loc, dir, MAX_MAP_SIZE);
+        int x = temp.x;
+        int y = temp.y;
+        if (XMIN != -1 && x < XMIN) {
+            y -= (XMIN - x) * dir.dy;
+            x = XMIN;
+        }
+        if (XMAX != -1 && x > XMAX) {
+            y -= (x - XMAX) * dir.dy;
+            x = XMAX;
+        }
+        if (YMIN != -1 && y < YMIN) {
+            x -= (YMIN - y) * dir.dx;
+            y = YMIN;
+        }
+        if (YMAX != -1 && y > YMAX) {
+            x -= (y - YMAX) * dir.dx;
+            y = YMAX;
+        }
+        return new MapLocation(x, y);
+    }
+
     public static boolean inKnownBounds(MapLocation loc) {
         if (XMIN != -1 && loc.x < XMIN) {
             return false;
@@ -120,9 +142,6 @@ public class Map {
                         if (notHQ) {
                             writeXBounds();
                         }
-                        if (XMAX != -1) {
-                            XLEN = XMAX - XMIN + 1;
-                        }
                         break;
                     }
                 }
@@ -137,9 +156,6 @@ public class Map {
                         YMIN = loc.y;
                         if (notHQ) {
                             writeYBounds();
-                        }
-                        if (YMAX != -1) {
-                            YLEN = YMAX - YMIN + 1;
                         }
                         break;
                     }
@@ -156,9 +172,6 @@ public class Map {
                         if (notHQ) {
                             writeXBounds();
                         }
-                        if (XMIN != -1) {
-                            XLEN = XMAX - XMIN + 1;
-                        }
                         break;
                     }
                 }
@@ -174,14 +187,40 @@ public class Map {
                         if (notHQ) {
                             writeYBounds();
                         }
-                        if (YMIN != -1) {
-                            YLEN = YMAX - YMIN + 1;
-                        }
                         break;
                     }
                 }
             }
         }
+    }
+
+    public static Direction getNewBoundsTaskDir() {
+        if (isMapKnown()) {
+            return null;
+        }
+
+        int dx = 0;
+        if (XMIN == -1) {
+            if (XMAX == -1) {
+                dx = (Math.random() < 0.5) ? -1 : 1; // randomly pick left/right
+            } else {
+                dx = -1;
+            }
+        } else if (XMAX == -1) {
+            dx = 1;
+        }
+
+        int dy = 0;
+        if (YMIN == -1) {
+            if (YMAX == -1) {
+                dy = (Math.random() < 0.5) ? -1 : 1; // randomly pick left/right
+            } else {
+                dy = -1;
+            }
+        } else if (YMAX == -1) {
+            dy = 1;
+        }
+        return getDir(dx, dy);
     }
 
     public static void printSymmetry() {
@@ -316,8 +355,6 @@ public class Map {
         if (willCheckH) {
             for (int i = relLocs.length; --i >= 0;) {
                 MapLocation loc = here.translate(relLocs[i][0], relLocs[i][1]);
-                drawDot(loc, BLACK);
-                drawDot(getSymmetricLocation(loc, Symmetry.H), BROWN);
                 if (checkSymmetryWrong(loc, getSymmetricLocation(loc, Symmetry.H))) {
                     notHSymmetry = true;
                     changed = true;
@@ -377,14 +414,45 @@ public class Map {
         }
     }
 
-    public static MapLocation[] updateSymHQLocs() {
+    public static void updateSymHQLocs() throws GameActionException {
         symHQCount = 0;
+
+        // early exit
+        if (knownHQCount == MAX_HQ_COUNT) {
+            return;
+        }
+
+        // if the symmetry is known, use it to find new locations
+        if (theSymmetry != null) {
+            switch(theSymmetry) {
+                case H:
+                    if (isMapXKnown()) {
+                        findHQLocFromSymmetry();
+                    }
+                    break;
+                case V:
+                    if (isMapYKnown()) {
+                        findHQLocFromSymmetry();
+                    }
+                    break;
+                case R:
+                    if (isMapKnown()) {
+                        findHQLocFromSymmetry();
+                    }
+                    break;
+            }
+            return;
+        }
+
+        // if the symmetry is not know, try to determine potential hq locations
+
         if (!notHSymmetry && isMapXKnown()) {
             for (int i = knownHQCount; --i >= 0;) {
                 MapLocation loc = hqLocs[i];
                 MapLocation symLoc = getSymmetricLocation(loc, Symmetry.H);
                 if (!inArray(hqLocs, symLoc, knownHQCount)) {
                     symHQLocs[symHQCount] = symLoc;
+                    symHQType[symHQCount] = Symmetry.H;
                     symHQCount++;
                 }
             }
@@ -395,6 +463,7 @@ public class Map {
                 MapLocation symLoc = getSymmetricLocation(loc, Symmetry.V);
                 if (!inArray(hqLocs, symLoc, knownHQCount)) {
                     symHQLocs[symHQCount] = symLoc;
+                    symHQType[symHQCount] = Symmetry.V;
                     symHQCount++;
                 }
             }
@@ -405,13 +474,23 @@ public class Map {
                 MapLocation symLoc = getSymmetricLocation(loc, Symmetry.R);
                 if (!inArray(hqLocs, symLoc, knownHQCount)) {
                     symHQLocs[symHQCount] = symLoc;
+                    symHQType[symHQCount] = Symmetry.R;
                     symHQCount++;
                 }
             }
         }
 
 
-        return null;
+    }
+
+    public static void findHQLocFromSymmetry() throws GameActionException {
+        for (int i = knownHQCount; --i >= 0;) {
+            MapLocation loc = hqLocs[i];
+            MapLocation symLoc = getSymmetricLocation(loc, theSymmetry);
+            if (!inArray(hqLocs, symLoc, knownHQCount)) {
+                saveHQLoc(symLoc);
+            }
+        }
     }
 
     public static int dir2int(Direction dir) {

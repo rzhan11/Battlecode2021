@@ -129,7 +129,7 @@ public class Bug extends Nav {
 
         turnsWithoutCloser++;
         updateMinPassability();
-        drawCheckDirMoveable();
+//        drawCheckDirMoveable();
 
 //        tlog("Starting wall loc " + bugWallLoc);
 //        tlog("bugTracing " + bugTracing);
@@ -159,6 +159,8 @@ public class Bug extends Nav {
             if (bugTracing) {
                 resetTracing();
             }
+            turnsWithoutCloser = 0;
+
             Actions.doMove(bestDir);
             bugClosestDistance = rc.getLocation().distanceSquaredTo(bugTarget);
             return bestDir;

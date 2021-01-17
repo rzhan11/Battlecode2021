@@ -349,12 +349,13 @@ public class Comms {
             return;
         }
 
-        boolean wasSurrounded = checkIfSurrounded(index);
+//        boolean wasSurrounded = checkHQSurroundStatus(index);
         updateHQSurroundRound(index, isSurrounded);
 
-        if (wasSurrounded != isSurrounded) {
-            writeEchoSurrounded(loc, isSurrounded);
-        }
+        // turned off propagation of echoes
+//        if (wasSurrounded != isSurrounded) {
+//            writeEchoSurrounded(loc, isSurrounded);
+//        }
     }
 
     /*
@@ -666,7 +667,7 @@ public class Comms {
         }
 
         // record previous status
-        boolean wasSurrounded = checkIfSurrounded(index);
+        boolean wasSurrounded = checkHQSurroundStatus(index);
         // update newest status
         updateHQSurroundRound(index, isSurrounded);
         Muckraker.lastReportSurroundRound = roundNum;

@@ -9,6 +9,7 @@ import static template.Debug.*;
 import static template.HQTracker.*;
 import static template.Map.*;
 import static template.Nav.*;
+import static template.Utils.*;
 
 public abstract class Robot extends Constants {
 
@@ -145,19 +146,17 @@ public abstract class Robot extends Constants {
     public static Team[] hqTeams = new Team[MAX_HQ_COUNT];
     public static int[] hqIDs = new int[MAX_HQ_COUNT];
     public static int[] hqSurroundRounds = new int[MAX_HQ_COUNT];
+    public static int[] hqIgnoreRounds = new int[MAX_HQ_COUNT];
     public static int knownHQCount = 0;
 
     public static MapLocation[] symHQLocs = new MapLocation[3 * MAX_HQ_COUNT];
+    public static Symmetry[] symHQType = new Symmetry[3 * MAX_HQ_COUNT];
     public static int symHQCount = 0;
 
     // ALLY hq ids that we know and want to read from
     // but we don't know their locs
     public static int[] extraAllyHQs = new int[MAX_HQ_COUNT];
     public static int extraAllyHQCount = 0;
-
-    public static Direction exploreDir;
-    public static MapLocation exploreLoc;
-    public static MapLocation exploreCornerLoc;
 
 
     public static void updateTurnInfo() throws GameActionException {
@@ -182,10 +181,11 @@ public abstract class Robot extends Constants {
         // after updateMapBounds & symmetry stuff
         updateKnownHQs();
 
-        // TODO add comms for symmetry
-        // todo add repeated comms for symmetry
         // after updateKnownHQs
         updateSymmetryByHQ();
+
+        // after updateSymmetryByHQ
+        updateSymHQLocs(); // this finds hq locs based on symmetry
 
         // after updateKnownHQs
         updateMaster();
@@ -370,61 +370,197 @@ public abstract class Robot extends Constants {
 
     public static boolean rotateLeftExplore;
     public static boolean tripleRotateExplore;
-    public static int lastExploreLocChangeRound = -1;
+    public static int lastExploreTaskChangeRound = -1;
+
+    // master
+    public static Direction masterTaskDir;
+    // bounds
+    public static Direction boundsTaskDir;
+    // symmetry
+    public static MapLocation symmetryTaskLoc;
+    public static Symmetry symmetryTaskType;
+    // default explore
+    public static Direction defaultExploreTaskDir;
+
     /*
     Exploration code
      */
 
-    public static void initExploreLoc() throws GameActionException {
-        // default exploreDir is randomized
-        exploreDir = DIRS[myID % 8];
+    public static void initExploreTask() throws GameActionException {
+        // master
         if (myMaster > 0) {
             int status = Comms.getStatusFromFlag(rc.getFlag(myMaster));
-            exploreDir = DIRS[status % 8];
+            masterTaskDir = DIRS[status % 8];
         }
-        rotateLeftExplore = (Math.random() < 0.5);
-        tripleRotateExplore = (Math.random() < 0.5);
+        // bounds
+        // symmetry
 
-        exploreCornerLoc = convertToKnownBounds(addDir(spawnLoc, exploreDir, MAX_MAP_SIZE));
-        exploreLoc = processExploreLoc(exploreCornerLoc);
+        // default
+        defaultExploreTaskDir = getRandomDirCenter(); // randomize exploreDir
+        rotateLeftExplore = (Math.random() < 0.5); // randomize whether we turn left or right
+        tripleRotateExplore = (Math.random() < 0.5); // randomize whether we do a single rotate or a triple rotate
     }
 
-    public static void updateExploreLoc() {
-        exploreCornerLoc = convertToKnownBounds(exploreCornerLoc);
-        exploreLoc = processExploreLoc(exploreCornerLoc);
+    public static void updateExploreTask() {
+        // update if masterTaskDir is done
+        if (masterTaskDir != null) {
+            MapLocation senseLoc = getFarthestLoc(spawnLoc, masterTaskDir);
+            if (rc.canSenseLocation(senseLoc) || roundNum - lastExploreTaskChangeRound > 100) {
+                masterTaskDir = null;
+                // do not return, we need new task
+            } else { // keeping this task
+                return;
+            }
+        }
 
-        // get new explore location if we can see the corner
-        // or if it has been too long
-        if (rc.canSenseLocation(exploreCornerLoc) || roundNum - lastExploreLocChangeRound > 150) {
-            // chose new exploreDir, either rotate 1 or 3
-            if (tripleRotateExplore) {
-                exploreDir = rotateLeftExplore ? exploreDir.rotateLeft().rotateLeft().rotateLeft() :
-                        exploreDir.rotateRight().rotateRight().rotateRight();
+        // check if boundsTask needs to be changed
+        if (boundsTaskDir != null) {
+            // check if we still need to go to bounds task dir
+            int dx = boundsTaskDir.dx;
+            int dy = boundsTaskDir.dy;
+            log("orig " + dx + " " + dy + " " +boundsTaskDir);
+            if (dx == -1 && XMIN != -1) dx = 0;
+            if (dx == 1 && XMAX != -1) dx = 0;
+            if (dy == -1 && YMIN != -1) dy = 0;
+            if (dy == 1 && YMAX != -1) dy = 0;
+
+            if (dx == 0 && dy == 0) {
+                log("Reset boundsTask");
+                boundsTaskDir = null;
+                // do not return, we need new task
+            } else { // check if direction has changed
+                Direction newDir = getDir(dx, dy);
+                if (!newDir.equals(boundsTaskDir)) {
+                    log("Adjusted boundsTaskDir " + newDir);
+                    boundsTaskDir = newDir;
+                    lastExploreTaskChangeRound = roundNum;
+                }
+                return;
+            }
+        }
+        // assign new boundsTask if needed
+        if (boundsTaskDir == null && !isMapKnown()) {
+            log("Getting new boundsTask");
+            boundsTaskDir = getNewBoundsTaskDir();
+            lastExploreTaskChangeRound = roundNum;
+            return;
+        }
+
+        // check if we need to reset symmetryTask
+        if (symmetryTaskLoc != null) {
+            // if we know this symmetry is invalid
+            if ((symmetryTaskType == Symmetry.H && notHSymmetry)
+                    || (symmetryTaskType == Symmetry.V && notVSymmetry)
+                    || (symmetryTaskType == Symmetry.R && notRSymmetry)) {
+                symmetryTaskLoc = null;
+                symmetryTaskType = null;
+                // do not return, we need new task
+            } else if (rc.canSenseLocation(symmetryTaskLoc) // if we can sense this hq loc
+                    || inArray(hqLocs, symmetryTaskLoc, knownHQCount) // or if this hq has been found
+                    || roundNum - lastExploreTaskChangeRound > 100) {
+                symmetryTaskLoc = null;
+                symmetryTaskType = null;
+                // do not return, we need new task
+            } else { // keeping this task
+                return;
+            }
+        }
+
+        if (symmetryTaskLoc == null) {
+            if (symHQCount > 0) {
+                symmetryTaskLoc = symHQLocs[0];
+                symmetryTaskType = symHQType[0];
+                return;
+            }
+        }
+
+
+        // if we get here, we need to get a default task
+
+        MapLocation mapCenter = new MapLocation(isMapXKnown() ? (XMIN + XMAX) / 2 : spawnLoc.x,
+                isMapYKnown() ? (YMIN + YMAX) / 2 : spawnLoc.y);
+        MapLocation senseLoc = convertToKnownBounds(addDir(mapCenter, defaultExploreTaskDir, MAX_MAP_SIZE));
+        if (rc.canSenseLocation(senseLoc) || roundNum - lastExploreTaskChangeRound > 150) {
+            lastExploreTaskChangeRound = roundNum;
+
+            if (defaultExploreTaskDir == Direction.CENTER) {
+                defaultExploreTaskDir = getRandomDir();
             } else {
-                exploreDir = rotateLeftExplore ? exploreDir.rotateLeft() : exploreDir.rotateRight();
+                if (Math.random() < 0.25) { // 1/4 chance that we pick center
+                    log("Exploring center");
+                    defaultExploreTaskDir = Direction.CENTER;
+                } else {
+                    if (tripleRotateExplore) { // choose new exploreDir, either rotate 1 or 3
+                        log("Triple rotating explore");
+                        defaultExploreTaskDir = rotateLeftExplore ? defaultExploreTaskDir.rotateLeft().rotateLeft().rotateLeft() :
+                                defaultExploreTaskDir.rotateRight().rotateRight().rotateRight();
+                    } else {
+                        log("Single rotating explore");
+                        defaultExploreTaskDir = rotateLeftExplore ? defaultExploreTaskDir.rotateLeft() : defaultExploreTaskDir.rotateRight();
+                    }
+                }
             }
 
-            // update last changed explore round
-            lastExploreLocChangeRound = roundNum;
-
-            MapLocation mapCenter = new MapLocation(isMapXKnown() ? (XMIN + XLEN / 2) : spawnLoc.x,
-                    isMapYKnown() ? (YMIN + YLEN / 2) : spawnLoc.y);
-
-            exploreCornerLoc = convertToKnownBounds(addDir(mapCenter, exploreDir, MAX_MAP_SIZE));
-            exploreLoc = processExploreLoc(exploreCornerLoc);
-            log("Exploring " + exploreLoc + " " + exploreDir + " " + mapCenter);
         }
+        log("Exploring " + defaultExploreTaskDir);
     }
 
+    /*
+    Does the next "exploration" task
+    Priority: Master, Map Bounds, Map Symmetry (by HQs), Default (go to directions)
+     */
     public static void explore(boolean useBug) throws GameActionException {
-        // move towards explore loc
-        rc.setIndicatorLine(here, exploreLoc, PURPLE[0], PURPLE[1], PURPLE[2]);
-        if (useBug) {
-            log("Bug exploring: " + exploreLoc);
-            moveLog(exploreLoc);
-        } else {
-            log("Fuzzy exploring: " + exploreLoc);
-            fuzzyTo(exploreLoc);
+        // do master task
+        if (masterTaskDir != null) {
+            // purposely uses spawnLoc
+            log("Master task " + masterTaskDir);
+            MapLocation senseLoc = getFarthestLoc(spawnLoc, masterTaskDir);
+            MapLocation navLoc = getExploreNavLoc(senseLoc);
+            drawLine(here, navLoc, WHITE);
+            drawDot(senseLoc, WHITE);
+            moveLog(navLoc);
+            return;
+        }
+
+        MapLocation mapCenter = new MapLocation(isMapXKnown() ? (XMIN + XMAX) / 2 : spawnLoc.x,
+                isMapYKnown() ? (YMIN + YMAX) / 2 : spawnLoc.y);
+
+        // go to dir
+        if (boundsTaskDir != null) {
+            log("Bounds task " + boundsTaskDir);
+            MapLocation senseLoc = convertToKnownBounds(addDir(mapCenter, boundsTaskDir, MAX_MAP_SIZE));
+            MapLocation navLoc = getExploreNavLoc(senseLoc);
+            drawLine(here, navLoc, GRAY);
+            drawDot(senseLoc, GRAY);
+            moveLog(navLoc);
+            return;
+        }
+
+
+        // check hq symmetry
+        if (symmetryTaskLoc != null) {
+            log("Symmetry task " + symmetryTaskLoc + " " + symmetryTaskType);
+            drawLine(here, symmetryTaskLoc, BLACK);
+            moveLog(symmetryTaskLoc);
+            return;
+        }
+
+
+        // do the default explore task
+        {
+            log("Default explore task " + defaultExploreTaskDir);
+            MapLocation senseLoc = convertToKnownBounds(addDir(mapCenter, defaultExploreTaskDir, MAX_MAP_SIZE));
+            MapLocation navLoc = getExploreNavLoc(senseLoc);
+            drawLine(here, navLoc, BROWN);
+            drawDot(senseLoc, BROWN);
+            if (useBug) {
+                tlog("Bugging: " + navLoc);
+                moveLog(navLoc);
+            } else {
+                tlog("Fuzzy: " + navLoc);
+                fuzzyTo(navLoc);
+            }
+            return;
         }
     }
 

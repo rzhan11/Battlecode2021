@@ -47,8 +47,16 @@ public class Utils {
         arr[i] = arr[len - 1];
     }
 
+    public static Direction getDir(int dx, int dy) {
+        return new MapLocation(0, 0).directionTo(new MapLocation(dx, dy));
+    }
+
     public static Direction getRandomDir() {
         return DIRS[(int)(Math.random() * 8)];
+    }
+
+    public static Direction getRandomDirCenter() {
+        return ALL_DIRS[(int)(Math.random() * 9)];
     }
 
     /*

@@ -11,9 +11,12 @@ import static template.Utils.*;
 
 public class HQTracker {
 
-    final public static int SURROUND_MEMORY = 100;
+    final public static int SURROUND_MEMORY = 50;
     final public static int DEFAULT_SURROUND = -100;
     final public static int SURROUND_UPDATE_FREQUENCY = 10;
+
+    final public static int IGNORE_MEMORY = 100;
+    final public static int DEFAULT_IGNORE = -100;
 
     public static void updateKnownHQs() throws GameActionException {
         // add myself to hqinfo
@@ -143,7 +146,11 @@ public class HQTracker {
         }
     }
 
-    public static boolean checkIfSurrounded(int index) {
+    public static boolean checkHQSurroundStatus(int index) {
         return (roundNum - hqSurroundRounds[index] <= SURROUND_MEMORY);
+    }
+
+    public static boolean checkHQIgnoreStatus(int index) {
+        return (roundNum - hqIgnoreRounds[index] <= IGNORE_MEMORY);
     }
 }

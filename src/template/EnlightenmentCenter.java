@@ -126,8 +126,9 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
+        // todo make separate ROLE arrays for each role
         double muckrakerScore = myMuckrakerCount / muckrakerRatio;
-        double politicianScore = myPoliticianCount / politicianRatio;
+        double politicianScore = (myPoliticianCount - EARLY_SCOUT_COUNT) / politicianRatio;
         double slandererScore = mySlandererCount / slandererRatio;
 
         log("BUILD SCORES");
@@ -504,6 +505,8 @@ public class EnlightenmentCenter extends Robot {
         log("Trying to build defensive politician");
 
         int minCost = GameConstants.EMPOWER_TAX + 4;
+        minCost += Math.min(8, 8 * roundNum / GameConstants.GAME_MAX_NUMBER_OF_ROUNDS);
+
 
         int cost = GameConstants.EMPOWER_TAX + enemyMuckrakerDanger;
         cost = Math.max(minCost, cost);
@@ -530,8 +533,10 @@ public class EnlightenmentCenter extends Robot {
     public static Direction makeAttackPolitician() throws GameActionException {
         log("Trying to build attack politician");
 
-        int cost = Math.min(250, Math.max(roundNum, GameConstants.EMPOWER_TAX + 4));
-        if (cost > 0.5 * mySafetyBudget) {
+        // todo make cost based on neutral hq costs
+        // 177 = poli can kill neutral hq of 500 in 3 hits
+        int cost = (int) Math.max(177, 0.5 * mySafetyBudget);
+        if (cost > 0.75 * mySafetyBudget) { // if the cost is more than 75% of our budget, dont spend
             return null;
         }
 

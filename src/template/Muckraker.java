@@ -192,10 +192,8 @@ public class Muckraker extends Robot {
             for (int i = knownHQCount; --i >= 0;) {
                 // new targets must be enemy/unknown team and not surrounded
                 if (hqTeams[i] == them || hqTeams[i] == null) {
-                    log("HQ considering " + i + " " + checkHQIgnoreStatus(i) + " " + checkHQSurroundStatus(i));
                     if (!checkHQSurroundStatus(i) && !checkHQIgnoreStatus(i)) {
                         int dist = here.distanceSquaredTo(hqLocs[i]);
-                        tlog("really considering " + dist);
                         if (dist < bestDist) {
                             targetHQIndex = i;
                             bestDist = dist;

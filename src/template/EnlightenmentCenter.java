@@ -43,6 +43,12 @@ public class EnlightenmentCenter extends Robot {
     public static double politicianRatio = 1.0;
     public static double slandererRatio = 1.0;
 
+    public static int MUCK_CAP = 100;
+    public static int SLANDERER_CAP = 50;
+
+    // if we are in the corner, it is essential that we have a lot of politicians, so that our slanderers dont get pushed in
+    public static double politicianCornerMultiplier = 2.0;
+
 
 //    public static int enemyHQIndex = 0;
 
@@ -55,6 +61,12 @@ public class EnlightenmentCenter extends Robot {
         EXPLORE_DIRS = getExploreDirs();
 
         SLANDERER_COSTS = new int[] {-1, 21, 41, 63, 85, 107, 130, 154, 178, 203, 228, 255, 282, 310, 339, 368, 399, 431, 463, 497, 532, 568, 605, 643, 683, 724, 766, 810, 855, 902, 949};
+
+        int dx = getWallXDist(here.x);
+        int dy = getWallYDist(here.y);
+        if (dx + dy <= 4) {
+            politicianRatio *= politicianCornerMultiplier;
+        }
 
         initRoles();
     }
@@ -113,6 +125,13 @@ public class EnlightenmentCenter extends Robot {
         double muckrakerScore = MUCK_ROLE.count / muckrakerRatio;
         double politicianScore = DEFENSE_POLI_ROLE.count / politicianRatio;
         double slandererScore = SLAN_ROLE.count / slandererRatio;
+
+        if (MUCK_ROLE.count >= MUCK_CAP) {
+            muckrakerScore = P_INF;
+        }
+        if (SLAN_ROLE.count >= MUCK_CAP) {
+            muckrakerScore = P_INF;
+        }
 
         log("BUILD SCORES");
         log("Muckraker: " + muckrakerScore);
@@ -400,8 +419,7 @@ public class EnlightenmentCenter extends Robot {
     public static Direction makeDefendPolitician() throws GameActionException {
         log("Trying to build defensive politician");
 
-        int minCost = GameConstants.EMPOWER_TAX + 4;
-        minCost += Math.min(8, 8 * roundNum / GameConstants.GAME_MAX_NUMBER_OF_ROUNDS);
+        int minCost = GameConstants.EMPOWER_TAX + 8;
 
 
         int cost = GameConstants.EMPOWER_TAX + enemyMuckrakerDanger;

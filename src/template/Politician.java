@@ -513,9 +513,8 @@ public class Politician extends Robot {
         RobotInfo[] closeAllies = rc.senseNearbyRobots(bounceRadius, us);
         for (int i = closeAllies.length; --i >= 0;) {
             RobotInfo ri = closeAllies[i];
-            int status = getStatusFromFlag(rc.getFlag(ri.ID));
             if (ri.type == RobotType.POLITICIAN
-                && ((status & 8) == 0)) {
+                && ((getStatusFromFlag(rc.getFlag(ri.ID)) & 8) == 0)) {
                 int dist = here.distanceSquaredTo(ri.location);
                 if (dist < bestDist) {
                     closestAllyPolitician = ri.location;

@@ -27,6 +27,9 @@ public class Slanderer extends Robot {
     public static MapLocation closestEnemyHQLoc;
     public static MapLocation prevHideLoc;
 
+    public static boolean[] bannedLatticeDirs;
+
+    public static int MIN_SCARY_DIST = 7;
 
     public static int slanderMaximumRadius = 18;
     public static boolean hasHomeLoc = false;
@@ -39,7 +42,6 @@ public class Slanderer extends Robot {
         // init default hide loc
         Direction masterDir = (myMasterLoc != null) ? here.directionTo(myMasterLoc) : Direction.NORTH;
         prevHideLoc = addDir(spawnLoc, masterDir, MAX_MAP_SIZE);
-
     }
 
     // code run each turn
@@ -69,7 +71,6 @@ public class Slanderer extends Robot {
         }
 
         updateBannedLatticeDirs();
-        // todo consider corner/edges
 
         // decide scaryLoc
         // if there is a nearby muckraker, go to opposite side of it
@@ -96,7 +97,16 @@ public class Slanderer extends Robot {
             drawLine(here, scaryLoc, RED);
             drawDot(centerLoc, GREEN);
 
-            Direction latticeDir = centerLoc.directionTo(scaryLoc);
+            Direction awayDir = scaryLoc.directionTo(centerLoc);
+            Direction latticeDir = getClosestLatticeDir(awayDir);
+            log("away " + awayDir + " " + latticeDir);
+
+            // recalculate center if scary is close to us
+            double scaryDist = Math.sqrt(here.distanceSquaredTo(scaryLoc));
+            if (scaryDist <= MIN_SCARY_DIST) {
+                int steps = (int) Math.ceil(MIN_SCARY_DIST - scaryDist);
+                centerLoc = addDir(centerLoc, latticeDir, steps);
+            }
 
             makeLattice(centerLoc, latticeDir, SLANDERER_MIN_LATTICE_DIST);
             return;
@@ -183,8 +193,49 @@ public class Slanderer extends Robot {
         }
     }
 
-    public static void updateBannedLatticeDirs() throws GameActionException {
+    final public static int MIN_WALL_DIST = 3;
 
+    public static void updateBannedLatticeDirs() throws GameActionException {
+        MapLocation centerLoc = (myMasterLoc != null) ? myMasterLoc : spawnLoc;
+
+        bannedLatticeDirs = new boolean[8];
+        if (XMIN != -1 && centerLoc.x - XMIN <= MIN_WALL_DIST) {
+            bannedLatticeDirs[5] = true; // sw
+            bannedLatticeDirs[6] = true; // w
+            bannedLatticeDirs[7] = true; // nw
+        }
+        if (XMAX != -1 && XMAX - centerLoc.x <= MIN_WALL_DIST) {
+            bannedLatticeDirs[1] = true; // ne
+            bannedLatticeDirs[2] = true; // e
+            bannedLatticeDirs[3] = true; // se
+        }
+        if (YMIN != -1 && centerLoc.y - YMIN <= MIN_WALL_DIST) {
+            bannedLatticeDirs[3] = true; // se
+            bannedLatticeDirs[4] = true; // s
+            bannedLatticeDirs[5] = true; // sw
+        }
+        if (YMAX != -1 && YMAX - centerLoc.y <= MIN_WALL_DIST) {
+            bannedLatticeDirs[7] = true; // nw
+            bannedLatticeDirs[0] = true; // n
+            bannedLatticeDirs[1] = true; // ne
+        }
+
+//        log("[BANNED]");
+//        for (int i = 0; i < bannedLatticeDirs.length; i++) {
+//            if (bannedLatticeDirs[i]) {
+//                tlog(""+DIRS[i]);
+//            }
+//        }
+    }
+
+    public static Direction getClosestLatticeDir(Direction dir) {
+        Direction[] possDirs = getClosestDirs(dir);
+        for (int i = 0; i < 8; i++) {
+            if (!bannedLatticeDirs[dir2int(possDirs[i])]) {
+                return possDirs[i];
+            }
+        }
+        return null;
     }
 
 
@@ -192,7 +243,7 @@ public class Slanderer extends Robot {
         log("makeLattice " + centerLoc + " " + latticeDir);
 
 
-        int curSim = getDirSimilarity(latticeDir, here.directionTo(centerLoc));
+        int curSim = getDirSimilarity(latticeDir, centerLoc.directionTo(here));
 
         int curLatticeValue = (here.x + here.y) % 2;
         int curDist = centerLoc.distanceSquaredTo(here);
@@ -203,13 +254,12 @@ public class Slanderer extends Robot {
             int bestLatticeValue = P_INF;
             int bestDist = N_INF;
             {
-                Direction[] possDirs = getClosestDirs(latticeDir);
-                for (int i = possDirs.length; --i >= 0;) {
+                for (int i = DIRS.length; --i >= 0;) {
                     // make sure location is empty
-                    Direction dir = possDirs[i];
-                    if (isDirMoveable[dir2int(dir)]) {
+                    Direction dir = DIRS[i];
+                    if (isDirMoveable[i]) {
                         MapLocation loc = rc.adjacentLocation(dir);
-                        int sim = getDirSimilarity(latticeDir, loc.directionTo(centerLoc));
+                        int sim = getDirSimilarity(latticeDir, centerLoc.directionTo(loc));
                         int dist = centerLoc.distanceSquaredTo(loc);
                         if (sim <= 1 && dist > minLatticeDist) {
                             int latticeValue = (loc.x + loc.y) % 2;
@@ -235,11 +285,10 @@ public class Slanderer extends Robot {
             int worstFriendDist = -1; // init value shouldn't matter
             for (int i = adjAllies.length; --i >= 0;) {
                 RobotInfo ri = adjAllies[i];
-                int status = getStatusFromFlag(rc.getFlag(ri.ID));
                 if (ri.type == RobotType.POLITICIAN
-                        && ((status & 8) > 0)) {
+                        && ((getStatusFromFlag(rc.getFlag(ri.ID)) & 8) > 0)) {
                     MapLocation loc = ri.location;
-                    int sim = getDirSimilarity(latticeDir, loc.directionTo(centerLoc));
+                    int sim = getDirSimilarity(latticeDir, centerLoc.directionTo(loc));
                     int dist = centerLoc.distanceSquaredTo(loc);
                     if (sim <= 1 && dist > minLatticeDist) {
                         int latticeValue = (loc.x + loc.y) % 2;
@@ -296,7 +345,7 @@ public class Slanderer extends Robot {
         } else {
             // on the wrong side
             if (latticeDir != Direction.CENTER) {
-                MapLocation targetLoc = addDir(centerLoc, latticeDir.opposite(), MAX_MAP_SIZE);
+                MapLocation targetLoc = addDir(centerLoc, latticeDir, MAX_MAP_SIZE);
                 fuzzyTo(targetLoc);
                 return;
             } else {

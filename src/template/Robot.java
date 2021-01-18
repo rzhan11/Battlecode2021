@@ -170,6 +170,7 @@ public abstract class Robot extends Constants {
 
         // independent
         updateBasicInfo();
+        Comms.SKIP_WRITE = (myType != RobotType.ENLIGHTENMENT_CENTER && age == 0 && roundNum > 10);
 
         // independent
         sortEnemyTypes();
@@ -346,7 +347,7 @@ public abstract class Robot extends Constants {
     }
 
     public static int lastWriteEnemyMuckrakerRound = -100;
-    final public static int WRITE_ENEMY_MUCKRAKER_FREQ = 5;
+    final public static int WRITE_ENEMY_MUCKRAKER_FREQ = 3;
 
     public static void updateAlerts() throws GameActionException {
         // check if reset current alert loc

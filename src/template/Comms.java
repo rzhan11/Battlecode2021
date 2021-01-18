@@ -87,12 +87,11 @@ public class Comms {
 
 
 
-    final public static int FOUND_ATTACKING_MUCKRAKER_MSG = 26 << TYPE_OFFSET;
-
-
     // constants for coordinates
     final public static int COORD_BITS = 7;
     final public static int COORD_MASK = (1 << COORD_BITS) - 1;
+
+    public static boolean SKIP_WRITE = true;
 
     // used in determining MapLocations with 7 bits
     // these can be any valid coordinates on the map
@@ -248,10 +247,6 @@ public class Comms {
             case REPORT_ENEMY_MUCKRAKER_MSG:
                 readReportEnemyMuckraker(msgInfo);
                 break;
-            case FOUND_ATTACKING_MUCKRAKER_MSG:
-                if(rc.getType() == RobotType.POLITICIAN)
-                    setAttackMuckraker(msgInfo);
-                break;
             default:
                 logi("ERROR: Unknown msgType " + msgType);
                 break;
@@ -339,6 +334,8 @@ public class Comms {
     Note: this message should only be written/read by non-hq robots (aka units)
      */
     public static void writeEchoSurrounded(int index, boolean isSurrounded) throws GameActionException {
+        if (SKIP_WRITE) return;
+
         MapLocation loc = hqLocs[index];
         hqReportSurroundRounds[index] = roundNum;
 
@@ -378,6 +375,8 @@ public class Comms {
     }
 
     public static void writeEchoEnemyMuckraker(MapLocation loc) throws GameActionException {
+        if (SKIP_WRITE) return;
+
         log("Writing 'Echo Enemy Muckraker' message " + loc);
 
         lastWriteEnemyMuckrakerRound = roundNum;
@@ -432,6 +431,8 @@ public class Comms {
     7 | XMAX
      */
     public static void writeXBounds() throws GameActionException {
+        if (SKIP_WRITE) return;
+
         int msgType = getBoundsMsgType(true);
         MapLocation loc = new MapLocation(XMIN, XMAX);
 
@@ -461,6 +462,8 @@ public class Comms {
     7 | YMAX
      */
     public static void writeYBounds() throws GameActionException {
+        if (SKIP_WRITE) return;
+
         int msgType = getBoundsMsgType(false);
         MapLocation loc = new MapLocation(YMIN, YMAX);
 
@@ -491,6 +494,8 @@ public class Comms {
     1 | notRSymmetry
      */
     public static void writeSymmetry(boolean repeat) throws GameActionException {
+        if (SKIP_WRITE) return;
+
         log("Writing 'Symmetry' " + (notHSymmetry?1:0) + (notVSymmetry?1:0) + (notRSymmetry?1:0));
         int info = 0;
         if (notHSymmetry) {
@@ -536,6 +541,8 @@ public class Comms {
     }
 
     public static void writeHQLocSolo(MapLocation loc, boolean repeat) throws GameActionException {
+        if (SKIP_WRITE) return;
+
         log("Writing 'HQ Loc' " + loc);
 
         Message msg = getHQLocMsg(loc, false, repeat);
@@ -601,6 +608,8 @@ public class Comms {
     }
 
     public static void writeHQInfo(int id, Team team, boolean repeat) throws GameActionException {
+        if (SKIP_WRITE) return;
+
         log("Writing 'HQ Info' message");
         tlog("ID: " + id);
         tlog("Team: " + team);
@@ -632,6 +641,8 @@ public class Comms {
     }
 
     public static void writeReportNonMaster(int id, boolean repeat) throws GameActionException {
+        if (SKIP_WRITE) return;
+
         log("Writing 'Report Non Master' message " + id);
 
         Message msg = new Message(REPORT_NON_MASTER_MSG, id - MIN_ID, repeat);
@@ -719,6 +730,8 @@ public class Comms {
     }
 
     public static void writeReportEnemyMuckraker(MapLocation loc) throws GameActionException {
+        if (SKIP_WRITE) return;
+
         log("Writing 'Report Enemy Muckraker' message " + loc);
         lastWriteEnemyMuckrakerRound = roundNum;
 
@@ -740,14 +753,4 @@ public class Comms {
             }
         }
     }
-
-    public static void broadcastAttackMuckrakerLocation(MapLocation seenLocation) throws GameActionException {
-        Message msg = new Message(FOUND_ATTACKING_MUCKRAKER_MSG, loc2bits(seenLocation), myType == RobotType.ENLIGHTENMENT_CENTER);
-        queueMessage(msg);
-    }
-
-    public static void setAttackMuckraker(int msgInfo) throws GameActionException {
-        setNewAttackTarget(bits2loc(msgInfo));
-    }
-
 }

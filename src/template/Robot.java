@@ -160,10 +160,10 @@ public abstract class Robot extends Constants {
     public static void updateTurnInfo() throws GameActionException {
 
         // todo TESTING PURPOSES ONLY
-//        if (roundNum >= 400) {
-//            log("RESIGNING");
-//            rc.resign();
-//        }
+        if (roundNum >= 400) {
+            log("RESIGNING");
+            rc.resign();
+        }
 
         CommManager.resetFlag();
         Comms.resetPrevEcho();
@@ -464,7 +464,7 @@ public abstract class Robot extends Constants {
         // update if masterTaskDir is done
         if (masterTaskDir != null) {
             MapLocation senseLoc = getFarthestLoc(spawnLoc, masterTaskDir);
-            if (rc.canSenseLocation(senseLoc) || roundNum - lastExploreTaskChangeRound > 100) {
+            if (rc.canSenseLocation(senseLoc) || roundNum - lastExploreTaskChangeRound > 75) {
                 masterTaskDir = null;
                 // do not return, we need new task
             } else { // keeping this task
@@ -529,6 +529,7 @@ public abstract class Robot extends Constants {
             if (symHQCount > 0) {
                 symmetryTaskLoc = symHQLocs[0];
                 symmetryTaskType = symHQType[0];
+                lastExploreTaskChangeRound = roundNum;
                 return;
             }
         }
@@ -577,7 +578,9 @@ public abstract class Robot extends Constants {
             MapLocation navLoc = getExploreNavLoc(senseLoc);
             drawLine(here, navLoc, WHITE);
             drawDot(senseLoc, WHITE);
-            moveLog(navLoc);
+            // use fuzzy for this one
+            fuzzyTo(navLoc);
+//            moveLog(navLoc);
             return;
         }
 
@@ -591,6 +594,7 @@ public abstract class Robot extends Constants {
             MapLocation navLoc = getExploreNavLoc(senseLoc);
             drawLine(here, navLoc, GRAY);
             drawDot(senseLoc, GRAY);
+//            fuzzyTo(navLoc);
             moveLog(navLoc);
             return;
         }
@@ -600,6 +604,7 @@ public abstract class Robot extends Constants {
         if (symmetryTaskLoc != null) {
             log("Symmetry task " + symmetryTaskLoc + " " + symmetryTaskType);
             drawLine(here, symmetryTaskLoc, BLACK);
+//            fuzzyTo(symmetryTaskLoc);
             moveLog(symmetryTaskLoc);
             return;
         }

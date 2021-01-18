@@ -114,7 +114,7 @@ public class CommManager {
     Whenever a change is made to the status or message, the flag is updated accordingly
      */
     private static void updateFlag() throws GameActionException {
-        rc.setFlag((myMessage.info << INFO_OFFSET) + (myMessage.type << TYPE_OFFSET) + myStatus);
+        rc.setFlag(myMessage.info + myMessage.type + (myStatus << STATUS_OFFSET));
     }
 
     public static void updateMyMessage() throws GameActionException {
@@ -206,7 +206,8 @@ public class CommManager {
 
     public static void printMessageQueue() throws GameActionException {
         log("Queued Normal Messages: " + msgQueueCount);
-        for (int i = 0; i < msgQueueCount; i++) {
+        int numPrint = Math.min(5, msgQueueCount);
+        for (int i = 0; i < numPrint; i++) {
             int index = (msgQueueIndex + i) % QUEUE_LEN;
             if (msgQueue[index] != null) {
                 tlog(msgQueue[index].toString());
@@ -222,7 +223,8 @@ public class CommManager {
 
     public static void printRepeatQueue() throws GameActionException {
         log("Queued Repeat Messages: " + repeatQueueCount);
-        for (int i = 0; i < repeatQueueCount; i++) {
+        int numPrint = Math.min(5, repeatQueueCount);
+        for (int i = 0; i < numPrint; i++) {
             int index = (repeatQueueIndex + i) % QUEUE_LEN;
             if (repeatQueue[index] != null) {
                 tlog(repeatQueue[index].toString());

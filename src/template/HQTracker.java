@@ -92,6 +92,7 @@ public class HQTracker {
         hqTeams[index] = team;
         hqSurroundRounds[index] = DEFAULT_SURROUND;
         hqReportSurroundRounds[index] = DEFAULT_SURROUND;
+        hqIgnoreRounds[index] = DEFAULT_IGNORE;
         if (myType == RobotType.ENLIGHTENMENT_CENTER) {
             updateHQBroadcast(index);
         }
@@ -145,7 +146,7 @@ public class HQTracker {
 //            hqReportSurroundRounds[index] = DEFAULT_SURROUND;
         } else {
             hqSurroundRounds[index] = DEFAULT_SURROUND;
-            hqReportSurroundRounds[index] = DEFAULT_SURROUND;
+//            hqReportSurroundRounds[index] = DEFAULT_SURROUND;
         }
     }
 
@@ -165,6 +166,7 @@ public class HQTracker {
     }
 
     public static boolean checkHQIgnoreStatus(int index) {
+        log("ignore " + roundNum + " " + hqIgnoreRounds[index] + " " + IGNORE_MEMORY);
         return (roundNum - hqIgnoreRounds[index] <= IGNORE_MEMORY);
     }
 }

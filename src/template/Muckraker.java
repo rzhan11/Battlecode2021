@@ -192,8 +192,10 @@ public class Muckraker extends Robot {
             for (int i = knownHQCount; --i >= 0;) {
                 // new targets must be enemy/unknown team and not surrounded
                 if (hqTeams[i] == them || hqTeams[i] == null) {
+                    log("HQ considering " + i + " " + checkHQIgnoreStatus(i) + " " + checkHQSurroundStatus(i));
                     if (!checkHQSurroundStatus(i) && !checkHQIgnoreStatus(i)) {
                         int dist = here.distanceSquaredTo(hqLocs[i]);
+                        tlog("really considering " + dist);
                         if (dist < bestDist) {
                             targetHQIndex = i;
                             bestDist = dist;
@@ -331,12 +333,17 @@ public class Muckraker extends Robot {
             int mediumCloseMax = getMaxSurround(targetHQLoc, 2);
             int veryCloseCount = 1 + veryCloseAllies.length;
             int mediumCloseCount = 1 + mediumCloseAllies.length;
-            tlog("Very close " + veryCloseCount + "/" + veryCloseMax);
-            tlog("Med close " + mediumCloseCount + "/" + mediumCloseMax);
+            tlog("Very close: " + veryCloseCount + "/" + veryCloseMax);
+            tlog("Med close: " + mediumCloseCount + "/" + mediumCloseMax);
+
+            int outerRingMax = mediumCloseMax - veryCloseMax;
+            int outerRingCount = mediumCloseCount - veryCloseCount;
+            tlog("Outer ring: " + outerRingCount + "/" + outerRingMax);
 
             boolean wasSurrounded = checkHQSurroundStatus(targetHQIndex);
             boolean isSurrounded = veryCloseCount >= veryCloseMax
-                    || mediumCloseCount >= 0.8 * mediumCloseMax;
+                    || mediumCloseCount >= 0.8 * mediumCloseMax
+                    || outerRingCount >= outerRingMax;
 
             tlog("was/is " + wasSurrounded + " " + isSurrounded);
 

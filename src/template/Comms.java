@@ -28,65 +28,66 @@ public class Comms {
 
     /*
     FLAG FORMAT:
-    Description: [messageInfo] [messageType] [status]
-    # of bits:    14            6             4
+    Description:  [status] [messageType] [messageInfo]
+    # of bits:     4        6             14
      */
 
     // constants for flag portioning
     final public static int FLAG_BITS = 24; // number of bits in a flag
-    final public static int STATUS_BITS = 4;
+    final public static int INFO_BITS = 14;
     final public static int TYPE_BITS = 6; // 64 message types allowed
-    final public static int INFO_BITS = FLAG_BITS - STATUS_BITS - TYPE_BITS;
+    final public static int STATUS_BITS = 4;
 
     // offsets
-    final public static int TYPE_OFFSET = STATUS_BITS;
-    final public static int INFO_OFFSET = STATUS_BITS + TYPE_BITS;
+    final public static int TYPE_OFFSET = INFO_BITS;
+    final public static int STATUS_OFFSET = INFO_BITS + TYPE_BITS;
 
     // masks
-    final public static int STATUS_MASK = (1 << STATUS_BITS) - 1;
+    final public static int INFO_MASK = ((1 << INFO_BITS) - 1); // offset = 0
     final public static int TYPE_MASK = ((1 << TYPE_BITS) - 1) << TYPE_OFFSET;
-    final public static int INFO_MASK = ((1 << INFO_BITS) - 1) << INFO_OFFSET;
+    final public static int STATUS_MASK = ((1 << STATUS_BITS) - 1) << STATUS_OFFSET;
 
-    final public static int IGNORE_UNIT2UNIT_MASK = 0b1110000000;
+    // todo update this when changing TYPE_OFFSET
+    final public static int IGNORE_UNIT2UNIT_MASK = 0b11100000000000000000;
 
     final public static int MAX_STATUS = (1 << STATUS_BITS) - 1;
 
     // MESSAGE TYPE CONSTANTS
-    final public static int EMPTY_MSG = 63;
+    final public static int EMPTY_MSG = 63 << TYPE_OFFSET;
 
     // Values of 0-7 are reserved for UNIT2UNIT comms (which are ignored by hqs)
     // Not following this WILL BREAK THINGS
-    final public static int BROADCAST_MY_MASTER_MSG = 0;
-    final public static int ECHO_SURROUNDED_MSG = 1;
-    final public static int ECHO_NOT_SURROUNDED_MSG = 2;
-    final public static int ECHO_ENEMY_MUCKRAKER_MSG = 3;
+    final public static int BROADCAST_MY_MASTER_MSG = 0 << TYPE_OFFSET;
+    final public static int ECHO_SURROUNDED_MSG = 1 << TYPE_OFFSET;
+    final public static int ECHO_NOT_SURROUNDED_MSG = 2 << TYPE_OFFSET;
+    final public static int ECHO_ENEMY_MUCKRAKER_MSG = 3 << TYPE_OFFSET;
     //
 
-    final public static int HQ_LOC_SOLO_MSG = 8;
-    final public static int HQ_LOC_PAIRED_MSG = 9;
-    final public static int ALLY_HQ_INFO_MSG = 10;
-    final public static int ENEMY_HQ_INFO_MSG = 11;
-    final public static int NEUTRAL_HQ_INFO_MSG = 12;
+    final public static int HQ_LOC_SOLO_MSG = 8 << TYPE_OFFSET;
+    final public static int HQ_LOC_PAIRED_MSG = 9 << TYPE_OFFSET;
+    final public static int ALLY_HQ_INFO_MSG = 10 << TYPE_OFFSET;
+    final public static int ENEMY_HQ_INFO_MSG = 11 << TYPE_OFFSET;
+    final public static int NEUTRAL_HQ_INFO_MSG = 12 << TYPE_OFFSET;
 
-    final public static int XBOUNDS_MSG = 13;
-    final public static int XMIN_MSG = 14;
-    final public static int XMAX_MSG = 15;
-    final public static int XNONE_MSG = 16;
-    final public static int YBOUNDS_MSG = 17;
-    final public static int YMIN_MSG = 18;
-    final public static int YMAX_MSG = 19;
-    final public static int YNONE_MSG = 20;
+    final public static int XBOUNDS_MSG = 13 << TYPE_OFFSET;
+    final public static int XMIN_MSG = 14 << TYPE_OFFSET;
+    final public static int XMAX_MSG = 15 << TYPE_OFFSET;
+    final public static int XNONE_MSG = 16 << TYPE_OFFSET;
+    final public static int YBOUNDS_MSG = 17 << TYPE_OFFSET;
+    final public static int YMIN_MSG = 18 << TYPE_OFFSET;
+    final public static int YMAX_MSG = 19 << TYPE_OFFSET;
+    final public static int YNONE_MSG = 20 << TYPE_OFFSET;
 
-    final public static int SYMMETRY_MSG = 21;
+    final public static int SYMMETRY_MSG = 21 << TYPE_OFFSET;
 
-    final public static int REPORT_NON_MASTER_MSG = 22;
-    final public static int REPORT_SURROUNDED_MSG = 23;
-    final public static int REPORT_NOT_SURROUNDED_MSG = 24;
-    final public static int REPORT_ENEMY_MUCKRAKER_MSG = 25;
+    final public static int REPORT_NON_MASTER_MSG = 22 << TYPE_OFFSET;
+    final public static int REPORT_SURROUNDED_MSG = 23 << TYPE_OFFSET;
+    final public static int REPORT_NOT_SURROUNDED_MSG = 24 << TYPE_OFFSET;
+    final public static int REPORT_ENEMY_MUCKRAKER_MSG = 25 << TYPE_OFFSET;
 
 
 
-    final public static int FOUND_ATTACKING_MUCKRAKER_MSG = 26;
+    final public static int FOUND_ATTACKING_MUCKRAKER_MSG = 26 << TYPE_OFFSET;
 
 
     // constants for coordinates
@@ -108,11 +109,11 @@ public class Comms {
     }
 
     public static int getStatusFromFlag(int flag) {
-        return flag & STATUS_MASK;
+        return (flag & STATUS_MASK) >> STATUS_OFFSET;
     }
 
     public static Message getMessageFromFlag(int flag) {
-        return new Message((flag & TYPE_MASK) >>> TYPE_OFFSET, (flag & INFO_MASK) >>> INFO_OFFSET);
+        return new Message(flag & TYPE_MASK, flag & INFO_MASK);
     }
 
     /*
@@ -166,8 +167,8 @@ public class Comms {
     public static void readMessage(int id) throws GameActionException {
         int flag = rc.getFlag(id);
 
-        int msgType = (flag & TYPE_MASK) >>> TYPE_OFFSET;
-        int msgInfo = (flag & INFO_MASK) >>> INFO_OFFSET;
+        int msgType = flag & TYPE_MASK;
+        int msgInfo = flag & INFO_MASK;
 
         // check for echoes to skip
         if ((flag & IGNORE_UNIT2UNIT_MASK) == 0) {
@@ -706,11 +707,11 @@ public class Comms {
         updateHQSurroundRound(index, isSurrounded);
 
         if (wasSurrounded != isSurrounded) {
-            if (myType == RobotType.ENLIGHTENMENT_CENTER) {
-                log("wasSurrounded " + wasSurrounded + " " + isSurrounded + " " + index);
-                writeReportSurrounded(index, isSurrounded);
-            } else {
-                if (roundNum - hqReportSurroundRounds[index] > SURROUND_UPDATE_FREQ) {
+            if (roundNum - hqReportSurroundRounds[index] > SURROUND_UPDATE_FREQ) {
+                if (myType == RobotType.ENLIGHTENMENT_CENTER) {
+                    log("wasSurrounded " + wasSurrounded + " " + isSurrounded + " " + index);
+                    writeReportSurrounded(index, isSurrounded);
+                } else {
                     writeEchoSurrounded(index, isSurrounded);
                 }
             }

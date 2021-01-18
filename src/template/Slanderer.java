@@ -2,6 +2,7 @@ package template;
 
 import battlecode.common.*;
 
+import static template.Comms.*;
 import static template.Debug.*;
 import static template.Map.*;
 import static template.Nav.*;
@@ -234,8 +235,9 @@ public class Slanderer extends Robot {
             int worstFriendDist = -1; // init value shouldn't matter
             for (int i = adjAllies.length; --i >= 0;) {
                 RobotInfo ri = adjAllies[i];
+                int status = getStatusFromFlag(rc.getFlag(ri.ID));
                 if (ri.type == RobotType.POLITICIAN
-                        && ((rc.getFlag(ri.ID) & 8) > 0)) {
+                        && ((status & 8) > 0)) {
                     MapLocation loc = ri.location;
                     int sim = getDirSimilarity(latticeDir, loc.directionTo(centerLoc));
                     int dist = centerLoc.distanceSquaredTo(loc);

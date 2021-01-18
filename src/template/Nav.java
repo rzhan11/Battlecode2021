@@ -3,6 +3,7 @@ package template;
 import battlecode.common.*;
 
 
+import static template.Slanderer.*;
 import static template.Bug.*;
 import static template.Debug.*;
 import static template.Map.*;
@@ -21,9 +22,20 @@ public class Nav {
 
     public static void updateIsDirMoveable() throws GameActionException {
         // add information about if direction is moveable
-        for (int i = 0; i < DIRS.length; i++) {
-            MapLocation adjLoc = rc.adjacentLocation(DIRS[i]);
-            isDirMoveable[i] = rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc);
+        MapLocation centerLoc = (myMasterLoc != null) ? myMasterLoc : spawnLoc;
+        if (myType == RobotType.SLANDERER && !here.isAdjacentTo(centerLoc)) {
+            // don't move closer to hq if too close
+            for (int i = DIRS.length; --i >= 0;) {
+                MapLocation adjLoc = rc.adjacentLocation(DIRS[i]);
+                isDirMoveable[i] = rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)
+                        && !adjLoc.isAdjacentTo(centerLoc);
+            }
+
+        } else {
+            for (int i = DIRS.length; --i >= 0;) {
+                MapLocation adjLoc = rc.adjacentLocation(DIRS[i]);
+                isDirMoveable[i] = rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc);
+            }
         }
     }
 
@@ -204,7 +216,7 @@ public class Nav {
             if (isDirMoveable[dir2int(dir)]) {
                 MapLocation adjLoc = rc.adjacentLocation(dir);
                 double rootDist = Math.sqrt(dangerLoc.distanceSquaredTo(adjLoc));
-                double speed = (curRootDist - rootDist) * rc.sensePassability(adjLoc);
+                double speed = (curRootDist - rootDist) / (1 + 1 / rc.sensePassability(adjLoc));
                 if (speed > bestSpeed) {
                     bestDir = dir;
                     bestSpeed = speed;
@@ -232,7 +244,7 @@ public class Nav {
             if (isDirMoveable[dir2int(dir)]) {
                 MapLocation adjLoc = rc.adjacentLocation(dir);
                 double rootDist = Math.sqrt(dangerLoc.distanceSquaredTo(adjLoc));
-                double speed = (rootDist - curRootDist) * rc.sensePassability(adjLoc);
+                double speed = (rootDist - curRootDist) / (1 + 1 / rc.sensePassability(adjLoc));
                 if (speed > bestSpeed) {
                     bestDir = dir;
                     bestSpeed = speed;

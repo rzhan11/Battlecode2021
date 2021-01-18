@@ -20,12 +20,12 @@ public class Actions {
 
     public static void doEmpower(int dist) throws GameActionException {
         log("EMPOWERING " + dist);
-        int len = HardCode.BFS9.length;
-        for (int i = 0; i < len; i++) {
-            if (HardCode.BFS9[i][2] <= dist) {
-                drawDot(here.translate(HardCode.BFS9[i][0], HardCode.BFS9[i][1]), BLACK);
-            }
-        }
+//        int len = HardCode.BFS9.length;
+//        for (int i = 0; i < len; i++) {
+//            if (HardCode.BFS9[i][2] <= dist) {
+//                drawDot(here.translate(HardCode.BFS9[i][0], HardCode.BFS9[i][1]), BLACK);
+//            }
+//        }
         printBuffer();
         rc.empower(dist);
     }

@@ -8,7 +8,11 @@ if [ "$#" -ne 1 ] || ! [ -d "src/$1" ]; then
 	exit 1
 fi
 
+cd scripts/
+python3 createNoLogSrc.py $1
+cd ..
+
 cd src/
-zip createdFromScript_$1.zip $1 -r
-mv createdFromScript_$1.zip ../uploads
+zip createdFromScript_$1_nolog.zip $1_nolog -r
+mv createdFromScript_$1_nolog.zip ../uploads
 echo "Done"

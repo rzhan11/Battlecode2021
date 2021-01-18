@@ -47,7 +47,7 @@ public class EnlightenmentCenter extends Robot {
     public static int SLAN_CAP = 100;
 
     // if we are in the corner, it is essential that we have a lot of politicians, so that our slanderers dont get pushed in
-    public static double politicianCornerMultiplier = 2.0;
+    public static double politicianCornerMultiplier = 1.5;
 
 
 //    public static int enemyHQIndex = 0;

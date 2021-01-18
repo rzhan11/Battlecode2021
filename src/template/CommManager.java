@@ -52,12 +52,17 @@ public class CommManager {
         return myMessage;
     }
 
-    public static void setStatus(int status) throws GameActionException {
+    // delay is used if you want an HQ to set status for a troop that it just spawned
+    public static void setStatus(int status, boolean delay) throws GameActionException {
         if (!(0 <= status && status <= MAX_STATUS)) {
             logi("WARNING: Tried to set invalid status " + status);
             return;
         }
-        nextStatus = status;
+        if (delay) {
+            nextStatus = status;
+        } else {
+            myStatus = status;
+        }
         updateFlag();
     }
 

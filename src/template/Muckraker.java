@@ -39,8 +39,6 @@ public class Muckraker extends Robot {
     public static int minDistToTargetHQ = P_INF;
     public static int lastCloserRound = -1;
 
-    public static int lastReportSurroundRound = -1;
-
     // for when we are medium close to targetHQ
     public static boolean circleHQLeft;
 
@@ -49,7 +47,7 @@ public class Muckraker extends Robot {
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
         initExploreTask();
-        useBug = (Math.random() < 0.75);
+        useBug = (random() < 0.75);
     }
 
     // code run each turn
@@ -110,13 +108,13 @@ public class Muckraker extends Robot {
                 tryCircleHQ();
                 return;
             } else {
-                if (useBug) {
-                    log("Bugging to targetHQ");
-                    moveLog(targetHQLoc);
-                } else {
+//                if (useBug) {
+//                    log("Bugging to targetHQ");
+//                    moveLog(targetHQLoc);
+//                } else {
                     log("Fuzzy to targetHQ");
                     fuzzyTo(targetHQLoc);
-                }
+//                }
                 return;
             }
         }
@@ -331,23 +329,25 @@ public class Muckraker extends Robot {
 
             int veryCloseMax = getMaxSurround(targetHQLoc, 1);
             int mediumCloseMax = getMaxSurround(targetHQLoc, 2);
-            tlog("Very close " + veryCloseAllies.length + "/" + veryCloseMax);
-            tlog("Med close " + mediumCloseAllies.length + "/" + mediumCloseMax);
+            int veryCloseCount = 1 + veryCloseAllies.length;
+            int mediumCloseCount = 1 + mediumCloseAllies.length;
+            tlog("Very close " + veryCloseCount + "/" + veryCloseMax);
+            tlog("Med close " + mediumCloseCount + "/" + mediumCloseMax);
 
             boolean wasSurrounded = checkHQSurroundStatus(targetHQIndex);
-            boolean isSurrounded = (1 + veryCloseAllies.length) >= veryCloseMax
-                    || (1 + mediumCloseAllies.length) >= 0.8 * mediumCloseMax;
+            boolean isSurrounded = veryCloseCount >= veryCloseMax
+                    || mediumCloseCount >= 0.8 * mediumCloseMax;
 
             tlog("was/is " + wasSurrounded + " " + isSurrounded);
 
             // update after reporting, to not affect the 'if' statement
             updateHQSurroundRound(targetHQIndex, isSurrounded);
 
-            // report if status has changed, or it has been 10 rounds since last report
-            if (wasSurrounded != isSurrounded) {
-                writeReportSurrounded(targetHQLoc, isSurrounded);
-            } else if (hqSurroundRounds[targetHQIndex] > 0 && roundNum - lastReportSurroundRound > SURROUND_UPDATE_FREQUENCY) {
-                writeReportSurrounded(targetHQLoc, isSurrounded);
+            // report if status has changed, or it has been 5 rounds since last report
+            if (roundNum - hqReportSurroundRounds[targetHQIndex] > SURROUND_UPDATE_FREQ) {
+                if (wasSurrounded != isSurrounded || isSurrounded) {
+                    writeReportSurrounded(targetHQIndex, isSurrounded);
+                }
             }
         }
     }

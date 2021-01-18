@@ -54,6 +54,8 @@ public class Message {
                 str += "[ECHO SURROUND] " + bits2loc(info); break;
             case ECHO_NOT_SURROUNDED_MSG:
                 str += "[ECHO NOT SURROUND] " + bits2loc(info); break;
+            case ECHO_ENEMY_MUCKRAKER_MSG:
+                str += "[ECHO EMUCK] " + bits2loc(info); break;
 
             case HQ_LOC_SOLO_MSG:
                 str += "[HQ LOC 1] " + bits2loc(info); break;
@@ -99,6 +101,8 @@ public class Message {
                 str += "[REP SURROUND] " + bits2loc(info); break;
             case REPORT_NOT_SURROUNDED_MSG:
                 str += "[REP NOT SURROUND] " + bits2loc(info); break;
+            case REPORT_ENEMY_MUCKRAKER_MSG:
+                str += "[REP EMUCK] " + bits2loc(info); break;
 
 
             default:

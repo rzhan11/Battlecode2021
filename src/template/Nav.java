@@ -3,10 +3,11 @@ package template;
 import battlecode.common.*;
 
 
-import static template.Robot.*;
+import static template.Bug.*;
 import static template.Debug.*;
 import static template.Map.*;
-import static template.Bug.*;
+import static template.Robot.*;
+import static template.Utils.*;
 
 public class Nav {
 
@@ -89,9 +90,27 @@ public class Nav {
     final public static int SLANDERER_WANDER_RADIUS = 4;
     final public static int POLITICIAN_WANDER_RADIUS = 13;
 
-    public static boolean wanderLeft = true;
+    public static int curWanderRadius;
+
+    public static boolean wanderLeft;
 
     public static MapLocation wanderCenter;
+
+    public static void updateWanderRadius() {
+        if (myType == RobotType.SLANDERER) {
+            curWanderRadius = SLANDERER_WANDER_RADIUS;
+        } else if (myType == RobotType.POLITICIAN) {
+            curWanderRadius = POLITICIAN_WANDER_RADIUS;
+        }
+
+        int dx = getWallXDist(wanderCenter.x);
+        int dy = getWallYDist(wanderCenter.y);
+
+//        if (dx < ) {
+//
+//        }
+
+    }
 
     public static boolean canWander(Direction dir, int radius) {
         MapLocation loc = rc.adjacentLocation(dir);
@@ -119,12 +138,15 @@ public class Nav {
     /*
     Circles around spawn point
      */
-    public static Direction wander(int radius) throws GameActionException {
+    public static Direction wander() throws GameActionException {
         log("Trying to wander");
         tlog(wanderLeft ? "Going left": "Going right");
 
         updateWanderCenter();
-        tlog("wanderCenter " + wanderCenter);
+        updateWanderRadius();
+        int radius = curWanderRadius;
+
+        tlog("Info: " + wanderCenter + " " + radius);
 
         // check if too close to spawn
         if (here.isWithinDistanceSquared(wanderCenter, radius)) {
@@ -171,7 +193,7 @@ public class Nav {
 
 
     public static Direction fuzzyTo(MapLocation dangerLoc) throws GameActionException {
-        log("Fuzzy to from " + dangerLoc);
+        log("Fuzzy to " + dangerLoc);
 
         double curRootDist = Math.sqrt(here.distanceSquaredTo(dangerLoc));
 

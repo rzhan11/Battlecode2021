@@ -117,6 +117,26 @@ public class Map {
         return true;
     }
 
+    public static int getWallXDist(int x) {
+        if (XMIN != -1) {
+            if (XMAX != -1) return Math.min(x - XMIN, XMAX - x);
+            else return x - XMIN;
+        } else {
+            if (XMAX != -1) return XMAX - x;
+            else return P_INF;
+        }
+    }
+
+    public static int getWallYDist(int y) {
+        if (YMIN != -1) {
+            if (YMAX != -1) return Math.min(y - YMIN, YMAX - y);
+            else return y - YMIN;
+        } else {
+            if (YMAX != -1) return YMAX - y;
+            else return P_INF;
+        }
+    }
+
     public static boolean isMapKnown() {
         return XMIN != -1 && XMAX != -1 && YMIN != -1 && YMAX != -1;
     }
@@ -202,7 +222,7 @@ public class Map {
         int dx = 0;
         if (XMIN == -1) {
             if (XMAX == -1) {
-                dx = (Math.random() < 0.5) ? -1 : 1; // randomly pick left/right
+                dx = randBoolean() ? -1 : 1; // randomly pick left/right
             } else {
                 dx = -1;
             }
@@ -213,7 +233,7 @@ public class Map {
         int dy = 0;
         if (YMIN == -1) {
             if (YMAX == -1) {
-                dy = (Math.random() < 0.5) ? -1 : 1; // randomly pick left/right
+                dy = randBoolean() ? -1 : 1; // randomly pick left/right
             } else {
                 dy = -1;
             }

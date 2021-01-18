@@ -16,6 +16,8 @@ public class HardCode {
             {Direction.SOUTHWEST, Direction.SOUTH, Direction.WEST, Direction.SOUTHEAST, Direction.NORTHWEST, Direction.EAST, Direction.NORTH, Direction.NORTHEAST},
             {Direction.WEST, Direction.SOUTHWEST, Direction.NORTHWEST, Direction.SOUTH, Direction.NORTH, Direction.SOUTHEAST, Direction.NORTHEAST, Direction.EAST},
             {Direction.NORTHWEST, Direction.WEST, Direction.NORTH, Direction.SOUTHWEST, Direction.NORTHEAST, Direction.SOUTH, Direction.EAST, Direction.SOUTHEAST},
+            // center
+            {Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST, Direction.SOUTHWEST, Direction.NORTHEAST, Direction.SOUTHEAST, Direction.NORTHWEST},
     };
 
     public static void initHardCode() {
@@ -112,6 +114,20 @@ public class HardCode {
             case 339: return 14;
             case 368: return 15;
             case 399: return 16;
+            case 431: return 17;
+            case 463: return 18;
+            case 497: return 19;
+            case 532: return 20;
+            case 568: return 21;
+            case 605: return 22;
+            case 643: return 23;
+            case 683: return 24;
+            case 724: return 25;
+            case 766: return 26;
+            case 810: return 27;
+            case 855: return 28;
+            case 902: return 29;
+            case 949: return 30;
             default:
                 logi("WARNING: 'HardCode.getPassiveInfluence' received query for unexpected amount " + influence);
                 return -1;

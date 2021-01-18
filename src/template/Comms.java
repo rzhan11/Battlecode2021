@@ -7,7 +7,6 @@ import static template.CommManager.*;
 import static template.Debug.*;
 import static template.HQTracker.*;
 import static template.Map.*;
-import static template.Robot.*;
 
 
 public class Comms {
@@ -60,6 +59,7 @@ public class Comms {
     final public static int BROADCAST_MY_MASTER_MSG = 0;
     final public static int ECHO_SURROUNDED_MSG = 1;
     final public static int ECHO_NOT_SURROUNDED_MSG = 2;
+    final public static int ECHO_ENEMY_MUCKRAKER_MSG = 3;
     //
 
     final public static int HQ_LOC_SOLO_MSG = 8;
@@ -82,7 +82,11 @@ public class Comms {
     final public static int REPORT_NON_MASTER_MSG = 22;
     final public static int REPORT_SURROUNDED_MSG = 23;
     final public static int REPORT_NOT_SURROUNDED_MSG = 24;
-    final public static int FOUND_ATTACKING_MUCKRAKER = 25;
+    final public static int REPORT_ENEMY_MUCKRAKER_MSG = 25;
+
+
+
+    final public static int FOUND_ATTACKING_MUCKRAKER_MSG = 26;
 
 
     // constants for coordinates
@@ -194,6 +198,9 @@ public class Comms {
             case ECHO_NOT_SURROUNDED_MSG:
                 readEchoSurrounded(msgInfo, false);
                 break;
+            case ECHO_ENEMY_MUCKRAKER_MSG:
+                readEchoEnemyMuckraker(msgInfo);
+                break;
 
             case HQ_LOC_SOLO_MSG:
             case HQ_LOC_PAIRED_MSG:
@@ -237,9 +244,13 @@ public class Comms {
             case REPORT_NOT_SURROUNDED_MSG:
                 readReportSurrounded(msgInfo, false);
                 break;
-            case FOUND_ATTACKING_MUCKRAKER:
+            case REPORT_ENEMY_MUCKRAKER_MSG:
+                readReportEnemyMuckraker(msgInfo);
+                break;
+            case FOUND_ATTACKING_MUCKRAKER_MSG:
                 if(rc.getType() == RobotType.POLITICIAN)
                     setAttackMuckraker(msgInfo);
+                break;
             default:
                 logi("ERROR: Unknown msgType " + msgType);
                 break;
@@ -326,7 +337,10 @@ public class Comms {
     14 | ENEMY HQ LOC
     Note: this message should only be written/read by non-hq robots (aka units)
      */
-    public static void writeEchoSurrounded(MapLocation loc, boolean isSurrounded) throws GameActionException {
+    public static void writeEchoSurrounded(int index, boolean isSurrounded) throws GameActionException {
+        MapLocation loc = hqLocs[index];
+        hqReportSurroundRounds[index] = roundNum;
+
         Message msg;
         if (isSurrounded) {
             log("Writing 'Echo Surrounded' message " + loc);
@@ -360,6 +374,21 @@ public class Comms {
 //        if (wasSurrounded != isSurrounded) {
 //            writeEchoSurrounded(loc, isSurrounded);
 //        }
+    }
+
+    public static void writeEchoEnemyMuckraker(MapLocation loc) throws GameActionException {
+        log("Writing 'Echo Enemy Muckraker' message " + loc);
+
+        lastWriteEnemyMuckrakerRound = roundNum;
+
+        Message msg = new Message(ECHO_ENEMY_MUCKRAKER_MSG, loc2bits(loc), false);
+        queueMessage(msg);
+    }
+
+    public static void readEchoEnemyMuckraker(int msgInfo) throws GameActionException {
+        MapLocation loc = bits2loc(msgInfo);
+
+        addAlertLoc(loc);
     }
 
     /*
@@ -514,7 +543,7 @@ public class Comms {
 
     public static void readHQLoc(int msgInfo, int msgType, int id) throws GameActionException {
         boolean paired = (msgType == HQ_LOC_PAIRED_MSG);
-        // todo make this able to receive from any hq
+
         // only receive paired messages from my master
         if (myType != RobotType.ENLIGHTENMENT_CENTER && id != myMaster) {
             paired = false;
@@ -641,8 +670,9 @@ public class Comms {
         extraAllyHQs[extraAllyHQCount - 1] = hqid;
     }
 
-    public static void writeReportSurrounded(MapLocation loc, boolean isSurrounded) throws GameActionException {
-        Muckraker.lastReportSurroundRound = roundNum;
+    public static void writeReportSurrounded(int index, boolean isSurrounded) throws GameActionException {
+        MapLocation loc = hqLocs[index];
+        hqReportSurroundRounds[index] = roundNum;
 
         Message msg;
         if (isSurrounded) {
@@ -674,19 +704,44 @@ public class Comms {
         boolean wasSurrounded = checkHQSurroundStatus(index);
         // update newest status
         updateHQSurroundRound(index, isSurrounded);
-        Muckraker.lastReportSurroundRound = roundNum;
 
         if (wasSurrounded != isSurrounded) {
             if (myType == RobotType.ENLIGHTENMENT_CENTER) {
-                writeReportSurrounded(loc, isSurrounded);
+                log("wasSurrounded " + wasSurrounded + " " + isSurrounded + " " + index);
+                writeReportSurrounded(index, isSurrounded);
             } else {
-                writeEchoSurrounded(loc, isSurrounded);
+                if (roundNum - hqReportSurroundRounds[index] > SURROUND_UPDATE_FREQ) {
+                    writeEchoSurrounded(index, isSurrounded);
+                }
+            }
+        }
+    }
+
+    public static void writeReportEnemyMuckraker(MapLocation loc) throws GameActionException {
+        log("Writing 'Report Enemy Muckraker' message " + loc);
+        lastWriteEnemyMuckrakerRound = roundNum;
+
+        Message msg = new Message(REPORT_ENEMY_MUCKRAKER_MSG, loc2bits(loc), false);
+        queueMessage(msg);
+    }
+
+    public static void readReportEnemyMuckraker(int msgInfo) throws GameActionException {
+        MapLocation loc = bits2loc(msgInfo);
+
+        addAlertLoc(loc);
+        if (myType == RobotType.ENLIGHTENMENT_CENTER) {
+            if (roundNum - lastWriteEnemyMuckrakerRound > WRITE_ENEMY_MUCKRAKER_FREQ) {
+                writeReportEnemyMuckraker(loc);
+            }
+        } else {
+            if (roundNum - lastWriteEnemyMuckrakerRound > WRITE_ENEMY_MUCKRAKER_FREQ) {
+                writeEchoEnemyMuckraker(loc);
             }
         }
     }
 
     public static void broadcastAttackMuckrakerLocation(MapLocation seenLocation) throws GameActionException {
-        Message msg = new Message(FOUND_ATTACKING_MUCKRAKER, loc2bits(seenLocation), myType == RobotType.ENLIGHTENMENT_CENTER);
+        Message msg = new Message(FOUND_ATTACKING_MUCKRAKER_MSG, loc2bits(seenLocation), myType == RobotType.ENLIGHTENMENT_CENTER);
         queueMessage(msg);
     }
 

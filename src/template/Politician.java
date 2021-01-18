@@ -66,7 +66,7 @@ public class Politician extends Robot {
         // i am a scout
         if (rc.getInfluence() == 1) {
             myRole = ROLE_EXPLORE;
-            isBugScout = (Math.random() < 0.5);
+            isBugScout = (random() < 0.5);
         }
 
         initExploreTask();
@@ -76,6 +76,8 @@ public class Politician extends Robot {
     public static void turn() throws GameActionException {
         // update damage
         myDamage = (int) (myConviction * rc.getEmpowerFactor(us, 0) - GameConstants.EMPOWER_TAX);
+
+        CommManager.setStatus(0, false); // use (1<<3) bit to signal I am poli
 
         // update myRole based on conviction
         switch(myRole) {
@@ -170,7 +172,8 @@ public class Politician extends Robot {
                 else tryChase(muckrakerAttackLocation, true);
             }
             // no seen muckrakers
-            wander(POLITICIAN_WANDER_RADIUS);
+//            wander(POLITICIAN_WANDER_RADIUS);
+            bounce(MAX_EMPOWER);
             return;
         } else if (myRole == ROLE_EXPLORE) {
             explore(isBugScout);
@@ -475,5 +478,53 @@ public class Politician extends Robot {
 
     public static void setNewAttackTarget(MapLocation seen) throws GameActionException {
         if(muckrakerAttackLocation == null) muckrakerAttackLocation = seen;
+    }
+
+    public static void bounce(int bounceRadius) throws GameActionException {
+        // search through all allies
+        MapLocation closestAllyPolitician = null;
+        int bestDist = P_INF;
+        RobotInfo[] closeAllies = rc.senseNearbyRobots(bounceRadius, us);
+        for (int i = closeAllies.length; --i >= 0;) {
+            RobotInfo ri = closeAllies[i];
+            if (ri.type == RobotType.POLITICIAN
+                && ((rc.getFlag(ri.ID) & 8) == 0)) {
+                int dist = here.distanceSquaredTo(ri.location);
+                if (dist < bestDist) {
+                    closestAllyPolitician = ri.location;
+                    bestDist = dist;
+                }
+            }
+        }
+//        double myX = here.x;
+//        double myY = here.y;
+//        double dx = 0;
+//        double dy = 0;
+//        int minDist = P_INF;
+//        for (int i = sensedAllies.length; --i >= 0;) {
+//            RobotInfo ri = sensedAllies[i];
+//            if (ri.type == RobotType.POLITICIAN) {
+//                int dist = here.distanceSquaredTo(ri.location);
+//                minDist = Math.min(dist, minDist);
+//                dx += (myX - ri.location.x) / dist; // this gets weaker as distance gets further
+//                dy += (myY - ri.location.y) / dist;
+//            }
+//        }
+
+        // move away from closest ally politician
+        if (closestAllyPolitician != null) {
+            fuzzyAway(closestAllyPolitician);
+            return;
+        } else {
+            wander();
+//            if (myMasterLoc != null) {
+//                fuzzyTo(myMasterLoc);
+//                return;
+//            } else {
+//                fuzzyTo(spawnLoc);
+//                return;
+//            }
+        }
+
     }
 }

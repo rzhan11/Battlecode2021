@@ -13,7 +13,7 @@ public class HQTracker {
 
     final public static int SURROUND_MEMORY = 50;
     final public static int DEFAULT_SURROUND = -100;
-    final public static int SURROUND_UPDATE_FREQUENCY = 10;
+    final public static int SURROUND_UPDATE_FREQ = 5;
 
     final public static int IGNORE_MEMORY = 100;
     final public static int DEFAULT_IGNORE = -100;
@@ -91,6 +91,7 @@ public class HQTracker {
         hqIDs[index] = hqid;
         hqTeams[index] = team;
         hqSurroundRounds[index] = DEFAULT_SURROUND;
+        hqReportSurroundRounds[index] = DEFAULT_SURROUND;
         if (myType == RobotType.ENLIGHTENMENT_CENTER) {
             updateHQBroadcast(index);
         }
@@ -116,23 +117,23 @@ public class HQTracker {
     Broadcast methods are used by HQs
      */
     public static void updateHQBroadcast(int index) throws GameActionException {
-        log("Updating HQ Broadcast " + index);
+//        log("Updating HQ Broadcast " + index);
 
         boolean paired = (hqIDs[index] > 0);
 
         if (hqBroadcasts[index] == null) {
-            tlog("Initializing");
+//            tlog("Initializing");
             hqBroadcasts[index] = getHQLocMsg(hqLocs[index], paired, true);
             queueMessage(hqBroadcasts[index]);
         }
 
         if (paired) {
-            tlog("Paired");
+//            tlog("Paired");
             hqBroadcasts[index].type = HQ_LOC_PAIRED_MSG;
             Message infoMsg = getHQInfoMsg(hqIDs[index], hqTeams[index], true);
             chainMessages(hqBroadcasts[index], infoMsg);
         } else {
-            tlog("Solo");
+//            tlog("Solo");
             hqBroadcasts[index].next = null;
             // do not alter prev of infoMsg, allows for backtracking
         }
@@ -141,13 +142,26 @@ public class HQTracker {
     public static void updateHQSurroundRound(int index, boolean isSurrounded) throws GameActionException {
         if (isSurrounded) {
             hqSurroundRounds[index] = roundNum;
+//            hqReportSurroundRounds[index] = DEFAULT_SURROUND;
         } else {
             hqSurroundRounds[index] = DEFAULT_SURROUND;
+            hqReportSurroundRounds[index] = DEFAULT_SURROUND;
         }
     }
 
     public static boolean checkHQSurroundStatus(int index) {
         return (roundNum - hqSurroundRounds[index] <= SURROUND_MEMORY);
+    }
+
+    public static void broadcastHQSurround() throws GameActionException {
+        for (int i = knownHQCount; --i >= 0;) {
+            if (checkHQSurroundStatus(i)) {
+                if (roundNum - hqReportSurroundRounds[i] > SURROUND_MEMORY / 2) {
+                    log("Broadcasting surround");
+                    writeReportSurrounded(i, true);
+                }
+            }
+        }
     }
 
     public static boolean checkHQIgnoreStatus(int index) {

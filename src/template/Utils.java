@@ -2,10 +2,11 @@ package template;
 
 import battlecode.common.*;
 
+import static template.Comms.*;
 import static template.Debug.*;
-import static template.Robot.*;
 import static template.Map.*;
 import static template.Nav.*;
+import static template.Robot.*;
 
 public class Utils {
 
@@ -52,11 +53,36 @@ public class Utils {
     }
 
     public static Direction getRandomDir() {
-        return DIRS[(int)(Math.random() * 8)];
+        return DIRS[randInt(8)];
     }
 
     public static Direction getRandomDirCenter() {
-        return ALL_DIRS[(int)(Math.random() * 9)];
+        return ALL_DIRS[randInt(9)];
+    }
+
+    public static int RANDOM_SEED;
+    public static double random() {
+        double x = Math.sin(RANDOM_SEED++) * 10000;
+        return x - Math.floor(x);
+    }
+
+    public static int randInt(int upper) {
+        double x = Math.sin(RANDOM_SEED++) * 10000;
+        return (int) (upper * (x - Math.floor(x)));
+    }
+
+    public static boolean randBoolean() {
+        double x = Math.sin(RANDOM_SEED++) * 10000;
+        return x - Math.floor(x) < 0.5;
+    }
+
+    public static int getDirSimilarity(Direction d1, Direction d2) {
+        if (d1 == Direction.CENTER || d2 == Direction.CENTER) return 0;
+
+        int a = dir2int(d1);
+        int b = dir2int(d2);
+        int diff = (a - b + 8) % 8;
+        return Math.min(diff, 8 - diff);
     }
 
     /*

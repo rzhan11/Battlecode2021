@@ -2,8 +2,6 @@ package template;
 
 import battlecode.common.*;
 
-import java.util.Random;
-
 import static template.Comms.*;
 import static template.Debug.*;
 import static template.HQTracker.*;
@@ -44,12 +42,7 @@ public abstract class Robot extends Constants {
     public static Team us;
     public static Team them;
 
-    public static int[][] senseDirections = null; // stores (dx, dy, magnitude) of locations that can be sensed
     public static int maxSensedUnits;
-//    public static int mapWidth;
-//    public static int mapHeight;
-
-    public static Random rand;
 
     public static void init(RobotController theRC) throws GameActionException {
         rc = theRC;
@@ -68,7 +61,8 @@ public abstract class Robot extends Constants {
         us = rc.getTeam();
         them = us.opponent();
 
-        rand = new Random(myID);
+        Utils.RANDOM_SEED = myID;
+        Nav.wanderLeft = randBoolean();
 
         // after simple updates, since log needs myType
 
@@ -146,6 +140,7 @@ public abstract class Robot extends Constants {
     public static Team[] hqTeams = new Team[MAX_HQ_COUNT];
     public static int[] hqIDs = new int[MAX_HQ_COUNT];
     public static int[] hqSurroundRounds = new int[MAX_HQ_COUNT];
+    public static int[] hqReportSurroundRounds = new int[MAX_HQ_COUNT];
     public static int[] hqIgnoreRounds = new int[MAX_HQ_COUNT];
     public static int knownHQCount = 0;
 
@@ -158,13 +153,17 @@ public abstract class Robot extends Constants {
     public static int[] extraAllyHQs = new int[MAX_HQ_COUNT];
     public static int extraAllyHQCount = 0;
 
+    public static MapLocation alertEnemyMuckraker;
+    public static int alertEnemyMuckrakerRound;
+
 
     public static void updateTurnInfo() throws GameActionException {
-        // TESTING PURPOSES ONLY
-        if (roundNum >= 400) {
-            log("RESIGNING");
-            rc.resign();
-        }
+
+        // todo TESTING PURPOSES ONLY
+//        if (roundNum >= 400) {
+//            log("RESIGNING");
+//            rc.resign();
+//        }
 
         CommManager.resetFlag();
         Comms.resetPrevEcho();
@@ -182,10 +181,11 @@ public abstract class Robot extends Constants {
         updateKnownHQs();
 
         // after updateKnownHQs
-        updateSymmetryByHQ();
-
         // after updateSymmetryByHQ
-        updateSymHQLocs(); // this finds hq locs based on symmetry
+        if (myType != RobotType.SLANDERER) {
+            updateSymmetryByHQ();
+            updateSymHQLocs(); // this finds hq locs based on symmetry
+        }
 
         // after updateKnownHQs
         updateMaster();
@@ -196,23 +196,30 @@ public abstract class Robot extends Constants {
         // after readMasterComms, updateKnownHQs
         readHQComms();
 
-        // map info
-        log("MAP X " + new MapLocation(XMIN, XMAX));
-        log("MAP Y " + new MapLocation(YMIN, YMAX));
-        printSymmetry();
+        // alertLoc
+        updateAlerts();
 
-        // hq info
-        log("HQs: " + knownHQCount);
-        for (int i = 0; i < knownHQCount; i++) {
-            String teamName;
-            if (hqTeams[i] == Team.NEUTRAL) {
-                teamName = "N";
-            } else if (hqTeams[i] == null) {
-                teamName = "U"; // unknown
-            } else {
-                teamName = hqTeams[i].toString();
+        if (myType != RobotType.SLANDERER) {
+            int curByte = Clock.getBytecodesLeft();
+            // map info
+            log("MAP X " + new MapLocation(XMIN, XMAX));
+            log("MAP Y " + new MapLocation(YMIN, YMAX));
+            printSymmetry();
+
+            // hq info
+            log("HQs: " + knownHQCount);
+            for (int i = 0; i < knownHQCount; i++) {
+                String teamName;
+                if (hqTeams[i] == Team.NEUTRAL) {
+                    teamName = "N";
+                } else if (hqTeams[i] == null) {
+                    teamName = "U"; // unknown
+                } else {
+                    teamName = hqTeams[i].toString();
+                }
+                tlog(hqLocs[i] + " " + hqIDs[i] + " " + teamName + " " + hqSurroundRounds[i] + " " + hqReportSurroundRounds[i]);
             }
-            tlog(hqLocs[i] + " " + hqIDs[i] + " " + teamName + " " + hqSurroundRounds[i]);
+            log("Print cost " + (curByte - Clock.getBytecodesLeft()));
         }
 
         printBuffer();
@@ -338,6 +345,58 @@ public abstract class Robot extends Constants {
         }
     }
 
+    public static int lastWriteEnemyMuckrakerRound = -100;
+    final public static int WRITE_ENEMY_MUCKRAKER_FREQ = 5;
+
+    public static void updateAlerts() throws GameActionException {
+        // check if reset current alert loc
+        if (alertEnemyMuckraker != null) {
+            if (roundNum - alertEnemyMuckrakerRound > 2 * WRITE_ENEMY_MUCKRAKER_FREQ) {
+                log("Resetting alertEnemyMuckraker");
+                alertEnemyMuckraker = null;
+                alertEnemyMuckrakerRound = -100;
+            }
+        }
+
+
+        // report enemy muckrakers
+        MapLocation alertLoc;
+        if (enemyMuckrakerCount > 10) {
+            alertLoc = enemyMuckrakers[randInt(enemyMuckrakerCount)].location;
+        } else {
+            alertLoc = null;
+            int bestDist = P_INF;
+            for (int i = enemyMuckrakerCount; --i >= 0;) {
+                RobotInfo ri = enemyMuckrakers[i];
+                int dist = here.distanceSquaredTo(ri.location);
+                if (dist < bestDist) {
+                    alertLoc = ri.location;
+                    bestDist = dist;
+                }
+            }
+        }
+
+
+        log("alertEnemyMuckraker " + alertEnemyMuckraker + " " + alertEnemyMuckrakerRound);
+        log("Alert " + alertLoc);
+        if (alertLoc != null) {
+            if (roundNum - lastWriteEnemyMuckrakerRound > WRITE_ENEMY_MUCKRAKER_FREQ) {
+                writeReportEnemyMuckraker(alertLoc);
+            }
+            // todo consider uncommenting this
+//            addAlertLoc(alertLoc);
+        }
+    }
+
+    public static void addAlertLoc(MapLocation loc) throws GameActionException {
+        int prevDist = (alertEnemyMuckraker != null) ? here.distanceSquaredTo(alertEnemyMuckraker) : P_INF;
+        int dist = here.distanceSquaredTo(loc);
+        if (dist < prevDist) {
+            alertEnemyMuckraker = loc;
+            alertEnemyMuckrakerRound = roundNum;
+        }
+    }
+
     public static void readUnitComms() throws GameActionException {
         if (myType == RobotType.ENLIGHTENMENT_CENTER) {
             return;
@@ -397,8 +456,8 @@ public abstract class Robot extends Constants {
 
         // default
         defaultExploreTaskDir = getRandomDirCenter(); // randomize exploreDir
-        rotateLeftExplore = (Math.random() < 0.5); // randomize whether we turn left or right
-        tripleRotateExplore = (Math.random() < 0.5); // randomize whether we do a single rotate or a triple rotate
+        rotateLeftExplore = randBoolean(); // randomize whether we turn left or right
+        tripleRotateExplore = randBoolean(); // randomize whether we do a single rotate or a triple rotate
     }
 
     public static void updateExploreTask() {
@@ -486,7 +545,7 @@ public abstract class Robot extends Constants {
             if (defaultExploreTaskDir == Direction.CENTER) {
                 defaultExploreTaskDir = getRandomDir();
             } else {
-                if (Math.random() < 0.25) { // 1/4 chance that we pick center
+                if (random() < 0.25) { // 1/4 chance that we pick center
                     log("Exploring center");
                     defaultExploreTaskDir = Direction.CENTER;
                 } else {

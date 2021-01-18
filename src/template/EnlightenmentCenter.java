@@ -90,10 +90,19 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
-//        if (false) {
-//            makeExplorePolitician();
-//            return;
-//        }
+        //When we have an empower buff, use it to duplicate influence
+        if (buildKillPoliticians(11)) {
+            //80 is chosen so that we always make a profit
+            if (mySafetyBudget >= 80 && rc.getInfluence() < 5e7) {
+                //System.out.println("Building self empower0");
+                makeSuicidePolitician();
+                return;
+            } else {
+                //save up to make use of the buff
+                //System.out.println("Waiting to self empower.");
+                return;
+            }
+        }
 
         // spawn muck scouts
         if (scoutCount < EXPLORE_DIRS.length) {
@@ -109,6 +118,8 @@ public class EnlightenmentCenter extends Robot {
         log("Muckraker: " + muckrakerScore);
         log("Politician: " + politicianScore);
         log("Slanderer: " + slandererScore);
+
+
 
         if (enemyMuckrakerCount > 0) {
             log("Emergency defense");
@@ -434,6 +445,23 @@ public class EnlightenmentCenter extends Robot {
             scoutCount++;
         }
         return buildDir;
+    }
+
+    //@rz please check this
+    // looks good -rz
+    public static Direction makeSuicidePolitician() throws GameActionException {
+        log("Trying to build a suicide politician");
+        for (Direction dir: CARD_DIRS) {
+            MapLocation adjLoc = here.add(dir);
+            if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
+                CommManager.setStatus(dir2int(dir), true);
+                Actions.doBuildRobot(RobotType.POLITICIAN, dir, mySafetyBudget);
+//                addKnownAlly(dir);
+                log("Made suicide politician");
+                return dir;
+            }
+        }
+        return null;
     }
 
     public static Direction tryBuild(RobotType rt, Direction bestDir, int cost, Role role) throws GameActionException {

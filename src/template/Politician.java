@@ -127,6 +127,31 @@ public class Politician extends Robot {
             return;
         }
 
+        //If next to our HQ, no friendly units, and large empower buff, blow up.
+        //Require a profit of 4
+        if (buildKillPoliticians(0) && myDamage > myConviction + GameConstants.EMPOWER_TAX) {
+            RobotInfo[] adjRobots = rc.senseNearbyRobots(1);
+            boolean blowup = true;
+            boolean adjToHq = false;
+            for (RobotInfo ri: adjRobots) {
+                if (ri.team == us) {
+                    if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
+                        adjToHq = true;
+                    } else {
+                        blowup = false;
+                    }
+                }
+            }
+            //System.out.println("blowup: "+ blowup + ", adjHQ="+adjToHq + ", alive for" + (roundNum - spawnRound));
+            if (blowup && adjToHq) {
+                rc.empower(1);
+                return;
+            } else if (adjToHq && roundNum - spawnRound <= 18) {
+                //Wait a few turns, hopefully the other units move away
+                return;
+            }
+        }
+
         if(myRole == ROLE_ATTACK) {
             // target hq
             if (targetHQIndex != -1) {

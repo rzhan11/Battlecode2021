@@ -623,6 +623,12 @@ public abstract class Robot extends Constants {
         }
     }
 
+    public static boolean buildKillPoliticians(int roundsInFuture) {
+        final double BUFF_CUTOFF = 1.8;
+        double buff = rc.getEmpowerFactor(rc.getTeam(), roundsInFuture);
+        return buff>=BUFF_CUTOFF;
+
+    }
     /*
     Run at the end of each turn
     Checks if we exceeded the bytecode limit

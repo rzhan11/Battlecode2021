@@ -132,25 +132,25 @@ public class Politician extends Robot {
         //Require a profit of 4
         if (buildKillPoliticians(0) && myDamage > myConviction + GameConstants.EMPOWER_TAX) {
             RobotInfo[] adjRobots = rc.senseNearbyRobots(1);
-            boolean blowup = true;
-            boolean adjToHq = false;
+            boolean shouldSuicide = true;
+            boolean nextToHQ = false;
             for (RobotInfo ri: adjRobots) {
                 if (ri.team == us) {
-                    if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
-                        adjToHq = true;
+                    if (ri.type == RobotType.ENLIGHTENMENT_CENTER && ri.influence < 0.5 * GameConstants.ROBOT_INFLUENCE_LIMIT) {
+                        nextToHQ = true;
                     } else {
-                        blowup = false;
+                        shouldSuicide = false;
                     }
                 }
             }
             if (rc.getEmpowerFactor(us, 0) >= 5) {
-                blowup = true;
+                shouldSuicide = true;
             }
-            //System.out.println("blowup: "+ blowup + ", adjHQ="+adjToHq + ", alive for" + (roundNum - spawnRound));
-            if (blowup && adjToHq) {
+            //System.out.println("shouldSuicide: "+ shouldSuicide + ", adjHQ="+nextToHQ + ", alive for" + (roundNum - spawnRound));
+            if (shouldSuicide && nextToHQ) {
                 rc.empower(1);
                 return;
-            } else if (adjToHq && roundNum - spawnRound <= 18) {
+            } else if (nextToHQ && age <= 18) {
                 //Wait a few turns, hopefully the other units move away
                 return;
             }

@@ -7,23 +7,31 @@ import static template.Robot.*;
 import static template.EnlightenmentCenter.*;
 
 public enum Role {
-    MUCK_ROLE(150, "MUCK"),
-    DEFENSE_POLI_ROLE(150, "DEF_POLI"),
-    ATTACK_POLI_ROLE(150, "ATK_POLI"),
-    EXPLORE_POLI_ROLE(50, "EXP_POLI"),
-    SLAN_ROLE(100, "SLAN");
+    MUCK_ROLE(150, 1.0, "MUCK"),
+    DEFENSE_POLI_ROLE(150, 1.0, "DEF_POLI"),
+    ATTACK_POLI_ROLE(150, 1.0, "ATK_POLI"),
+    EXPLORE_POLI_ROLE(50, 1.0, "EXP_POLI"),
+    SLAN_ROLE(100, 1.0, "SLAN");
 
     final public String name;
+
     final public int max;
     public int count;
     public int[] ids;
     public int deleteIndex;
 
-    Role(int max, String name) {
+    public double ratio;
+    public double score;
+
+    Role(int max, double ratio, String name) {
+        this.name = name;
+
         this.max = max;
         this.count = 0;
         this.deleteIndex = 0;
-        this.name = name;
+
+        this.ratio = ratio;
+        this.score = 0.0;
     }
 
     @Override
@@ -196,4 +204,24 @@ public enum Role {
         }
     }
 
+    public static void updateRoleScores() {
+        for (Role role: ROLE_ORDER) {
+            role.score = role.count / role.ratio;
+        }
+
+        // cap spawn count
+        if (MUCK_ROLE.count >= MUCK_CAP) MUCK_ROLE.score = P_INF;
+        if (rc.getInfluence() > 0.1 * GameConstants.ROBOT_INFLUENCE_LIMIT) MUCK_ROLE.score = P_INF;
+
+        if (SLAN_ROLE.count >= SLAN_CAP) SLAN_ROLE.score = P_INF;
+        if (rc.getInfluence() > 1e5) SLAN_ROLE.score = P_INF;
+
+
+
+        log("BUILD SCORES");
+        for (Role role: ROLE_ORDER) {
+            role.score = role.count / role.ratio;
+            tlog(role.toString() + ": " + role.score);
+        }
+    }
 }

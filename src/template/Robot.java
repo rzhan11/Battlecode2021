@@ -160,10 +160,10 @@ public abstract class Robot extends Constants {
     public static void updateTurnInfo() throws GameActionException {
 
         // todo TESTING PURPOSES ONLY
-//        if (roundNum >= 400) {
-//            log("RESIGNING");
-//            rc.resign();
-//        }
+        if (roundNum >= 400) {
+            log("RESIGNING");
+            rc.resign();
+        }
 
         CommManager.resetFlag();
         Comms.resetPrevEcho();

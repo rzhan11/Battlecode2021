@@ -47,7 +47,7 @@ public class Muckraker extends Robot {
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
         initExploreTask();
-        useBug = (random() < 0.75);
+        useBug = (random() < 0.5);
     }
 
     // code run each turn

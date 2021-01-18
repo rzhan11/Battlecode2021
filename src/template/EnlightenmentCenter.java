@@ -39,18 +39,14 @@ public class EnlightenmentCenter extends Robot {
     final public static double bidIncreaseScalingFactor = 1.5;
     final public static double bidDecreaseScalingFactor = 1.1;
 
-    public static double muckrakerRatio = 1.0;
-    public static double politicianRatio = 1.0;
-    public static double slandererRatio = 1.0;
-
     public static int MUCK_CAP = 100;
-    public static int SLAN_CAP = 100;
+    public static int SLAN_CAP = 50;
 
     // if we are in the corner, it is essential that we have a lot of politicians, so that our slanderers dont get pushed in
-    public static double politicianCornerMultiplier = 1.5;
+    final public static double CORNER_DEFENSE_POLI_MULTIPLIER = 1.5;
 
 
-//    public static int enemyHQIndex = 0;
+    public static int[] attackPoliForNeutralHQRound = new int[1001];
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
@@ -65,7 +61,7 @@ public class EnlightenmentCenter extends Robot {
         int dx = getWallXDist(here.x);
         int dy = getWallYDist(here.y);
         if (dx + dy <= 4) {
-            politicianRatio *= politicianCornerMultiplier;
+            DEFENSE_POLI_ROLE.ratio *= CORNER_DEFENSE_POLI_MULTIPLIER;
         }
 
         initRoles();
@@ -76,9 +72,13 @@ public class EnlightenmentCenter extends Robot {
         updateRoleCounts();
         processMessages();
 
-        updateMaxBudget();
-        updateEnemies();
+        // after processMessages
         broadcastHQSurround();
+
+        updateEnemies();
+
+        // after updateEnemies
+        updateMaxBudget();
 
         // make a slanderer on the first turn
         if (roundNum == 1) {
@@ -91,11 +91,11 @@ public class EnlightenmentCenter extends Robot {
         if (rc.getTeamVotes() < GameConstants.GAME_MAX_NUMBER_OF_ROUNDS / 2) {
             if (mySafetyBudget > 100) {
                 tryBid();
+                // recalculate max budget AFTER making bets
+                updateMaxBudget();
             }
         }
 
-        // calculate max budget AFTER making bets
-        updateMaxBudget();
         logi("Budget: " + mySafetyBudget + " = " + rc.getInfluence() + " - " + enemyPoliticianDanger);
 
         if (!rc.isReady()) {
@@ -105,7 +105,7 @@ public class EnlightenmentCenter extends Robot {
         //When we have an empower buff, use it to duplicate influence
         if (buildKillPoliticians(11)) {
             //80 is chosen so that we always make a profit
-            if (mySafetyBudget >= 80 && rc.getInfluence() < 5e7) {
+            if (mySafetyBudget >= 80 && rc.getInfluence() < 0.5 * GameConstants.ROBOT_INFLUENCE_LIMIT) {
                 //System.out.println("Building self empower0");
                 makeSuicidePolitician();
                 return;
@@ -122,21 +122,7 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
-        double muckrakerScore = MUCK_ROLE.count / muckrakerRatio;
-        double politicianScore = DEFENSE_POLI_ROLE.count / politicianRatio;
-        double slandererScore = SLAN_ROLE.count / slandererRatio;
-
-        // cap spawn count
-        if (MUCK_ROLE.count >= MUCK_CAP) muckrakerScore = P_INF;
-        if (SLAN_ROLE.count >= SLAN_CAP) slandererScore = P_INF;
-
-        if (rc.getInfluence() > 1e5) slandererScore = P_INF;
-        if (rc.getInfluence() > 1e7) muckrakerScore = P_INF;
-
-        log("BUILD SCORES");
-        log("Muckraker: " + muckrakerScore);
-        log("Politician: " + politicianScore);
-        log("Slanderer: " + slandererScore);
+        updateRoleScores();
 
 
 
@@ -160,7 +146,7 @@ public class EnlightenmentCenter extends Robot {
         }
 
         // no visible enemy muckrakers
-        if (politicianScore < slandererScore) {
+        if (DEFENSE_POLI_ROLE.score < SLAN_ROLE.score) {
             // 2/3 of politicans are defend
             // 1/3 of politicians are attack
             // todo TESTING CHANGE 0.66 -> 0.66
@@ -176,7 +162,7 @@ public class EnlightenmentCenter extends Robot {
                 }
             }
         } else { // consider muckraker vs slanderer
-            if (muckrakerScore < slandererScore) {
+            if (MUCK_ROLE.score < SLAN_ROLE.score) {
                 Direction dir = makeMuckraker(false);
                 if (dir != null) {
                     return;
@@ -333,6 +319,13 @@ public class EnlightenmentCenter extends Robot {
         }
     }
 
+    public static int lastBigMuckrakerRound = -100;
+    final public static int BIG_MUCK_FREQ = 50;
+
+    final public static int MAX_BIG_MUCK_COST = 1000;;
+    final public static int MIN_BIG_MUCK_BUDGET = 400;
+    final public static double BIG_MUCK_BUDGET_RATIO = 0.25;
+
     public static Direction makeMuckraker(boolean cheap) throws GameActionException {
         log("Trying to build muckraker");
 
@@ -344,11 +337,23 @@ public class EnlightenmentCenter extends Robot {
 
         // make increasingly expensive muckers over time
         // if we can afford it, 50% chance we make an "expensive" muckraker
-        int targetConviction = (int) Math.ceil(1.0 * (age + 1) / 100);
-        int targetCost = RobotType.MUCKRAKER.getInfluenceCostForConviction(targetConviction);
-        if (!cheap && targetCost < mySafetyBudget) {
-            if (random() < 0.5) {
-                cost = targetCost;
+        if (!cheap) {
+            int targetConviction = (int) Math.ceil(1.0 * (age + 1) / 25);
+            int targetCost = RobotType.MUCKRAKER.getInfluenceCostForConviction(targetConviction);
+            if (targetCost < mySafetyBudget) {
+                if (random() < 0.5) {
+                    cost = targetCost;
+                }
+            }
+
+            // if our empower factor is somewhat low
+            if (roundNum - lastBigMuckrakerRound > BIG_MUCK_FREQ && rc.getEmpowerFactor(us, 0) < 4) {
+                if (mySafetyBudget >= MIN_BIG_MUCK_BUDGET) { // we can build it
+                    tlog("[BIG MUCK]");
+                    cost = (int) Math.min(mySafetyBudget * BIG_MUCK_BUDGET_RATIO, MAX_BIG_MUCK_COST);
+                    int bigConv = (int) Math.ceil(cost * 0.7);
+                    cost = RobotType.MUCKRAKER.getInfluenceCostForConviction(bigConv);
+                }
             }
         }
 
@@ -471,12 +476,15 @@ public class EnlightenmentCenter extends Robot {
     //@rz please check this
     // looks good -rz
     public static Direction makeSuicidePolitician() throws GameActionException {
+        int cost = (int) Math.min(mySafetyBudget,
+                GameConstants.ROBOT_INFLUENCE_LIMIT / (4 * rc.getEmpowerFactor(us, 11)));
+
         log("Trying to build a suicide politician");
         for (Direction dir: CARD_DIRS) {
             MapLocation adjLoc = here.add(dir);
             if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
                 CommManager.setStatus(dir2int(dir), true);
-                Actions.doBuildRobot(RobotType.POLITICIAN, dir, mySafetyBudget);
+                Actions.doBuildRobot(RobotType.POLITICIAN, dir, cost);
 //                addKnownAlly(dir);
                 log("Made suicide politician");
                 return dir;

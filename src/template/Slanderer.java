@@ -108,7 +108,7 @@ public class Slanderer extends Robot {
                 centerLoc = addDir(centerLoc, latticeDir, steps);
             }
 
-            makeLattice(centerLoc, latticeDir, SLANDERER_MIN_LATTICE_DIST);
+            makeSlanLattice(centerLoc, latticeDir, SLANDERER_MIN_LATTICE_DIST);
             return;
         } else {
             // hide near hq
@@ -239,7 +239,7 @@ public class Slanderer extends Robot {
     }
 
 
-    public static void makeLattice(MapLocation centerLoc, Direction latticeDir, int minLatticeDist) throws GameActionException {
+    public static void makeSlanLattice(MapLocation centerLoc, Direction latticeDir, int minLatticeDist) throws GameActionException {
         log("makeLattice " + centerLoc + " " + latticeDir);
 
 

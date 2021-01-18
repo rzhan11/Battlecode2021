@@ -143,6 +143,9 @@ public class Politician extends Robot {
                     }
                 }
             }
+            if (rc.getEmpowerFactor(us, 0) >= 5) {
+                blowup = true;
+            }
             //System.out.println("blowup: "+ blowup + ", adjHQ="+adjToHq + ", alive for" + (roundNum - spawnRound));
             if (blowup && adjToHq) {
                 rc.empower(1);
@@ -198,8 +201,9 @@ public class Politician extends Robot {
                 else tryChase(muckrakerAttackLocation, true);
             }
             // no seen muckrakers
+            makePoliLattice(getCenterLoc(), 4, POLI_MIN_CORNER_DIST);
 //            wander(POLITICIAN_WANDER_RADIUS);
-            bounce(MAX_EMPOWER);
+//            bounce(MAX_EMPOWER);
             return;
         } else if (myRole == ROLE_EXPLORE) {
             explore(isBugScout);
@@ -502,10 +506,6 @@ public class Politician extends Robot {
         return score;
     }
 
-    public static void setNewAttackTarget(MapLocation seen) throws GameActionException {
-        if(muckrakerAttackLocation == null) muckrakerAttackLocation = seen;
-    }
-
     public static void bounce(int bounceRadius) throws GameActionException {
         // search through all allies
         MapLocation closestAllyPolitician = null;
@@ -542,7 +542,7 @@ public class Politician extends Robot {
             fuzzyAway(closestAllyPolitician);
             return;
         } else {
-            wander();
+            wander(POLITICIAN_WANDER_RADIUS, POLI_MIN_CORNER_DIST, true);
 //            if (myMasterLoc != null) {
 //                fuzzyTo(myMasterLoc);
 //                return;
@@ -552,5 +552,150 @@ public class Politician extends Robot {
 //            }
         }
 
+    }
+
+    final public static int POLITICIAN_WANDER_RADIUS = 8;
+    final public static int POLI_MIN_CORNER_DIST = 40;
+
+    public static Direction lockedLatticeDir = null;
+
+
+    public static void makePoliLattice(MapLocation centerLoc, int minLatticeDist, int minCornerDist) throws GameActionException {
+        log("poliLat " + centerLoc + " " + minLatticeDist);
+
+        if (lockedLatticeDir != null) {
+            if (isDirMoveable[dir2int(lockedLatticeDir)]) {
+                tlog("Locked lattice");
+                Actions.doMove(lockedLatticeDir);
+                lockedLatticeDir = null;
+                return;
+            } else {
+                lockedLatticeDir = null;
+                // do not return, continue with method
+            }
+        }
+
+        // get out of corner
+
+        MapLocation avoidCornerLoc = avoidCorner(here, minCornerDist);
+        if (avoidCornerLoc != null) {
+            log("Corner move");
+            fuzzyAway(avoidCornerLoc);
+            return;
+        }
+
+
+//        int curSim = getDirSimilarity(latticeDir, centerLoc.directionTo(here));
+
+        int curLatticeValue = (here.x % 4) + 4 * (here.y % 4);
+        boolean curOnLattice = (curLatticeValue == 1 || curLatticeValue == 11);
+        int curDist = centerLoc.distanceSquaredTo(here);
+
+        // too close
+        if (curDist <= minLatticeDist) {
+            tlog("Too close");
+            fuzzyAway(centerLoc);
+            return;
+        }
+
+        if (curOnLattice) {
+            // on the correct side, move to lattice
+            Direction bestDir = null;
+            int bestDist = P_INF;
+
+            MapLocation worstFriendLoc = null;
+            int worstFriendDist = N_INF;
+            {
+                // only look in diagonal dirs
+                for (int i = DIAG_DIRS.length; --i >= 0; ) {
+                    Direction dir = DIAG_DIRS[i];
+                    MapLocation midLoc = rc.adjacentLocation(dir);
+                    MapLocation loc = midLoc.add(dir);
+                    int dist = centerLoc.distanceSquaredTo(loc);
+                    if (rc.onTheMap(loc) && dist > minLatticeDist && avoidCorner(loc, minCornerDist) == null) {
+                        if (rc.isLocationOccupied(loc)) {
+                            // potential worstFriend
+                            RobotInfo ri = rc.senseRobotAtLocation(loc);
+                            int status = getStatusFromFlag(rc.getFlag(ri.ID));
+                            if (ri.team == us && ri.type == RobotType.POLITICIAN && (status & 8) == 0) {
+                                if (dist > worstFriendDist) {
+                                    worstFriendDist = dist;
+                                    worstFriendLoc = loc;
+                                }
+                            }
+                        } else {
+                            // available lattice loc
+                            if (dist < bestDist && isDirMoveable[dir2int(dir)]) {
+                                bestDir = dir;
+                                bestDist = dist;
+                            }
+                        }
+                    }
+                }
+            }
+
+            log("best " + bestDir + " " + bestDist);
+            log("cur " + curDist);
+            log("worst " + worstFriendLoc + " " + worstFriendDist);
+
+            if (bestDir != null) {
+                drawDot(rc.adjacentLocation(bestDir), BLACK);
+            } else {
+                drawDot(here, BLACK);
+            }
+            if (worstFriendLoc != null) {
+                drawDot(worstFriendLoc, RED);
+            }
+
+            if (bestDir != null) {
+                // if i found a better place than my current place
+                if (bestDist < curDist) {
+                    tlog("For me");
+                    Actions.doMove(bestDir);
+                    return;
+                }
+                // if i found a better place than my worst friend
+                if (worstFriendLoc != null) {
+                    if (bestDist < worstFriendDist) {
+                        tlog("For friend");
+                        lockedLatticeDir = bestDir;
+                        Actions.doMove(bestDir);
+                        return;
+                    }
+                }
+            }
+
+
+            tlog("No better place");
+            return;
+        } else {
+            Direction bestDir = null;
+            int bestDist = P_INF;
+            for (int i = DIRS.length; --i >= 0;) {
+                if (isDirMoveable[i]) {
+                    Direction dir = DIRS[i];
+                    MapLocation loc = rc.adjacentLocation(dir);
+                    int latticeValue = (loc.x % 4) + 4 * (loc.y % 4);
+                    boolean onLattice = (latticeValue == 1 || latticeValue == 11);
+                    int dist = centerLoc.distanceSquaredTo(loc);
+                    if (onLattice && dist > minLatticeDist && avoidCorner(loc, minCornerDist) == null) {
+                        if (dist < bestDist) {
+                            bestDir = dir;
+                            bestDist = dist;
+                        }
+                    }
+                }
+            }
+
+            if (bestDir != null) {
+                tlog("Go lattice");
+                Actions.doMove(bestDir);
+                return;
+            } else {
+                tlog("Wander for lattice");
+                wander(minLatticeDist, minCornerDist, false);
+                return;
+            }
+        }
     }
 }

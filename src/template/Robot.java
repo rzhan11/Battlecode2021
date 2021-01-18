@@ -318,6 +318,11 @@ public abstract class Robot extends Constants {
         log("Master: " + myMaster + "@" + myMasterLoc);
     }
 
+    public static MapLocation getCenterLoc() {
+        if (myMasterLoc != null) return myMasterLoc;
+        return spawnLoc;
+    }
+
     public static void readMasterComms() throws GameActionException {
         if (myType == RobotType.ENLIGHTENMENT_CENTER) {
             return;
@@ -595,7 +600,7 @@ public abstract class Robot extends Constants {
             MapLocation navLoc = getExploreNavLoc(senseLoc);
             drawLine(here, navLoc, GRAY);
             drawDot(senseLoc, GRAY);
-//            fuzzyTo(navLoc);
+            fuzzyTo(navLoc);
             moveLog(navLoc);
             return;
         }
@@ -605,8 +610,8 @@ public abstract class Robot extends Constants {
         if (symmetryTaskLoc != null) {
             log("Symmetry task " + symmetryTaskLoc + " " + symmetryTaskType);
             drawLine(here, symmetryTaskLoc, BLACK);
-//            fuzzyTo(symmetryTaskLoc);
-            moveLog(symmetryTaskLoc);
+            fuzzyTo(symmetryTaskLoc);
+//            moveLog(symmetryTaskLoc);
             return;
         }
 

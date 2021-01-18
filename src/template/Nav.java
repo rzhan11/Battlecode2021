@@ -99,35 +99,16 @@ public class Nav {
 
 
 
-    final public static int SLANDERER_WANDER_RADIUS = 4;
-    final public static int POLITICIAN_WANDER_RADIUS = 13;
-
-    public static int curWanderRadius;
-
     public static boolean wanderLeft;
 
     public static MapLocation wanderCenter;
 
-    public static void updateWanderRadius() {
-        if (myType == RobotType.SLANDERER) {
-            curWanderRadius = SLANDERER_WANDER_RADIUS;
-        } else if (myType == RobotType.POLITICIAN) {
-            curWanderRadius = POLITICIAN_WANDER_RADIUS;
-        }
-
-        int dx = getWallXDist(wanderCenter.x);
-        int dy = getWallYDist(wanderCenter.y);
-
-//        if (dx < ) {
-//
-//        }
-
-    }
-
-    public static boolean canWander(Direction dir, int radius) {
+    public static boolean canWander(Direction dir, int centerRadius, int cornerRadius) {
         MapLocation loc = rc.adjacentLocation(dir);
-        ttlog(isDirMoveable[dir2int(dir)] + " " + !wanderCenter.isWithinDistanceSquared(loc, radius));
-        return isDirMoveable[dir2int(dir)] && !wanderCenter.isWithinDistanceSquared(loc, radius);
+        ttlog(isDirMoveable[dir2int(dir)] + " " + !wanderCenter.isWithinDistanceSquared(loc, centerRadius));
+        return isDirMoveable[dir2int(dir)]
+                && !wanderCenter.isWithinDistanceSquared(loc, centerRadius)
+                && avoidCorner(loc, cornerRadius) == null;
     }
 
     public static Direction[] getWanderDirs(Direction dir) {
@@ -147,45 +128,62 @@ public class Nav {
         return dirs;
     }
 
+    public static Direction[] getOuterWanderDirs(Direction dir) {
+        Direction[] dirs = new Direction[8];
+        Direction opp = dir.opposite();
+        // init direction
+        dirs[0] = wanderLeft ? dir.rotateRight() : dir.rotateLeft(); // out
+        dirs[1] = dir; // straight
+        dirs[2] = wanderLeft ? dir.rotateLeft() : dir.rotateRight(); // in
+        // perpendicular
+        dirs[3] = wanderLeft ? dir.rotateRight().rotateRight() : dir.rotateLeft().rotateLeft(); // out
+        dirs[4] = wanderLeft ? dir.rotateLeft().rotateLeft() : dir.rotateRight().rotateRight(); // in
+        // turning around
+        dirs[5] = wanderLeft ? opp.rotateLeft() : opp.rotateRight(); // out
+        dirs[6] = opp; // straight
+        dirs[7] = wanderLeft ? opp.rotateRight() : opp.rotateLeft(); // in
+        return dirs;
+    }
+
     /*
     Circles around spawn point
      */
-    public static Direction wander() throws GameActionException {
+    public static Direction wander(int centerRadius, int cornerRadius, boolean goInner) throws GameActionException {
         log("Trying to wander");
         tlog(wanderLeft ? "Going left": "Going right");
 
-        updateWanderCenter();
-        updateWanderRadius();
-        int radius = curWanderRadius;
+        wanderCenter = getCenterLoc();
 
-        tlog("Info: " + wanderCenter + " " + radius);
+//        tlog("Info: " + wanderCenter + " " + radius);
 
         // check if too close to spawn
-        if (here.isWithinDistanceSquared(wanderCenter, radius)) {
-            tlog("Too close to wanderCenter");
+        if (here.isWithinDistanceSquared(wanderCenter, centerRadius)) {
+//            tlog("Too close to wanderCenter");
             return fuzzyAway(wanderCenter);
         }
 
         // try to circle
         Direction dir2center = wanderCenter.directionTo(here);
-        Direction wanderDir;
-        if (wanderLeft) {
-            wanderDir = dir2center.rotateLeft().rotateLeft();
-        } else {
-            wanderDir = dir2center.rotateRight().rotateRight();
+        Direction wanderDir = wanderLeft ? dir2center.rotateLeft().rotateLeft() : dir2center.rotateRight().rotateRight();
+
+        // if we would hit the wall
+        if (!rc.onTheMap(rc.adjacentLocation(wanderDir))) {
+            wanderLeft = !wanderLeft;
+            wanderDir = wanderLeft ? dir2center.rotateLeft().rotateLeft() : dir2center.rotateRight().rotateRight();
         }
 
-        Direction[] wanderDirs = getWanderDirs(wanderDir);
 //        log("Init wanderDir " + wanderDir + " " + dir2center);
 
+        Direction[] possDirs = goInner ? getWanderDirs(wanderDir) : getOuterWanderDirs(wanderDir);
+
         for (int i = 0; i < 8; i++) {
-//            log("Considering " + i + " " + wanderDirs[i]);
-            if (canWander(wanderDirs[i], radius)) {
+//            log("Considering " + i + " " + possDirs[i]);
+            if (canWander(possDirs[i], centerRadius, cornerRadius)) {
                 if (i >= 5) {
                     wanderLeft = !wanderLeft;
                 }
-                Actions.doMove(wanderDirs[i]);
-                return wanderDirs[i];
+                Actions.doMove(possDirs[i]);
+                return possDirs[i];
             }
         }
 
@@ -193,14 +191,21 @@ public class Nav {
         return null;
     }
 
-    public static void updateWanderCenter() {
-        if (myMasterLoc != null) {
-            log("Using master");
-            wanderCenter = myMasterLoc;
-        } else {
-            log("Using spawn");
-            wanderCenter = spawnLoc;
+    public static MapLocation avoidCorner(MapLocation loc, int minDist) {
+        MapLocation cornerBL = new MapLocation(XMIN, YMIN);
+        MapLocation cornerBR = new MapLocation(XMAX, YMIN);
+        MapLocation cornerTL = new MapLocation(XMIN, YMAX);
+        MapLocation cornerTR = new MapLocation(XMAX, YMAX);
+        if (loc.isWithinDistanceSquared(cornerBL, minDist)) {
+            return cornerBL;
+        } else if (loc.isWithinDistanceSquared(cornerBR, minDist)) {
+            return cornerBR;
+        } else if (loc.isWithinDistanceSquared(cornerTL, minDist)) {
+            return cornerTL;
+        } else if (loc.isWithinDistanceSquared(cornerTR, minDist)) {
+            return cornerTR;
         }
+        return null;
     }
 
 

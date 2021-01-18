@@ -39,12 +39,12 @@ public class EnlightenmentCenter extends Robot {
     final public static double bidIncreaseScalingFactor = 1.5;
     final public static double bidDecreaseScalingFactor = 1.1;
 
-    public static double muckrakerRatio = 0.75;
+    public static double muckrakerRatio = 1.0;
     public static double politicianRatio = 1.0;
     public static double slandererRatio = 1.0;
 
     public static int MUCK_CAP = 100;
-    public static int SLANDERER_CAP = 50;
+    public static int SLAN_CAP = 100;
 
     // if we are in the corner, it is essential that we have a lot of politicians, so that our slanderers dont get pushed in
     public static double politicianCornerMultiplier = 2.0;
@@ -126,12 +126,12 @@ public class EnlightenmentCenter extends Robot {
         double politicianScore = DEFENSE_POLI_ROLE.count / politicianRatio;
         double slandererScore = SLAN_ROLE.count / slandererRatio;
 
-        if (MUCK_ROLE.count >= MUCK_CAP) {
-            muckrakerScore = P_INF;
-        }
-        if (SLAN_ROLE.count >= MUCK_CAP) {
-            muckrakerScore = P_INF;
-        }
+        // cap spawn count
+        if (MUCK_ROLE.count >= MUCK_CAP) muckrakerScore = P_INF;
+        if (SLAN_ROLE.count >= SLAN_CAP) slandererScore = P_INF;
+
+        if (rc.getInfluence() > 1e5) slandererScore = P_INF;
+        if (rc.getInfluence() > 1e7) muckrakerScore = P_INF;
 
         log("BUILD SCORES");
         log("Muckraker: " + muckrakerScore);
@@ -163,6 +163,7 @@ public class EnlightenmentCenter extends Robot {
         if (politicianScore < slandererScore) {
             // 2/3 of politicans are defend
             // 1/3 of politicians are attack
+            // todo TESTING CHANGE 0.66 -> 0.66
             if (random() < 0.66) {
                 Direction dir = makeDefendPolitician();
                 if (dir != null) {
@@ -433,6 +434,8 @@ public class EnlightenmentCenter extends Robot {
         Direction scoutDir;
         if (closestEnemyMuckraker != null) {
             scoutDir = here.directionTo(closestEnemyMuckraker);
+        } else if (alertEnemyMuckraker != null) {
+            scoutDir = here.directionTo(alertEnemyMuckraker);
         } else {
             scoutDir = getRandomDir();
         }

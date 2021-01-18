@@ -120,6 +120,20 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
+        //When we have an empower buff, use it to duplicate influence
+        if (buildKillPoliticians(11)) {
+            //80 is chosen so that we always make a profit
+            if (mySafetyBudget >= 80) {
+                //System.out.println("Building self empower0");
+                makeSuicidePolitician();
+                return;
+            } else {
+                //save up to make use of the buff
+                //System.out.println("Waiting to self empower.");
+                return;
+            }
+        }
+
         // spawn poli scouts
         if (scoutCount < EARLY_SCOUT_COUNT) {
             Direction dir = makeScoutPolitician();
@@ -136,16 +150,7 @@ public class EnlightenmentCenter extends Robot {
         log("Politician: " + politicianScore);
         log("Slanderer: " + slandererScore);
 
-        //When we have an empower buff, use it to duplicate influence
-        if (buildKillPoliticians(11)) {
-            //80 is chosen so that we always make a profit
-            if (mySafetyBudget >= 80) {
-                makeSuicidePolitician();
-            } else {
-                //save up to make use of the buff
-                return;
-            }
-        }
+
 
         if (enemyMuckrakerCount > 0) {
             log("Emergency defense");

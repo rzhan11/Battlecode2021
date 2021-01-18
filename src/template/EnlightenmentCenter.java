@@ -136,6 +136,17 @@ public class EnlightenmentCenter extends Robot {
         log("Politician: " + politicianScore);
         log("Slanderer: " + slandererScore);
 
+        //When we have an empower buff, use it to duplicate influence
+        if (buildKillPoliticians(11)) {
+            //80 is chosen so that we always make a profit
+            if (mySafetyBudget >= 80) {
+                makeSuicidePolitician();
+            } else {
+                //save up to make use of the buff
+                return;
+            }
+        }
+
         if (enemyMuckrakerCount > 0) {
             log("Emergency defense");
             Direction dir = makeDefendPolitician();
@@ -549,6 +560,22 @@ public class EnlightenmentCenter extends Robot {
             scoutCount++;
         }
         return buildDir;
+    }
+
+    //@rz please check this
+    public static Direction makeSuicidePolitician() throws GameActionException {
+        log("Trying to build a suicide politician");
+        for (Direction dir: Direction.cardinalDirections()) {
+            MapLocation adjLoc = here.add(dir);
+            if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
+                CommManager.setStatus(dir2int(dir));
+                Actions.doBuildRobot(RobotType.POLITICIAN, dir, mySafetyBudget);
+                addKnownAlly(dir);
+                log("Made suicide politician");
+                return dir;
+            }
+        }
+        return null;
     }
 
     public static Direction tryBuild(RobotType rt, Direction bestDir, int cost) throws GameActionException {

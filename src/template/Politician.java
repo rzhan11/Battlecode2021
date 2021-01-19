@@ -211,7 +211,28 @@ public class Politician extends Robot {
         }
     }
 
+    public static int getBestNeutralTarget() throws GameActionException {
+        // update nearest neutral hq
+        int bestIndex = -1;
+        int bestDist = P_INF; // minimize
+        for (int i = knownHQCount; --i >= 0;) {
+            if(hqTeams[i] == neutral) {
+                if (myDamage > hqInfluence[i]) {
+                    int dist = here.distanceSquaredTo(hqLocs[i]);
+                    if (dist < bestDist) {
+                        bestIndex = i;
+                        bestDist = dist;
+                    }
+                }
+            }
+        }
+        log("bestNeutralIndex " + bestIndex);
+
+        return bestIndex;
+    }
+
     public static void updateTargetHQ() throws GameActionException {
+        int bestNeutralIndex = getBestNeutralTarget();
         if (targetHQIndex != -1) {
             // reset if the target hq has changed to our team
             if (hqTeams[targetHQIndex] == us) {
@@ -223,18 +244,32 @@ public class Politician extends Robot {
                 targetHQIndex = -1;
                 targetHQLoc = null;
                 targetHQID = -1;
+            } else if (hqTeams[targetHQIndex] == neutral && myDamage <= hqInfluence[targetHQIndex]) {
+                // reset if cannot kill anymore
+                targetHQIndex = -1;
+                targetHQLoc = null;
+                targetHQID = -1;
+            } else if (hqTeams[targetHQIndex] != neutral && bestNeutralIndex != -1) {
+                // reset if we can use new target
+                targetHQIndex = -1;
+                targetHQLoc = null;
+                targetHQID = -1;
             }
         }
 
         if (targetHQIndex == -1) {
-            int bestDist = P_INF;
-            for (int i = knownHQCount; --i >= 0;) {
-                if (hqTeams[i] == them || hqTeams[i] == neutral) {
-                    if (hqIDs[i] > 0) {
-                        int dist = here.distanceSquaredTo(hqLocs[i]);
-                        if (dist < bestDist) {
-                            targetHQIndex = i;
-                            bestDist = dist;
+            if (bestNeutralIndex != -1) { // use neutral if possible
+                targetHQIndex = bestNeutralIndex;
+            } else { // use enemy if possible
+                int bestDist = P_INF;
+                for (int i = knownHQCount; --i >= 0;) {
+                    if (hqTeams[i] == them) {
+                        if (hqIDs[i] > 0) {
+                            int dist = here.distanceSquaredTo(hqLocs[i]);
+                            if (dist < bestDist) {
+                                targetHQIndex = i;
+                                bestDist = dist;
+                            }
                         }
                     }
                 }
@@ -489,7 +524,7 @@ public class Politician extends Robot {
             if (dmg > ri.conviction) {
                 score += 10 * dmg;
             } else {
-                score += 0.5 * dmg;
+                score += dmg;
             }
         }
 

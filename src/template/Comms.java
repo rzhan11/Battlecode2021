@@ -67,23 +67,27 @@ public class Comms {
     final public static int HQ_LOC_PAIRED_MSG = 9 << TYPE_OFFSET;
     final public static int ALLY_HQ_INFO_MSG = 10 << TYPE_OFFSET;
     final public static int ENEMY_HQ_INFO_MSG = 11 << TYPE_OFFSET;
-    final public static int NEUTRAL_HQ_INFO_MSG = 12 << TYPE_OFFSET;
+    final public static int NEUTRAL_HQ_100_INFO_MSG = 12 << TYPE_OFFSET;
+    final public static int NEUTRAL_HQ_200_INFO_MSG = 13 << TYPE_OFFSET;
+    final public static int NEUTRAL_HQ_300_INFO_MSG = 14 << TYPE_OFFSET;
+    final public static int NEUTRAL_HQ_400_INFO_MSG = 15 << TYPE_OFFSET;
+    final public static int NEUTRAL_HQ_500_INFO_MSG = 16 << TYPE_OFFSET;
 
-    final public static int XBOUNDS_MSG = 13 << TYPE_OFFSET;
-    final public static int XMIN_MSG = 14 << TYPE_OFFSET;
-    final public static int XMAX_MSG = 15 << TYPE_OFFSET;
-    final public static int XNONE_MSG = 16 << TYPE_OFFSET;
-    final public static int YBOUNDS_MSG = 17 << TYPE_OFFSET;
-    final public static int YMIN_MSG = 18 << TYPE_OFFSET;
-    final public static int YMAX_MSG = 19 << TYPE_OFFSET;
-    final public static int YNONE_MSG = 20 << TYPE_OFFSET;
+    final public static int XBOUNDS_MSG = 17 << TYPE_OFFSET;
+    final public static int XMIN_MSG = 18 << TYPE_OFFSET;
+    final public static int XMAX_MSG = 19 << TYPE_OFFSET;
+    final public static int XNONE_MSG = 20 << TYPE_OFFSET;
+    final public static int YBOUNDS_MSG = 21 << TYPE_OFFSET;
+    final public static int YMIN_MSG = 22 << TYPE_OFFSET;
+    final public static int YMAX_MSG = 23 << TYPE_OFFSET;
+    final public static int YNONE_MSG = 24 << TYPE_OFFSET;
 
-    final public static int SYMMETRY_MSG = 21 << TYPE_OFFSET;
+    final public static int SYMMETRY_MSG = 25 << TYPE_OFFSET;
 
-    final public static int REPORT_NON_MASTER_MSG = 22 << TYPE_OFFSET;
-    final public static int REPORT_SURROUNDED_MSG = 23 << TYPE_OFFSET;
-    final public static int REPORT_NOT_SURROUNDED_MSG = 24 << TYPE_OFFSET;
-    final public static int REPORT_ENEMY_MUCKRAKER_MSG = 25 << TYPE_OFFSET;
+    final public static int REPORT_NON_MASTER_MSG = 26 << TYPE_OFFSET;
+    final public static int REPORT_SURROUNDED_MSG = 27 << TYPE_OFFSET;
+    final public static int REPORT_NOT_SURROUNDED_MSG = 28 << TYPE_OFFSET;
+    final public static int REPORT_ENEMY_MUCKRAKER_MSG = 29 << TYPE_OFFSET;
 
 
 
@@ -208,13 +212,26 @@ public class Comms {
                 break;
 
             case ALLY_HQ_INFO_MSG:
-                readHQInfo(msgInfo, us, id);
+                readHQInfo(msgInfo, us, -1, id);
                 break;
             case ENEMY_HQ_INFO_MSG:
-                readHQInfo(msgInfo, them, id);
+                readHQInfo(msgInfo, them, -1, id);
                 break;
-            case NEUTRAL_HQ_INFO_MSG:
-                readHQInfo(msgInfo, neutral, id);
+
+            case NEUTRAL_HQ_100_INFO_MSG:
+                readHQInfo(msgInfo, neutral, 100, id);
+                break;
+            case NEUTRAL_HQ_200_INFO_MSG:
+                readHQInfo(msgInfo, neutral, 200, id);
+                break;
+            case NEUTRAL_HQ_300_INFO_MSG:
+                readHQInfo(msgInfo, neutral, 300, id);
+                break;
+            case NEUTRAL_HQ_400_INFO_MSG:
+                readHQInfo(msgInfo, neutral, 300, id);
+                break;
+            case NEUTRAL_HQ_500_INFO_MSG:
+                readHQInfo(msgInfo, neutral, 300, id);
                 break;
 
             case XBOUNDS_MSG:
@@ -585,14 +602,25 @@ public class Comms {
     14 | ENEMY HQ ID
      */
 
-    public static Message getHQInfoMsg(int id, Team team, boolean repeat) {
+    public static Message getHQInfoMsg(int id, Team team, int influence, boolean repeat) {
         int msgType;
         if (team == us) {
             msgType = ALLY_HQ_INFO_MSG;
         } else if (team == them) {
             msgType = ENEMY_HQ_INFO_MSG;
         } else if (team == neutral) {
-            msgType = NEUTRAL_HQ_INFO_MSG;
+            // unique tags
+            if (influence <= 100) {
+                msgType = NEUTRAL_HQ_100_INFO_MSG;
+            } else if (influence <= 200) {
+                msgType = NEUTRAL_HQ_200_INFO_MSG;
+            } else if (influence <= 300) {
+                msgType = NEUTRAL_HQ_300_INFO_MSG;
+            } else if (influence <= 400) {
+                msgType = NEUTRAL_HQ_400_INFO_MSG;
+            } else {
+                msgType = NEUTRAL_HQ_500_INFO_MSG;
+            }
         } else {
             // should never reach here
             logi("WARNING: 'writeEnemyHQID' for unknown team " + team);
@@ -607,24 +635,24 @@ public class Comms {
         return new Message(msgType, value, repeat);
     }
 
-    public static void writeHQInfo(int id, Team team, boolean repeat) throws GameActionException {
+    public static void writeHQInfo(int id, Team team, int influence, boolean repeat) throws GameActionException {
         if (SKIP_WRITE) return;
 
         log("Writing 'HQ Info' message");
         tlog("ID: " + id);
         tlog("Team: " + team);
 
-        Message msg = getHQInfoMsg(id, team, repeat);
+        Message msg = getHQInfoMsg(id, team, influence, repeat);
         queueMessage(msg);
     }
 
-    public static void readHQInfo(int msgInfo, Team team, int id) throws GameActionException {
+    public static void readHQInfo(int msgInfo, Team team, int influence, int id) throws GameActionException {
         int hqid = msgInfo + MIN_ID;
 
         for (int i = knownHQCount; --i >= 0;) {
             if (hqIDs[i] == -id) {
                 // check to make sure the hq still exists
-                saveHQInfo(i, hqid, team); // keep this outside if statement, to ensure updateHQDead works
+                saveHQInfo(i, hqid, team, influence); // keep this outside if statement, to ensure updateHQDead works
                 if (!rc.canGetFlag(hqid)) {
                     tlog("HQ is dead, DELETED");
                     updateHQDead(i);

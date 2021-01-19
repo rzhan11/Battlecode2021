@@ -139,6 +139,7 @@ public abstract class Robot extends Constants {
     // not guaranteed to be accurate, however if hqIDs[i] is known, then hqTeams[i] should be accurate
     public static Team[] hqTeams = new Team[MAX_HQ_COUNT];
     public static int[] hqIDs = new int[MAX_HQ_COUNT];
+    public static int[] hqInfluence = new int[MAX_HQ_COUNT];
     public static int[] hqSurroundRounds = new int[MAX_HQ_COUNT];
     public static int[] hqReportSurroundRounds = new int[MAX_HQ_COUNT];
     public static int[] hqIgnoreRounds = new int[MAX_HQ_COUNT];
@@ -160,10 +161,10 @@ public abstract class Robot extends Constants {
     public static void updateTurnInfo() throws GameActionException {
 
         // todo TESTING PURPOSES ONLY
-        if (roundNum >= 400) {
-            log("RESIGNING");
-            rc.resign();
-        }
+//        if (roundNum >= 400) {
+//            log("RESIGNING");
+//            rc.resign();
+//        }
 
         CommManager.resetFlag();
         Comms.resetPrevEcho();
@@ -218,7 +219,8 @@ public abstract class Robot extends Constants {
                 } else {
                     teamName = hqTeams[i].toString();
                 }
-                tlog(hqLocs[i] + " " + hqIDs[i] + " " + teamName + " " + hqSurroundRounds[i] + " " + hqReportSurroundRounds[i]);
+//                tlog(hqLocs[i] + " " + hqIDs[i] + " " + teamName + " " + hqSurroundRounds[i] + " " + hqReportSurroundRounds[i]);
+                tlog(hqLocs[i] + " " + hqIDs[i] + " " + teamName + " " + hqInfluence[i]);
             }
             log("Print cost " + (curByte - Clock.getBytecodesLeft()));
         }
@@ -470,7 +472,7 @@ public abstract class Robot extends Constants {
         // update if masterTaskDir is done
         if (masterTaskDir != null) {
             MapLocation senseLoc = getFarthestLoc(spawnLoc, masterTaskDir);
-            if (rc.canSenseLocation(senseLoc) || roundNum - lastExploreTaskChangeRound > 75) {
+            if (rc.canSenseLocation(senseLoc) || roundNum - lastExploreTaskChangeRound > 100) {
                 masterTaskDir = null;
                 // do not return, we need new task
             } else { // keeping this task

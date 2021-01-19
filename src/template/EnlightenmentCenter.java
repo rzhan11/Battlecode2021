@@ -44,9 +44,13 @@ public class EnlightenmentCenter extends Robot {
 
     // if we are in the corner, it is essential that we have a lot of politicians, so that our slanderers dont get pushed in
     final public static double CORNER_DEFENSE_POLI_MULTIPLIER = 1.5;
+    final public static double EDGE_DEFENSE_POLI_MULTIPLIER = 1.25;
 
 
-    public static int[] attackPoliForNeutralHQRound = new int[1001];
+    // num rounds before sending again
+    public static int[] hqAttackDelays;
+
+    public static int targetNeutralHQIndex;
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
@@ -60,9 +64,17 @@ public class EnlightenmentCenter extends Robot {
 
         int dx = getWallXDist(here.x);
         int dy = getWallYDist(here.y);
-        if (dx + dy <= 4) {
+
+        if (dx <= Slanderer.MIN_WALL_DIST && dy <= Slanderer.MIN_WALL_DIST) {
             DEFENSE_POLI_ROLE.ratio *= CORNER_DEFENSE_POLI_MULTIPLIER;
+            log("Corner multiplier " + DEFENSE_POLI_ROLE.ratio);
+        } else if (dx <= Slanderer.MIN_WALL_DIST || dy <= Slanderer.MIN_WALL_DIST) {
+            DEFENSE_POLI_ROLE.ratio *= EDGE_DEFENSE_POLI_MULTIPLIER;
+            log("Edge multiplier " + DEFENSE_POLI_ROLE.ratio);
         }
+
+        // poli
+        hqAttackDelays = new int[MAX_HQ_COUNT];
 
         initRoles();
     }
@@ -77,6 +89,8 @@ public class EnlightenmentCenter extends Robot {
 
         updateEnemies();
 
+        updateNeutrals();
+
         // after updateEnemies
         updateMaxBudget();
 
@@ -86,10 +100,11 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
+        // todo add saving
         // todo improve bidding strategy
         // bidding is OKish now, games are not normally won by bidding so its fine
         if (rc.getTeamVotes() < GameConstants.GAME_MAX_NUMBER_OF_ROUNDS / 2) {
-            if (mySafetyBudget > 100) {
+            if (roundNum > 250 && mySafetyBudget > 100) {
                 tryBid();
                 // recalculate max budget AFTER making bets
                 updateMaxBudget();
@@ -105,14 +120,16 @@ public class EnlightenmentCenter extends Robot {
         //When we have an empower buff, use it to duplicate influence
         if (buildKillPoliticians(11)) {
             //80 is chosen so that we always make a profit
-            if (mySafetyBudget >= 80 && rc.getInfluence() < 0.5 * GameConstants.ROBOT_INFLUENCE_LIMIT) {
-                //System.out.println("Building self empower0");
-                makeSuicidePolitician();
-                return;
-            } else {
-                //save up to make use of the buff
-                //System.out.println("Waiting to self empower.");
-                return;
+            if (rc.getInfluence() < 0.5 * GameConstants.ROBOT_INFLUENCE_LIMIT) {
+                if (mySafetyBudget >= 80) {
+                    //System.out.println("Building self empower0");
+                    makeSuicidePolitician();
+                    return;
+                } else {
+                    //save up to make use of the buff
+                    //System.out.println("Waiting to self empower.");
+                    return;
+                }
             }
         }
 
@@ -122,6 +139,7 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
+        // must be after updateNeutrals
         updateRoleScores();
 
 
@@ -132,8 +150,8 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
-        if (DEFENSE_POLI_ROLE.count > 3 && SLAN_ROLE.count > 3) {
-            if (EXPLORE_POLI_ROLE.count < 2) {
+        if (DEFENSE_POLI_ROLE.count >= 4 && SLAN_ROLE.count >= 4) {
+            if (EXPLORE_POLI_ROLE.count < 4) {
                 log("Explore poli");
                 makeExplorePolitician();
                 return;
@@ -150,33 +168,60 @@ public class EnlightenmentCenter extends Robot {
             // 2/3 of politicans are defend
             // 1/3 of politicians are attack
             // todo TESTING CHANGE 0.66 -> 0.66
-            if (random() < 0.66) {
-                Direction dir = makeDefendPolitician();
-                if (dir != null) {
-                    return;
-                }
-            } else {
-                Direction dir = makeAttackPolitician();
-                if (dir != null) {
-                    return;
-                }
+            Direction dir = makeDefendPolitician();
+            if (dir != null) {
+                return;
             }
+//            if (random() < 0.66) {
+//                Direction dir = makeDefendPolitician();
+//                if (dir != null) {
+//                    return;
+//                }
+//            } else {
+//                Direction dir = makeAttackPolitician();
+//                if (dir != null) {
+//                    return;
+//                }
+//            }
         } else { // consider muckraker vs slanderer
-            if (MUCK_ROLE.score < SLAN_ROLE.score) {
-                Direction dir = makeMuckraker(false);
-                if (dir != null) {
-                    return;
+            // check to make attack politicians
+            do {
+                if (ATTACK_POLI_ROLE.score < SLAN_ROLE.score) {
+                    Direction dir = makeAttackPolitician();
+                    if (dir != null) {
+                        return;
+                    }
+
+                    if (targetNeutralHQIndex != -1) {
+                        int income = mySlanTotalEarn + RobotType.ENLIGHTENMENT_CENTER.getPassiveInfluence(rc.getInfluence(), age, roundNum);
+                        int diff = getAttackPoliCost() - mySafetyBudget;
+                        int waitRounds = (int) Math.ceil(1.0 * diff / income);
+                        log("income " + income + " " + diff + " " + waitRounds);
+                        if (waitRounds < 5) {
+                            log("Saving");
+                            STOP_BID = true;
+                            break;
+                        }
+                    } else {} // do nothing continue with normal build
                 }
-            } else {
-                Direction dir = makeSlanderer();
-                if (dir != null) {
-                    return;
+
+                if (MUCK_ROLE.score < SLAN_ROLE.score) {
+                    Direction dir = makeMuckraker(false);
+                    if (dir != null) {
+                        return;
+                    }
+                } else {
+                    Direction dir = makeSlanderer();
+                    if (dir != null) {
+                        return;
+                    }
                 }
-            }
+            } while(false);
         }
 
         // build a cheap muckraker if i can't do anything else
         if (getNumOpenDirs() >= 2) {
+            log("Killing time");
             makeMuckraker(true);
             return;
         }
@@ -272,7 +317,7 @@ public class EnlightenmentCenter extends Robot {
         } else {
             closestEnemyMuckraker = null;
         }
-        log("Mucker " + closestEnemyMuckraker);
+//        log("Mucker " + closestEnemyMuckraker);
 
         // calculate enemyMuckrakerDanger
         enemyMuckrakerDanger = 0;
@@ -290,11 +335,41 @@ public class EnlightenmentCenter extends Robot {
         }
     }
 
+    public static void updateNeutrals() throws GameActionException {
+        // update delay
+        for (int i = knownHQCount; --i >= 0;) {
+            hqAttackDelays[i] = Math.max(0, hqAttackDelays[i] - 1);
+        }
+
+        // update nearest neutral hq
+        targetNeutralHQIndex = -1;
+//        int bestNeutralDist = P_INF;
+        int bestNeutralCost = P_INF;
+        for (int i = knownHQCount; --i >= 0;) {
+            if(hqTeams[i] == neutral && hqAttackDelays[i] <= 0) {
+                int dist = here.distanceSquaredTo(hqLocs[i]);
+                if (hqInfluence[i] < bestNeutralCost) {
+                    targetNeutralHQIndex = i;
+                    bestNeutralCost = hqInfluence[i];
+//                    bestNeutralDist = dist;
+                }
+            }
+        }
+        log("targetNeutral " + targetNeutralHQIndex);
+    }
+
     public static void updateMaxBudget() {
         mySafetyBudget = rc.getInfluence() - enemyPoliticianDanger;
     }
 
+    public static boolean STOP_BID = false;
+
     public static void tryBid() throws GameActionException {
+        if (STOP_BID) {
+            STOP_BID = false;
+            return;
+        }
+
         wonLastVote = (rc.getTeamVotes() > lastTurnsVotes);
         lastTurnsVotes = rc.getTeamVotes();
 
@@ -452,19 +527,42 @@ public class EnlightenmentCenter extends Robot {
         return buildDir;
     }
 
+    public static int getAttackPoliCost() throws GameActionException {
+        int cost;
+        if (targetNeutralHQIndex != -1 && hqTeams[targetNeutralHQIndex] == neutral) { // try to make it at least 50 more
+            cost = 25 + hqInfluence[targetNeutralHQIndex] + GameConstants.EMPOWER_TAX;
+        } else { // team = enemy
+            cost = (int) Math.max(200, 0.5 * mySafetyBudget); // at least 200
+        }
+        return cost;
+    }
+
     public static Direction makeAttackPolitician() throws GameActionException {
         log("Trying to build attack politician");
 
-        // todo make cost based on neutral hq costs
-        // 177 = poli can kill neutral hq of 500 in 3 hits
-        int cost = (int) Math.max(177, 0.5 * mySafetyBudget);
-        if (cost > 0.75 * mySafetyBudget) { // if the cost is more than 75% of our budget, dont spend
-            return null;
+        log("targetIndex " + targetNeutralHQIndex);
+
+        int cost;
+        Direction scoutDir;
+        if (targetNeutralHQIndex != -1 && hqTeams[targetNeutralHQIndex] == neutral) { // try to make it at least 50 more
+            cost = 25 + hqInfluence[targetNeutralHQIndex] + GameConstants.EMPOWER_TAX;
+            if (cost > 0.8 * mySafetyBudget) return null;
+
+            // update attack delay
+            hqAttackDelays[targetNeutralHQIndex] = (int) Math.ceil(2 * Math.sqrt(here.distanceSquaredTo(hqLocs[targetNeutralHQIndex]))
+                    + RobotType.POLITICIAN.initialCooldown);
+            scoutDir = here.directionTo(hqLocs[targetNeutralHQIndex]);
+
+        } else { // team = enemy
+            cost = (int) Math.max(200, 0.5 * mySafetyBudget); // at least 200
+            if (cost > 0.8 * mySafetyBudget) return null;
+
+            scoutDir = EXPLORE_DIRS[scoutCount % EXPLORE_DIRS.length];
         }
 
-        Direction scoutDir = EXPLORE_DIRS[scoutCount % EXPLORE_DIRS.length];
         int status = dir2int(scoutDir);
         CommManager.setStatus(status, true);
+
 
         Direction buildDir = tryBuild(RobotType.POLITICIAN, scoutDir, cost, ATTACK_POLI_ROLE);
         if (buildDir != null) {

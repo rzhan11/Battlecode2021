@@ -22,7 +22,7 @@ public class HQTracker {
         // add myself to hqinfo
         if (age == 0 && myType == RobotType.ENLIGHTENMENT_CENTER) {
             saveHQLoc(here);
-            saveHQInfo(knownHQCount - 1, myID, us);
+            saveHQInfo(knownHQCount - 1, myID, us, -1);
         }
 
         // loop through sensed hqs, update their info
@@ -36,7 +36,7 @@ public class HQTracker {
                         isKnown = true;
                         if (hqIDs[j] != ri.ID) {
                             // we have found new information, save and report
-                            saveHQInfo(j, ri.ID, ri.getTeam());
+                            saveHQInfo(j, ri.ID, ri.getTeam(), ri.influence);
                             if (myType != RobotType.ENLIGHTENMENT_CENTER) {
                                 reportHQ(j);
                             }
@@ -47,7 +47,7 @@ public class HQTracker {
                 // adds new hq loc if not known
                 if (!isKnown) {
                     saveHQLoc(ri.location);
-                    saveHQInfo(knownHQCount - 1, ri.ID, ri.getTeam());
+                    saveHQInfo(knownHQCount - 1, ri.ID, ri.team, ri.influence);
                     if (myType != RobotType.ENLIGHTENMENT_CENTER) {
                         reportHQ(knownHQCount - 1);
                     }
@@ -76,7 +76,7 @@ public class HQTracker {
     // reset hqIDs to default value of -1
     // flip the team of the killed hq, (if team was NEUTRAL, now it's unknown)
     public static void updateHQDead(int index) throws GameActionException {
-        saveHQInfo(index, -1, (hqTeams[index] == Team.NEUTRAL) ? null: hqTeams[index].opponent());
+        saveHQInfo(index, -1, (hqTeams[index] == Team.NEUTRAL) ? null: hqTeams[index].opponent(), -1);
     }
 
     public static void saveHQLoc(MapLocation loc) throws GameActionException {
@@ -87,12 +87,15 @@ public class HQTracker {
         }
     }
 
-    public static void saveHQInfo(int index, int hqid, Team team) throws GameActionException {
+    public static void saveHQInfo(int index, int hqid, Team team, int influence) throws GameActionException {
         hqIDs[index] = hqid;
         hqTeams[index] = team;
+        hqInfluence[index] = influence;
+
         hqSurroundRounds[index] = DEFAULT_SURROUND;
         hqReportSurroundRounds[index] = DEFAULT_SURROUND;
         hqIgnoreRounds[index] = DEFAULT_IGNORE;
+
         if (myType == RobotType.ENLIGHTENMENT_CENTER) {
             updateHQBroadcast(index);
         }
@@ -106,7 +109,7 @@ public class HQTracker {
             Message locMsg = getHQLocMsg(hqLocs[index], true, false);
             queueMessage(locMsg);
 
-            Message infoMsg = getHQInfoMsg(hqIDs[index], hqTeams[index], false);
+            Message infoMsg = getHQInfoMsg(hqIDs[index], hqTeams[index], hqInfluence[index], false);
             chainMessages(locMsg, infoMsg);
         } else {
             writeHQLocSolo(hqLocs[index], false);
@@ -131,7 +134,7 @@ public class HQTracker {
         if (paired) {
 //            tlog("Paired");
             hqBroadcasts[index].type = HQ_LOC_PAIRED_MSG;
-            Message infoMsg = getHQInfoMsg(hqIDs[index], hqTeams[index], true);
+            Message infoMsg = getHQInfoMsg(hqIDs[index], hqTeams[index], hqInfluence[index], true);
             chainMessages(hqBroadcasts[index], infoMsg);
         } else {
 //            tlog("Solo");

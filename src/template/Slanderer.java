@@ -200,24 +200,32 @@ public class Slanderer extends Robot {
 
         bannedLatticeDirs = new boolean[8];
         if (XMIN != -1 && centerLoc.x - XMIN <= MIN_WALL_DIST) {
+            bannedLatticeDirs[4] = true; // s
             bannedLatticeDirs[5] = true; // sw
             bannedLatticeDirs[6] = true; // w
             bannedLatticeDirs[7] = true; // nw
+            bannedLatticeDirs[0] = true; // n
         }
         if (XMAX != -1 && XMAX - centerLoc.x <= MIN_WALL_DIST) {
+            bannedLatticeDirs[0] = true; // n
             bannedLatticeDirs[1] = true; // ne
             bannedLatticeDirs[2] = true; // e
             bannedLatticeDirs[3] = true; // se
+            bannedLatticeDirs[4] = true; // s
         }
         if (YMIN != -1 && centerLoc.y - YMIN <= MIN_WALL_DIST) {
+            bannedLatticeDirs[2] = true; // e
             bannedLatticeDirs[3] = true; // se
             bannedLatticeDirs[4] = true; // s
             bannedLatticeDirs[5] = true; // sw
+            bannedLatticeDirs[6] = true; // w
         }
         if (YMAX != -1 && YMAX - centerLoc.y <= MIN_WALL_DIST) {
+            bannedLatticeDirs[6] = true; // w
             bannedLatticeDirs[7] = true; // nw
             bannedLatticeDirs[0] = true; // n
             bannedLatticeDirs[1] = true; // ne
+            bannedLatticeDirs[2] = true; // e
         }
 
 //        log("[BANNED]");
@@ -235,7 +243,8 @@ public class Slanderer extends Robot {
                 return possDirs[i];
             }
         }
-        return null;
+        logi("WARNING: 'getClosestLatticeDir' forced to use center");
+        return Direction.CENTER;
     }
 
 

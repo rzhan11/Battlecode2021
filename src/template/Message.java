@@ -63,11 +63,20 @@ public class Message {
                 str += "[HQ LOC 2] " + bits2loc(info); break;
 
             case ALLY_HQ_INFO_MSG:
-                str += "[HQ ID ALLY] " + (info + MIN_ID); break;
+                str += "[HQ ID A] " + (info + MIN_ID); break;
             case ENEMY_HQ_INFO_MSG:
-                str += "[HQ ID ENEMY] " + (info + MIN_ID); break;
-            case NEUTRAL_HQ_INFO_MSG:
-                str += "[HQ ID NEUTRAL] " + (info + MIN_ID); break;
+                str += "[HQ ID E] " + (info + MIN_ID); break;
+
+            case NEUTRAL_HQ_100_INFO_MSG:
+                str += "[HQ ID N100] " + (info + MIN_ID); break;
+            case NEUTRAL_HQ_200_INFO_MSG:
+                str += "[HQ ID N200] " + (info + MIN_ID); break;
+            case NEUTRAL_HQ_300_INFO_MSG:
+                str += "[HQ ID N300] " + (info + MIN_ID); break;
+            case NEUTRAL_HQ_400_INFO_MSG:
+                str += "[HQ ID N400] " + (info + MIN_ID); break;
+            case NEUTRAL_HQ_500_INFO_MSG:
+                str += "[HQ ID N500] " + (info + MIN_ID); break;
 
             case XBOUNDS_MSG:
                 str += "[X]" + bits2loc(info); break;

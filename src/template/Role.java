@@ -7,11 +7,11 @@ import static template.Robot.*;
 import static template.EnlightenmentCenter.*;
 
 public enum Role {
-    MUCK_ROLE(150, 1.0, "MUCK"),
-    DEFENSE_POLI_ROLE(150, 1.0, "DEF_POLI"),
-    ATTACK_POLI_ROLE(150, 1.0, "ATK_POLI"),
-    EXPLORE_POLI_ROLE(50, 1.0, "EXP_POLI"),
-    SLAN_ROLE(100, 1.0, "SLAN");
+    MUCK_ROLE         (150, 1.0, "MUCK"),
+    DEFENSE_POLI_ROLE (150, 1.0, "DEF_POLI"),
+    ATTACK_POLI_ROLE  (150, 0.1, "ATK_POLI"),
+    EXPLORE_POLI_ROLE ( 50, 1.0, "EXP_POLI"),
+    SLAN_ROLE         (100, 1.0, "SLAN");
 
     final public String name;
 
@@ -216,6 +216,10 @@ public enum Role {
         if (SLAN_ROLE.count >= SLAN_CAP) SLAN_ROLE.score = P_INF;
         if (rc.getInfluence() > 1e5) SLAN_ROLE.score = P_INF;
 
+        // spawn more ATK POLIs when there are neutral hqs to be killed
+        if (targetNeutralHQIndex != -1) {
+            ATTACK_POLI_ROLE.score *= 2.5;
+        }
 
 
         log("BUILD SCORES");

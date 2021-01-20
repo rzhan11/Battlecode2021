@@ -10,6 +10,8 @@ public class Constants {
 
     final public static int MIN_ID = 9999; // intentionally not 10000
 
+    final public static double SELF_EMPOWER_MIN_PROFIT_RATIO = 1.2;
+
     final public static int[] YELLOW = {255, 255, 0}; // moving
 
     final public static int[] MAGENTA = {255, 0, 255}; // mining soup

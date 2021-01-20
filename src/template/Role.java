@@ -204,27 +204,36 @@ public enum Role {
         }
     }
 
-    public static void updateRoleScores() {
+    public static void updateRoleScores() throws GameActionException {
+        // calc scores
         for (Role role: ROLE_ORDER) {
             role.score = role.count / role.ratio;
         }
+
+        // spawn more ATK POLIs when there are neutral hqs to be killed
+        if (targetNeutralHQIndex != -1) {
+            ATTACK_POLI_ROLE.score /= 2.5;
+        }
+
+        // HARD CAPS
 
         // cap spawn count
         if (MUCK_ROLE.count >= MUCK_CAP) MUCK_ROLE.score = P_INF;
         if (rc.getInfluence() > 0.1 * GameConstants.ROBOT_INFLUENCE_LIMIT) MUCK_ROLE.score = P_INF;
 
         if (SLAN_ROLE.count >= SLAN_CAP) SLAN_ROLE.score = P_INF;
-        if (rc.getInfluence() > 1e5) SLAN_ROLE.score = P_INF;
-
-        // spawn more ATK POLIs when there are neutral hqs to be killed
-        if (targetNeutralHQIndex != -1) {
-            ATTACK_POLI_ROLE.score *= 2.5;
+        if (checkRichStatus()) SLAN_ROLE.score = P_INF;
+        // check most recent suicide poli
+        if (roundNum - lastSuicideSpawnRound <= SELF_EMPOWER_DELAY && rc.canSenseRobot(lastSuicideID)) {
+            int oldWaitRounds = SELF_EMPOWER_DELAY - (roundNum - lastSuicideSpawnRound);
+            int oldDamage = getDamage(rc.senseRobot(lastSuicideID).conviction, rc.getEmpowerFactor(us, oldWaitRounds));
+            if (oldDamage > RICH_THRESHOLD) {
+                SLAN_ROLE.score = P_INF;
+            }
         }
-
 
         log("BUILD SCORES");
         for (Role role: ROLE_ORDER) {
-            role.score = role.count / role.ratio;
             tlog(role.toString() + ": " + role.score);
         }
     }

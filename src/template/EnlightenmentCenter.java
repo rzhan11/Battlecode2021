@@ -81,6 +81,10 @@ public class EnlightenmentCenter extends Robot {
 
     // code run each turn
     public static void turn() throws GameActionException {
+        //
+        updateRichStatus();
+
+        //
         updateRoleCounts();
         processMessages();
 
@@ -100,9 +104,7 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
-        // todo add saving
-        // todo improve bidding strategy
-        // bidding is OKish now, games are not normally won by bidding so its fine
+        // bidding
         if (rc.getTeamVotes() < GameConstants.GAME_MAX_NUMBER_OF_ROUNDS / 2) {
             if (roundNum > 250 && mySafetyBudget > 100) {
                 tryBid();
@@ -117,19 +119,13 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
-        //When we have an empower buff, use it to duplicate influence
-        if (buildKillPoliticians(11)) {
-            //80 is chosen so that we always make a profit
-            if (rc.getInfluence() < 0.5 * GameConstants.ROBOT_INFLUENCE_LIMIT) {
-                if (mySafetyBudget >= 80) {
-                    //System.out.println("Building self empower0");
-                    makeSuicidePolitician();
-                    return;
-                } else {
-                    //save up to make use of the buff
-                    //System.out.println("Waiting to self empower.");
-                    return;
-                }
+        // must be after updateRichStatus, updateNeutrals
+        updateRoleScores();
+
+        { // try building suicide politician if needed
+            Direction dir = checkBuildSuicidePolitician();
+            if (dir != null) {
+                return;
             }
         }
 
@@ -139,10 +135,9 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
-        // must be after updateNeutrals
-        updateRoleScores();
-
-
+//        if (rc.getInfluence() >= RICH_THRESHOLD) {
+//            doRichBuild();
+//        }
 
         if (enemyMuckrakerCount > 0) {
             log("Emergency defense");
@@ -165,24 +160,10 @@ public class EnlightenmentCenter extends Robot {
 
         // no visible enemy muckrakers
         if (DEFENSE_POLI_ROLE.score < SLAN_ROLE.score) {
-            // 2/3 of politicans are defend
-            // 1/3 of politicians are attack
-            // todo TESTING CHANGE 0.66 -> 0.66
             Direction dir = makeDefendPolitician();
             if (dir != null) {
                 return;
             }
-//            if (random() < 0.66) {
-//                Direction dir = makeDefendPolitician();
-//                if (dir != null) {
-//                    return;
-//                }
-//            } else {
-//                Direction dir = makeAttackPolitician();
-//                if (dir != null) {
-//                    return;
-//                }
-//            }
         } else { // consider muckraker vs slanderer
             // check to make attack politicians
             do {
@@ -196,13 +177,14 @@ public class EnlightenmentCenter extends Robot {
                         int income = mySlanTotalEarn + RobotType.ENLIGHTENMENT_CENTER.getPassiveInfluence(rc.getInfluence(), age, roundNum);
                         int diff = getAttackPoliCost() - mySafetyBudget;
                         int waitRounds = (int) Math.ceil(1.0 * diff / income);
-                        log("income " + income + " " + diff + " " + waitRounds);
                         if (waitRounds < 5) {
-                            log("Saving");
+                            tlog("Saving for attack");
                             STOP_BID = true;
                             break;
+                        } else {
+                            tlog("Skipped");
                         }
-                    } else {} // do nothing continue with normal build
+                    }
                 }
 
                 if (MUCK_ROLE.score < SLAN_ROLE.score) {
@@ -224,6 +206,16 @@ public class EnlightenmentCenter extends Robot {
             log("Killing time");
             makeMuckraker(true);
             return;
+        }
+    }
+
+    public static void updateRichStatus() throws GameActionException {
+        if (rc.getInfluence() > RICH_THRESHOLD) {
+            // if i wasn't rich or if its been a while since i reported my rich status
+            if (!checkRichStatus() || shouldReportRichStatus()) {
+                lastRichRound = roundNum;
+                writeRich(lastRichRound);
+            }
         }
     }
 
@@ -320,11 +312,12 @@ public class EnlightenmentCenter extends Robot {
 //        log("Mucker " + closestEnemyMuckraker);
 
         // calculate enemyMuckrakerDanger
-        enemyMuckrakerDanger = 0;
+        long tempSum = 0;
         for (int i = enemyMuckrakerCount; --i >= 0;) {
             // u have to deal conviction + 1 damage to kill
-            enemyMuckrakerDanger += 1 + enemyMuckrakers[i].conviction;
+            tempSum += 1 + enemyMuckrakers[i].conviction;
         }
+        enemyMuckrakerDanger = (int) Math.min(GameConstants.ROBOT_INFLUENCE_LIMIT, tempSum);
 
         // calculate enemyPolitician danger
         double enemyRatio = rc.getEmpowerFactor(them, 0);
@@ -373,7 +366,6 @@ public class EnlightenmentCenter extends Robot {
         wonLastVote = (rc.getTeamVotes() > lastTurnsVotes);
         lastTurnsVotes = rc.getTeamVotes();
 
-        int bidBudget = mySafetyBudget / 10;
         int bidAmount;
         if (wonLastVote) {
             bidAmount = (int) Math.floor(lastBid / bidDecreaseScalingFactor);
@@ -381,10 +373,11 @@ public class EnlightenmentCenter extends Robot {
             bidAmount = (int) Math.ceil(lastBid * bidIncreaseScalingFactor);
         }
         if (roundNum > 500) {
-            bidAmount = Math.max(bidAmount, mySafetyBudget / 50);
+            bidAmount = Math.max(bidAmount, mySafetyBudget / 1000);
         }
         bidAmount = Math.max(1, bidAmount);
 
+        int bidBudget = mySafetyBudget / 10;
         if (bidAmount <= bidBudget) {
             log("Bidding " + bidAmount);
             rc.bid(bidAmount);
@@ -397,7 +390,7 @@ public class EnlightenmentCenter extends Robot {
     public static int lastBigMuckrakerRound = -100;
     final public static int BIG_MUCK_FREQ = 50;
 
-    final public static int MAX_BIG_MUCK_COST = 1000;;
+    final public static int MAX_BIG_MUCK_COST = 10000;;
     final public static int MIN_BIG_MUCK_BUDGET = 400;
     final public static double BIG_MUCK_BUDGET_RATIO = 0.25;
 
@@ -467,9 +460,10 @@ public class EnlightenmentCenter extends Robot {
         // check for min cost
         double minValue = mySlanTotalValue / 10.0;
         double value = cost * GameConstants.EMBEZZLE_NUM_ROUNDS;
-        if (value >= minValue || cost == MAX_SLANDERER_COST) {
+
         // todo testing
 //        if (true) {
+        if (value >= minValue || cost == MAX_SLANDERER_COST) {
             Direction buildDir = tryBuild(RobotType.SLANDERER, EXPLORE_DIRS[0].opposite(), cost, SLAN_ROLE);
             return buildDir;
         } else {
@@ -500,7 +494,7 @@ public class EnlightenmentCenter extends Robot {
     public static Direction makeDefendPolitician() throws GameActionException {
         log("Trying to build defensive politician");
 
-        int minCost = GameConstants.EMPOWER_TAX + 8;
+        int minCost = (int) Math.max(GameConstants.EMPOWER_TAX + 8, 0.01 * mySafetyBudget);
 
 
         int cost = GameConstants.EMPOWER_TAX + enemyMuckrakerDanger;
@@ -571,20 +565,54 @@ public class EnlightenmentCenter extends Robot {
         return buildDir;
     }
 
-    //@rz please check this
-    // looks good -rz
+    // we must wait this many rounds between self-empowering
+    final public static int SELF_EMPOWER_DELAY = (int) Math.ceil(1 + RobotType.POLITICIAN.initialCooldown); // needs to be 11 + 1, cuz of turn order (i think lol)
+    // if we can make a new suicide politician with a lot more profit than our old suicide poli, then do it
+    final public static double MIN_SELF_EMPOWER_IMPROVEMENT = 1.0;
+
+    public static Direction lastSuicideSpawnDir = null;
+    public static int lastSuicideSpawnRound = -100;
+    public static int lastSuicideID = -1;
+
+    public static Direction checkBuildSuicidePolitician() throws GameActionException {
+        double futureBuff = rc.getEmpowerFactor(us, (int) (1 + RobotType.POLITICIAN.initialCooldown));
+        if (futureBuff >= SELF_EMPOWER_MIN_PROFIT_RATIO) {
+            // makes sure we dont already have a ridiculous amt of influence
+            if (rc.getInfluence() < 0.5 * GameConstants.ROBOT_INFLUENCE_LIMIT) {
+                int futureDamage = getDamage(mySafetyBudget, futureBuff);
+                // ensures we make a min profit of approx 1.2 times
+                if (checkMinSuicideProfit(futureDamage, mySafetyBudget)) {
+                    int oldDamage = 0;
+                    if (roundNum - lastSuicideSpawnRound <= SELF_EMPOWER_DELAY && rc.canSenseRobot(lastSuicideID)) {
+                        int oldWaitRounds = SELF_EMPOWER_DELAY - (roundNum - lastSuicideSpawnRound);
+                        oldDamage = getDamage(rc.senseRobot(lastSuicideID).conviction, rc.getEmpowerFactor(us, oldWaitRounds));
+                    }
+                    if (futureDamage >= oldDamage * MIN_SELF_EMPOWER_IMPROVEMENT) {
+                        // also makes a better profit than old politicians
+                        return makeSuicidePolitician();
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     public static Direction makeSuicidePolitician() throws GameActionException {
         int cost = (int) Math.min(mySafetyBudget,
                 GameConstants.ROBOT_INFLUENCE_LIMIT / (4 * rc.getEmpowerFactor(us, 11)));
 
         log("Trying to build a suicide politician");
         for (Direction dir: CARD_DIRS) {
-            MapLocation adjLoc = here.add(dir);
+            MapLocation adjLoc = rc.adjacentLocation(dir);
             if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
                 CommManager.setStatus(dir2int(dir), true);
                 Actions.doBuildRobot(RobotType.POLITICIAN, dir, cost);
-//                addKnownAlly(dir);
                 log("Made suicide politician");
+                // saving suicide poli info
+                RobotInfo ri = rc.senseRobotAtLocation(adjLoc);
+                lastSuicideSpawnDir = dir;
+                lastSuicideSpawnRound = roundNum;
+                lastSuicideID = ri.ID;
                 return dir;
             }
         }
@@ -594,12 +622,15 @@ public class EnlightenmentCenter extends Robot {
     public static Direction tryBuild(RobotType rt, Direction bestDir, int cost, Role role) throws GameActionException {
         Direction[] checkDirs = getClosestDirs(bestDir);
         // find direction to build
+        Direction reservedDir = (roundNum - lastSuicideSpawnRound <= SELF_EMPOWER_DELAY) ? lastSuicideSpawnDir : null;
         for (Direction dir: checkDirs) {
-            MapLocation adjLoc = here.add(dir);
-            if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
-                Actions.doBuildRobot(rt, dir, cost);
-                addRole(role, rc.senseRobotAtLocation(adjLoc));
-                return dir;
+            if (reservedDir == null || getDirSimilarity(dir, reservedDir) > 1) {
+                MapLocation adjLoc = here.add(dir);
+                if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
+                    Actions.doBuildRobot(rt, dir, cost);
+                    addRole(role, rc.senseRobotAtLocation(adjLoc));
+                    return dir;
+                }
             }
         }
         return null;

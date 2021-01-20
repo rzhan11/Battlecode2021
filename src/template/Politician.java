@@ -4,6 +4,7 @@ import battlecode.common.*;
 
 import static template.Comms.*;
 import static template.Debug.*;
+import static template.HQTracker.*;
 import static template.Map.*;
 import static template.Nav.*;
 import static template.Utils.*;
@@ -38,11 +39,11 @@ public class Politician extends Robot {
     // defender variables
     public static MapLocation closestEnemyMuckraker;
     public static MapLocation closestEnemy;
+    public static RobotInfo[] empowerRangeEnemies;
 
     public static int targetHQIndex = -1;
     public static MapLocation targetHQLoc = null;
     public static int targetHQID = -1;
-    public static MapLocation muckrakerAttackLocation;
 
     // scout variables
     public static boolean isBugScout; // true = bug, false = fuzzy
@@ -76,7 +77,7 @@ public class Politician extends Robot {
     // code run each turn
     public static void turn() throws GameActionException {
         // update damage
-        myDamage = (int) (myConviction * rc.getEmpowerFactor(us, 0) - GameConstants.EMPOWER_TAX);
+        myDamage = getDamage(myConviction, rc.getEmpowerFactor(us, 0));
 
         CommManager.setStatus(0, false); // use (1<<3) bit to signal I am poli
 
@@ -115,6 +116,8 @@ public class Politician extends Robot {
         killHungryTarget = -1;
         extremeAggression = false;
 
+        empowerRangeEnemies = rc.senseNearbyRobots(MAX_EMPOWER, them);
+
         updateExploreTask();
         Politician.updateTargetHQ();
         updateTargetMuckraker();
@@ -128,86 +131,103 @@ public class Politician extends Robot {
             return;
         }
 
+        if (curAllyBuff >= 5 && myDamage >= 1000 && empowerRangeEnemies.length >= 8) {
+            log("[BIG BUFF EMPOWER]");
+            Actions.doEmpower(MAX_EMPOWER);
+        }
+
+        if (myDamage >= 100000 && empowerRangeEnemies.length >= 8) {
+            log("[WAVE CLEAR EMPOWER]");
+            Actions.doEmpower(MAX_EMPOWER);
+        }
+
         //If next to our HQ, no friendly units, and large empower buff, blow up.
         //Require a profit of 4
-        if (buildKillPoliticians(0) && myDamage > myConviction + GameConstants.EMPOWER_TAX) {
-            RobotInfo[] adjRobots = rc.senseNearbyRobots(1);
-            boolean shouldSuicide = true;
-            boolean nextToHQ = false;
-            for (RobotInfo ri: adjRobots) {
-                if (ri.team == us) {
-                    if (ri.type == RobotType.ENLIGHTENMENT_CENTER && ri.influence < 0.5 * GameConstants.ROBOT_INFLUENCE_LIMIT) {
-                        nextToHQ = true;
-                    } else {
-                        shouldSuicide = false;
+        if (checkMinSuicideProfit(myDamage, myConviction)) {
+            RobotInfo adjHQ = null;
+            RobotInfo[] adjAllies = rc.senseNearbyRobots(1, us);
+            for (int i = adjAllies.length; --i >= 0;) {
+                RobotInfo ri = adjAllies[i];
+                if (ri.type == RobotType.ENLIGHTENMENT_CENTER && ri.influence < 0.5 * GameConstants.ROBOT_INFLUENCE_LIMIT) {
+                    adjHQ = ri;
+                }
+            }
+
+            // only empower if we contribute significantly to hq's influence
+            if (adjHQ != null && myDamage >= adjHQ.influence) {
+                // find other potential suiciders
+                RobotInfo[] adj2HQ = rc.senseNearbyRobots(adjHQ.location, 1, us);
+                int bestAllyPoli = 0;
+                for (int i = adj2HQ.length; --i >= 0;) {
+                    RobotInfo ri = adj2HQ[i];
+                    if (ri.type == RobotType.POLITICIAN && (getStatusFromFlag(rc.getFlag(ri.ID)) & 8) == 0) { // politicians
+                        bestAllyPoli = Math.max(bestAllyPoli, ri.conviction);
+                    }
+                }
+                bestAllyPoli = getDamage(bestAllyPoli, curAllyBuff);
+                if (myDamage > 0.5 * bestAllyPoli) {
+                    if (curAllyBuff >= adjAllies.length * SELF_EMPOWER_MIN_PROFIT_RATIO) {
+                        rc.empower(1);
+                        return;
+                    } else if (age <= 18) {
+                        return; // Wait a few turns, hopefully the other units move away
                     }
                 }
             }
-            if (rc.getEmpowerFactor(us, 0) >= 5) {
-                shouldSuicide = true;
-            }
-            //System.out.println("shouldSuicide: "+ shouldSuicide + ", adjHQ="+nextToHQ + ", alive for" + (roundNum - spawnRound));
-            if (shouldSuicide && nextToHQ) {
-                rc.empower(1);
-                return;
-            } else if (nextToHQ && age <= 18) {
-                //Wait a few turns, hopefully the other units move away
-                return;
-            }
         }
 
-        if(myRole == ROLE_ATTACK) {
-            // target hq
-            if (targetHQIndex != -1) {
-                noTargetHQTimer = 0;
-                tryAttackChase(targetHQLoc, false, true);
-                return;
-            }
+        switch (myRole) {
+            case ROLE_ATTACK:
+                // target hq
+                if (targetHQIndex != -1) {
+                    noTargetHQTimer = 0;
+                    tryAttackChase(targetHQLoc, true);
+                    return;
+                }
 
-            noTargetHQTimer++;
-
-            log("Aggression timer " + noTargetHQTimer);
-            if (noTargetHQTimer >= 100) {
-                tlog("EXTREME AGGRESSION");
-                extremeAggression = true;
-            }
-
-            // target enemy muckrakers
-            if (closestEnemyMuckraker != null) {
-                tryAttackChase(closestEnemyMuckraker, true,false);
-                return;
-            } else {
                 noTargetHQTimer++;
-            }
 
-            // target any enemies
-            if (extremeAggression && closestEnemy != null) {
-                tryAttackChase(closestEnemy, false, false); // just assume it is muckraker
-                return;
-            }
+                log("Aggression timer " + noTargetHQTimer);
+                if (noTargetHQTimer >= 100) {
+                    tlog("EXTREME AGGRESSION");
+                    extremeAggression = true;
+                }
 
-            // if no target
-            explore(true);
-            return;
-        }
-        else if (myRole == ROLE_DEFEND) {
-            if (closestEnemyMuckraker != null) {
-                killHungryTarget = rc.senseRobotAtLocation(closestEnemyMuckraker).ID;
-                tryAttackChase(closestEnemyMuckraker, true, false);
+                // target enemy muckrakers
+                if (closestEnemyMuckraker != null) {
+                    tryAttackChase(closestEnemyMuckraker, false);
+                    return;
+                } else {
+                    noTargetHQTimer++;
+                }
+
+                // target any enemies
+                if (extremeAggression && closestEnemy != null) {
+                    tryAttackChase(closestEnemy, false); // just assume it is muckraker
+                    return;
+                }
+
+                // if no target
+                explore(true);
                 return;
-            }
-            if (muckrakerAttackLocation != null) {
-                if(rc.canSenseLocation(muckrakerAttackLocation)) muckrakerAttackLocation = null;
-                else tryChase(muckrakerAttackLocation, true);
-            }
-            // no seen muckrakers
-            makePoliLattice(getCenterLoc(), 4, POLI_MIN_CORNER_DIST);
-//            wander(POLITICIAN_WANDER_RADIUS);
-//            bounce(MAX_EMPOWER);
-            return;
-        } else if (myRole == ROLE_EXPLORE) {
-            explore(isBugScout);
-            return;
+
+
+            case ROLE_DEFEND:
+                // attack closest muckraker
+                if (closestEnemyMuckraker != null) {
+                    killHungryTarget = rc.senseRobotAtLocation(closestEnemyMuckraker).ID;
+                    tryAttackChase(closestEnemyMuckraker, false);
+                    return;
+                }
+
+                // no seen muckrakers
+                makePoliLattice(getCenterLoc(), 4, POLI_MIN_CORNER_DIST);
+                return;
+
+
+            case ROLE_EXPLORE:
+                explore(isBugScout);
+                return;
         }
     }
 
@@ -324,18 +344,17 @@ public class Politician extends Robot {
         log("Closest enemy: " + closestEnemy);
     }
 
-    public static void tryAttackChase(MapLocation targetLoc, boolean checkBigEmpower, boolean useBug) throws GameActionException {
-        if (tryAttack(targetLoc, checkBigEmpower) == -1) {
+    public static void tryAttackChase(MapLocation targetLoc, boolean useBug) throws GameActionException {
+        if (tryAttack(targetLoc) == -1) {
             tryChase(targetLoc, useBug);
         }
     }
 
-    public static int tryAttack(MapLocation targetLoc, boolean checkBigEmpower) throws GameActionException {
+    public static int tryAttack(MapLocation targetLoc) throws GameActionException {
         log("Trying attack");
         if (targetLoc != null) {
             int dist = here.distanceSquaredTo(targetLoc);
             if (dist <= MAX_EMPOWER) {
-                // todo improve empower logic to hit multiple muckrakers
                 tlog("Empower dist " + dist);
                 if (shouldEmpower(dist)) {
                     Actions.doEmpower(dist);
@@ -524,7 +543,7 @@ public class Politician extends Robot {
             if (dmg > ri.conviction) {
                 score += 10 * dmg;
             } else {
-                score += dmg;
+                score += 0.5 * dmg;
             }
         }
 
@@ -539,54 +558,6 @@ public class Politician extends Robot {
             score += 1e6;
         }
         return score;
-    }
-
-    public static void bounce(int bounceRadius) throws GameActionException {
-        // search through all allies
-        MapLocation closestAllyPolitician = null;
-        int bestDist = P_INF;
-        RobotInfo[] closeAllies = rc.senseNearbyRobots(bounceRadius, us);
-        for (int i = closeAllies.length; --i >= 0;) {
-            RobotInfo ri = closeAllies[i];
-            if (ri.type == RobotType.POLITICIAN
-                && ((getStatusFromFlag(rc.getFlag(ri.ID)) & 8) == 0)) {
-                int dist = here.distanceSquaredTo(ri.location);
-                if (dist < bestDist) {
-                    closestAllyPolitician = ri.location;
-                    bestDist = dist;
-                }
-            }
-        }
-//        double myX = here.x;
-//        double myY = here.y;
-//        double dx = 0;
-//        double dy = 0;
-//        int minDist = P_INF;
-//        for (int i = sensedAllies.length; --i >= 0;) {
-//            RobotInfo ri = sensedAllies[i];
-//            if (ri.type == RobotType.POLITICIAN) {
-//                int dist = here.distanceSquaredTo(ri.location);
-//                minDist = Math.min(dist, minDist);
-//                dx += (myX - ri.location.x) / dist; // this gets weaker as distance gets further
-//                dy += (myY - ri.location.y) / dist;
-//            }
-//        }
-
-        // move away from closest ally politician
-        if (closestAllyPolitician != null) {
-            fuzzyAway(closestAllyPolitician);
-            return;
-        } else {
-            wander(POLITICIAN_WANDER_RADIUS, POLI_MIN_CORNER_DIST, true);
-//            if (myMasterLoc != null) {
-//                fuzzyTo(myMasterLoc);
-//                return;
-//            } else {
-//                fuzzyTo(spawnLoc);
-//                return;
-//            }
-        }
-
     }
 
     final public static int POLITICIAN_WANDER_RADIUS = 8;

@@ -93,6 +93,7 @@ public class Muckraker extends Robot {
                 // read ally messages that are super close
                 // this checks if an ally has already reported the 'surround' status
                 checkLocalSurround();
+                tryCircleHQ();
 
                 return;
             } else if (here.isWithinDistanceSquared(targetHQLoc, MEDIUM_CLOSE_ENEMY_HQ_DIST)) {

@@ -89,6 +89,8 @@ public class Comms {
     final public static int REPORT_NOT_SURROUNDED_MSG = 28 << TYPE_OFFSET;
     final public static int REPORT_ENEMY_MUCKRAKER_MSG = 29 << TYPE_OFFSET;
 
+    final public static int RICH_MSG = 30 << TYPE_OFFSET;
+
 
 
     // constants for coordinates
@@ -264,6 +266,11 @@ public class Comms {
             case REPORT_ENEMY_MUCKRAKER_MSG:
                 readReportEnemyMuckraker(msgInfo);
                 break;
+
+            case RICH_MSG:
+                readRich(msgInfo);
+                break;
+
             default:
                 logi("ERROR: Unknown msgType " + msgType);
                 break;
@@ -780,5 +787,21 @@ public class Comms {
                 writeEchoEnemyMuckraker(loc);
             }
         }
+    }
+
+    public static void writeRich(int round) throws GameActionException {
+        log("Writing 'Rich' message " + round);
+        Message msg = new Message(RICH_MSG, round);
+        queueMessage(msg, true);
+    }
+
+    public static void readRich(int msgInfo) throws GameActionException {
+        int round = msgInfo;
+
+        if (shouldReportRichStatus() && myType == RobotType.ENLIGHTENMENT_CENTER) {
+            writeRich(round);
+        }
+
+        lastRichRound = round;
     }
 }

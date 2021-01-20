@@ -113,6 +113,9 @@ public class Message {
             case REPORT_ENEMY_MUCKRAKER_MSG:
                 str += "[REP EMUCK] " + bits2loc(info); break;
 
+            case RICH_MSG:
+                str += "[RICH] " + info; break;
+
 
             default:
                 str += type + " " + info + " " + repeat; break;

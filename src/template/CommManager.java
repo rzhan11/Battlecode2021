@@ -172,7 +172,7 @@ public class CommManager {
             return;
         }
 
-        if (urgent) {
+        if (urgent && msgQueueCount > 0) {
             int index = (msgQueueIndex - 1 + QUEUE_LEN) % QUEUE_LEN;
             msgQueue[index] = msgQueue[msgQueueIndex];
             msgQueue[msgQueueIndex] = msg;

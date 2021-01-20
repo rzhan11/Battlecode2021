@@ -113,6 +113,9 @@ public abstract class Robot extends Constants {
     public static int myInfluence;
     public static int myConviction;
 
+    public static double curAllyBuff;
+    public static double curEnemyBuff;
+
     public static RobotInfo[] sensedRobots;
     public static RobotInfo[] sensedAllies;
     public static RobotInfo[] sensedEnemies;
@@ -133,26 +136,6 @@ public abstract class Robot extends Constants {
 
     public static int myMaster = -1;
     public static MapLocation myMasterLoc = null;
-
-    public static MapLocation[] hqLocs = new MapLocation[MAX_HQ_COUNT];
-    public static Message[] hqBroadcasts = new Message[MAX_HQ_COUNT]; // only used if myType == HQ
-    // not guaranteed to be accurate, however if hqIDs[i] is known, then hqTeams[i] should be accurate
-    public static Team[] hqTeams = new Team[MAX_HQ_COUNT];
-    public static int[] hqIDs = new int[MAX_HQ_COUNT];
-    public static int[] hqInfluence = new int[MAX_HQ_COUNT];
-    public static int[] hqSurroundRounds = new int[MAX_HQ_COUNT];
-    public static int[] hqReportSurroundRounds = new int[MAX_HQ_COUNT];
-    public static int[] hqIgnoreRounds = new int[MAX_HQ_COUNT];
-    public static int knownHQCount = 0;
-
-    public static MapLocation[] symHQLocs = new MapLocation[3 * MAX_HQ_COUNT];
-    public static Symmetry[] symHQType = new Symmetry[3 * MAX_HQ_COUNT];
-    public static int symHQCount = 0;
-
-    // ALLY hq ids that we know and want to read from
-    // but we don't know their locs
-    public static int[] extraAllyHQs = new int[MAX_HQ_COUNT];
-    public static int extraAllyHQCount = 0;
 
     public static MapLocation alertEnemyMuckraker;
     public static int alertEnemyMuckrakerRound;
@@ -239,6 +222,9 @@ public abstract class Robot extends Constants {
         myPassability = rc.sensePassability(here);
         myInfluence = rc.getInfluence();
         myConviction = rc.getConviction();
+
+        curAllyBuff = rc.getEmpowerFactor(us, 0);
+        curEnemyBuff = rc.getEmpowerFactor(them, 0);
 
         sensedRobots = rc.senseNearbyRobots();
         sensedAllies = rc.senseNearbyRobots(-1, us);
@@ -636,12 +622,35 @@ public abstract class Robot extends Constants {
         }
     }
 
-    public static boolean buildKillPoliticians(int roundsInFuture) {
-        final double BUFF_CUTOFF = 1.8;
-        double buff = rc.getEmpowerFactor(rc.getTeam(), roundsInFuture);
-        return buff>=BUFF_CUTOFF;
+//    public static boolean buildKillPoliticians(int roundsInFuture) {
+//        double buff = rc.getEmpowerFactor(rc.getTeam(), roundsInFuture);
+//        return buff >= SELF_EMPOWER_MIN_BUFF;
+//    }
 
+    // checks if we have the minimum amt of profit
+    public static boolean checkMinSuicideProfit(int damage, int base) {
+        return damage >= base * SELF_EMPOWER_MIN_PROFIT_RATIO;
     }
+
+    public static int getDamage(int conviction, double buff) {
+        return (int) (conviction * buff - GameConstants.EMPOWER_TAX);
+    }
+
+    final public static int RICH_MEMORY = 25;
+    final public static int RICH_UPDATE_FREQ = 10;
+
+    final public static int RICH_THRESHOLD = 100000; // 1e5
+
+    public static int lastRichRound = -100;
+
+    public static boolean checkRichStatus() {
+        return roundNum - lastRichRound <= RICH_MEMORY;
+    }
+
+    public static boolean shouldReportRichStatus() {
+        return roundNum - lastRichRound >= RICH_UPDATE_FREQ;
+    }
+
     /*
     Run at the end of each turn
     Checks if we exceeded the bytecode limit

@@ -18,6 +18,27 @@ public class HQTracker {
     final public static int IGNORE_MEMORY = 100;
     final public static int DEFAULT_IGNORE = -100;
 
+
+    public static MapLocation[] hqLocs = new MapLocation[MAX_HQ_COUNT];
+    public static Message[] hqBroadcasts = new Message[MAX_HQ_COUNT]; // only used if myType == HQ
+    // not guaranteed to be accurate, however if hqIDs[i] is known, then hqTeams[i] should be accurate
+    public static Team[] hqTeams = new Team[MAX_HQ_COUNT];
+    public static int[] hqIDs = new int[MAX_HQ_COUNT];
+    public static int[] hqInfluence = new int[MAX_HQ_COUNT];
+    public static int[] hqSurroundRounds = new int[MAX_HQ_COUNT];
+    public static int[] hqReportSurroundRounds = new int[MAX_HQ_COUNT];
+    public static int[] hqIgnoreRounds = new int[MAX_HQ_COUNT];
+    public static int knownHQCount = 0;
+
+    public static MapLocation[] symHQLocs = new MapLocation[3 * MAX_HQ_COUNT];
+    public static Symmetry[] symHQType = new Symmetry[3 * MAX_HQ_COUNT];
+    public static int symHQCount = 0;
+
+    // ALLY hq ids that we know and want to read from
+    // but we don't know their locs
+    public static int[] extraAllyHQs = new int[MAX_HQ_COUNT];
+    public static int extraAllyHQCount = 0;
+
     public static void updateKnownHQs() throws GameActionException {
         // add myself to hqinfo
         if (age == 0 && myType == RobotType.ENLIGHTENMENT_CENTER) {

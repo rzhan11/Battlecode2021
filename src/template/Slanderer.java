@@ -4,6 +4,7 @@ import battlecode.common.*;
 
 import static template.Comms.*;
 import static template.Debug.*;
+import static template.HQTracker.*;
 import static template.Map.*;
 import static template.Nav.*;
 import static template.Utils.*;

@@ -5,7 +5,6 @@ import battlecode.common.*;
 import static template.Comms.*;
 import static template.Debug.*;
 import static template.HQTracker.*;
-import static template.Map.*;
 import static template.Nav.*;
 import static template.Utils.*;
 
@@ -38,9 +37,6 @@ public class Muckraker extends Robot {
     public static int targetHQID = -1;
     public static int minDistToTargetHQ = P_INF;
     public static int lastCloserRound = -1;
-
-    // for when we are medium close to targetHQ
-    public static boolean circleHQLeft;
 
     public static boolean useBug;
 
@@ -93,7 +89,7 @@ public class Muckraker extends Robot {
                 // read ally messages that are super close
                 // this checks if an ally has already reported the 'surround' status
                 checkLocalSurround();
-                tryCircleHQ();
+                tryCircleLoc(targetHQLoc);
 
                 return;
             } else if (here.isWithinDistanceSquared(targetHQLoc, MEDIUM_CLOSE_ENEMY_HQ_DIST)) {
@@ -106,7 +102,7 @@ public class Muckraker extends Robot {
                         return;
                     }
                 }
-                tryCircleHQ();
+                tryCircleLoc(targetHQLoc);
                 return;
             } else {
 //                if (useBug) {
@@ -268,41 +264,6 @@ public class Muckraker extends Robot {
         for (MapLocation loc: allDetectedLocs) {
             if (!rc.canSenseLocation(loc)) {
                 detectedLocs[count++] = loc;
-            }
-        }
-    }
-
-    public static Direction tryCircleHQ() throws GameActionException {
-        // try circling hq
-        Direction relativeLeft = getCircleDirLeft(here, targetHQLoc);
-        Direction relativeRight = getCircleDirRight(here, targetHQLoc);
-        if (circleHQLeft) {
-            if (isDirMoveable[dir2int(relativeLeft)]) {
-                log("Circle left");
-                Actions.doMove(relativeLeft);
-                return relativeLeft;
-            } else if (isDirMoveable[dir2int(relativeRight)]) {
-                log("Circle right, switched");
-                circleHQLeft = false;
-                Actions.doMove(relativeRight);
-                return relativeRight;
-            } else {
-                log("Tried circle left, stuck");
-                return null;
-            }
-        } else {
-            if (isDirMoveable[dir2int(relativeRight)]) {
-                log("Circle right");
-                Actions.doMove(relativeRight);
-                return relativeRight;
-            } else if (isDirMoveable[dir2int(relativeLeft)]) {
-                log("Circle left, switched");
-                circleHQLeft = true;
-                Actions.doMove(relativeLeft);
-                return relativeLeft;
-            } else {
-                log("Tried circle right, stuck");
-                return null;
             }
         }
     }

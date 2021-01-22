@@ -135,9 +135,19 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
-//        if (rc.getInfluence() >= RICH_THRESHOLD) {
-//            doRichBuild();
-//        }
+        if (rc.getInfluence() >= RICH_THRESHOLD) {
+            double randValue = random();
+//            if (randValue < 0.6) {
+                makeDefendPolitician();
+                return;
+//            } else if (randValue < 0.75) {
+//                makeAttackPolitician();
+//                return;
+//            } else if (randValue < 1.00) {
+//                makeMuckraker(false);
+//                return;
+//            }
+        }
 
         if (enemyMuckrakerCount > 0) {
             log("Emergency defense");
@@ -212,9 +222,8 @@ public class EnlightenmentCenter extends Robot {
     public static void updateRichStatus() throws GameActionException {
         if (rc.getInfluence() > RICH_THRESHOLD) {
             // if i wasn't rich or if its been a while since i reported my rich status
-            if (!checkRichStatus() || shouldReportRichStatus()) {
-                lastRichRound = roundNum;
-                writeRich(lastRichRound);
+            if (shouldReportRichStatus()) {
+                writeRich(roundNum);
             }
         }
     }
@@ -406,12 +415,8 @@ public class EnlightenmentCenter extends Robot {
         // make increasingly expensive muckers over time
         // if we can afford it, 50% chance we make an "expensive" muckraker
         if (!cheap) {
-            int targetConviction = (int) Math.ceil(1.0 * (age + 1) / 25);
-            int targetCost = RobotType.MUCKRAKER.getInfluenceCostForConviction(targetConviction);
-            if (targetCost < mySafetyBudget) {
-                if (random() < 0.5) {
-                    cost = targetCost;
-                }
+            if (mySafetyBudget > 100) {
+                cost = (int) Math.min(Math.ceil(1.0 * mySafetyBudget / 100), 10);
             }
 
             // if our empower factor is somewhat low
@@ -549,6 +554,7 @@ public class EnlightenmentCenter extends Robot {
 
         } else { // team = enemy
             cost = (int) Math.max(200, 0.5 * mySafetyBudget); // at least 200
+//            cost = Math.min(cost, 10000);
             if (cost > 0.8 * mySafetyBudget) return null;
 
             scoutDir = EXPLORE_DIRS[scoutCount % EXPLORE_DIRS.length];

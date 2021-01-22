@@ -32,11 +32,6 @@ public class Slanderer extends Robot {
 
     public static int MIN_SCARY_DIST = 7;
 
-    public static int slanderMaximumRadius = 18;
-    public static boolean hasHomeLoc = false;
-    public static MapLocation homeLoc = null;
-    final public static int SLANDERER_WANDER_MINIMUM_RADIUS = 8;
-
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
 
@@ -112,28 +107,11 @@ public class Slanderer extends Robot {
             makeSlanLattice(centerLoc, latticeDir, SLANDERER_MIN_LATTICE_DIST);
             return;
         } else {
-            // hide near hq
-            // else stay close to hq
-            logi("WARNING: 'hide' bad logic, shouldn't be here");
+            log("Default center hiding");
+            makeSlanLattice(centerLoc, Direction.CENTER, SLANDERER_MIN_LATTICE_DIST);
+
         }
 
-
-
-
-
-        // todo temporarily commented
-//        if(turnsSinceMucker == 0) {
-//            // Found Attacker - Broadcast location
-//            broadcastAttackMuckrakerLocation(closestMucker);
-//        }
-//        if(hasHomeLoc) {
-//            Direction dir = moveLog(homeLoc);
-//            if(dir == null) return;
-//            Actions.doMove(dir);
-//            return;
-//        }
-
-//        wander(SLANDERER_WANDER_MINIMUM_RADIUS);
     }
 
     public static void updateDanger() throws GameActionException {
@@ -200,33 +178,34 @@ public class Slanderer extends Robot {
         MapLocation centerLoc = (myMasterLoc != null) ? myMasterLoc : spawnLoc;
 
         bannedLatticeDirs = new boolean[8];
+        // todo TESTING
         if (XMIN != -1 && centerLoc.x - XMIN <= MIN_WALL_DIST) {
-            bannedLatticeDirs[4] = true; // s
+//            bannedLatticeDirs[4] = true; // s
             bannedLatticeDirs[5] = true; // sw
             bannedLatticeDirs[6] = true; // w
             bannedLatticeDirs[7] = true; // nw
-            bannedLatticeDirs[0] = true; // n
+//            bannedLatticeDirs[0] = true; // n
         }
         if (XMAX != -1 && XMAX - centerLoc.x <= MIN_WALL_DIST) {
-            bannedLatticeDirs[0] = true; // n
+//            bannedLatticeDirs[0] = true; // n
             bannedLatticeDirs[1] = true; // ne
             bannedLatticeDirs[2] = true; // e
             bannedLatticeDirs[3] = true; // se
-            bannedLatticeDirs[4] = true; // s
+//            bannedLatticeDirs[4] = true; // s
         }
         if (YMIN != -1 && centerLoc.y - YMIN <= MIN_WALL_DIST) {
-            bannedLatticeDirs[2] = true; // e
+//            bannedLatticeDirs[2] = true; // e
             bannedLatticeDirs[3] = true; // se
             bannedLatticeDirs[4] = true; // s
             bannedLatticeDirs[5] = true; // sw
-            bannedLatticeDirs[6] = true; // w
+//            bannedLatticeDirs[6] = true; // w
         }
         if (YMAX != -1 && YMAX - centerLoc.y <= MIN_WALL_DIST) {
-            bannedLatticeDirs[6] = true; // w
+//            bannedLatticeDirs[6] = true; // w
             bannedLatticeDirs[7] = true; // nw
             bannedLatticeDirs[0] = true; // n
             bannedLatticeDirs[1] = true; // ne
-            bannedLatticeDirs[2] = true; // e
+//            bannedLatticeDirs[2] = true; // e
         }
 
 //        log("[BANNED]");
@@ -238,13 +217,21 @@ public class Slanderer extends Robot {
     }
 
     public static Direction getClosestLatticeDir(Direction dir) {
-        Direction[] possDirs = getClosestDirs(dir);
-        for (int i = 0; i < 8; i++) {
-            if (!bannedLatticeDirs[dir2int(possDirs[i])]) {
-                return possDirs[i];
-            }
+        if (!bannedLatticeDirs[dir2int(dir)]) {
+            return dir;
         }
-        logi("WARNING: 'getClosestLatticeDir' forced to use center");
+
+        Direction leftDir = dir.rotateLeft();
+        if (!bannedLatticeDirs[dir2int(leftDir)]) {
+            return leftDir;
+        }
+
+        Direction rightDir = dir.rotateRight();
+        if (!bannedLatticeDirs[dir2int(rightDir)]) {
+            return rightDir;
+        }
+
+        log("Using center lattice");
         return Direction.CENTER;
     }
 

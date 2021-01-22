@@ -131,15 +131,15 @@ public class Politician extends Robot {
             return;
         }
 
-        if (curAllyBuff >= 5 && myDamage >= 1000 && empowerRangeEnemies.length >= 8) {
-            log("[BIG BUFF EMPOWER]");
-            Actions.doEmpower(MAX_EMPOWER);
-        }
-
-        if (myDamage >= 100000 && empowerRangeEnemies.length >= 8) {
-            log("[WAVE CLEAR EMPOWER]");
-            Actions.doEmpower(MAX_EMPOWER);
-        }
+//        if (curAllyBuff >= 5 && myDamage >= 1000 && empowerRangeEnemies.length >= 8) {
+//            log("[BIG BUFF EMPOWER]");
+//            Actions.doEmpower(MAX_EMPOWER);
+//        }
+//
+//        if (myDamage >= 100000 && empowerRangeEnemies.length >= 8) {
+//            log("[WAVE CLEAR EMPOWER]");
+//            Actions.doEmpower(MAX_EMPOWER);
+//        }
 
         //If next to our HQ, no friendly units, and large empower buff, blow up.
         //Require a profit of 4
@@ -178,56 +178,18 @@ public class Politician extends Robot {
 
         switch (myRole) {
             case ROLE_ATTACK:
-                // target hq
-                if (targetHQIndex != -1) {
-                    noTargetHQTimer = 0;
-                    tryAttackChase(targetHQLoc, true);
-                    return;
-                }
-
-                noTargetHQTimer++;
-
-                log("Aggression timer " + noTargetHQTimer);
-                if (noTargetHQTimer >= 100) {
-                    tlog("EXTREME AGGRESSION");
-                    extremeAggression = true;
-                }
-
-                // target enemy muckrakers
-                if (closestEnemyMuckraker != null) {
-                    tryAttackChase(closestEnemyMuckraker, false);
-                    return;
-                } else {
-                    noTargetHQTimer++;
-                }
-
-                // target any enemies
-                if (extremeAggression && closestEnemy != null) {
-                    tryAttackChase(closestEnemy, false); // just assume it is muckraker
-                    return;
-                }
-
-                // if no target
-                explore(true);
-                return;
+                doAttackRole();
+                break;
 
 
             case ROLE_DEFEND:
-                // attack closest muckraker
-                if (closestEnemyMuckraker != null) {
-                    killHungryTarget = rc.senseRobotAtLocation(closestEnemyMuckraker).ID;
-                    tryAttackChase(closestEnemyMuckraker, false);
-                    return;
-                }
-
-                // no seen muckrakers
-                makePoliLattice(getCenterLoc(), 4, POLI_MIN_CORNER_DIST);
-                return;
+                doDefendRole();
+                break;
 
 
             case ROLE_EXPLORE:
                 explore(isBugScout);
-                return;
+                break;
         }
     }
 
@@ -344,6 +306,87 @@ public class Politician extends Robot {
         log("Closest enemy: " + closestEnemy);
     }
 
+    public static void doAttackRole() throws GameActionException {
+
+        // target hq
+        if (targetHQIndex != -1) {
+            noTargetHQTimer = 0;
+
+            log("Trying attack");
+
+
+            int dist = here.distanceSquaredTo(targetHQLoc);
+            if (dist <= MAX_EMPOWER) {
+                // check if can kill
+                RobotInfo[] robots = rc.senseNearbyRobots(dist);
+                int dmg = myDamage / robots.length;
+                boolean canKillHQ = dmg > rc.senseRobot(targetHQID).conviction;
+                boolean shouldEmpower = false;
+                if (canKillHQ) {
+                    shouldEmpower = true;
+                }
+
+                if (shouldEmpower) {
+                    Actions.doEmpower(dist);
+                    return;
+                } else {
+                    // try moving closer
+                    log("Getting to better position");
+                    if (dist == 1) {
+                        // try rotating
+                        Direction hqDir = here.directionTo(targetHQLoc);
+                        Direction leftDir = hqDir.rotateLeft();
+                        Direction rightDir = hqDir.rotateRight();
+                        if (isDirMoveable[dir2int(leftDir)])
+                            Actions.doMove(leftDir);
+                        else if(isDirMoveable[dir2int(rightDir)])
+                            Actions.doMove(rightDir);
+                        return;
+                    } else {
+                        Direction dir = tryCircleApproach(targetHQLoc);
+    //                moveLog(targetHQLoc);
+                        return;
+                    }
+                }
+            } else {
+                log("Moving closer");
+                Direction dir = fuzzyTo(targetHQLoc);
+                return;
+            }
+        }
+
+        noTargetHQTimer++;
+
+        log("Aggression timer " + noTargetHQTimer);
+        if (noTargetHQTimer >= 100) {
+            tlog("EXTREME AGGRESSION");
+            extremeAggression = true;
+        }
+
+        // target any enemies
+        if (extremeAggression && closestEnemy != null) {
+            tryAttackChase(closestEnemy, false); // just assume it is muckraker
+            return;
+        }
+
+        // if no target
+        explore(true);
+        return;
+    }
+
+    public static void doDefendRole() throws GameActionException {
+        // attack closest muckraker
+        if (closestEnemyMuckraker != null) {
+            killHungryTarget = rc.senseRobotAtLocation(closestEnemyMuckraker).ID;
+            tryAttackChase(closestEnemyMuckraker, false);
+            return;
+        }
+
+        // no seen muckrakers
+        makePoliLattice(getCenterLoc(), 4, POLI_MIN_CORNER_DIST);
+        return;
+    }
+
     public static void tryAttackChase(MapLocation targetLoc, boolean useBug) throws GameActionException {
         if (tryAttack(targetLoc) == -1) {
             tryChase(targetLoc, useBug);
@@ -356,7 +399,7 @@ public class Politician extends Robot {
             int dist = here.distanceSquaredTo(targetLoc);
             if (dist <= MAX_EMPOWER) {
                 tlog("Empower dist " + dist);
-                if (shouldEmpower(dist)) {
+                if (checkEmpower(dist)) {
                     Actions.doEmpower(dist);
                     return dist;
                 } else {
@@ -391,7 +434,7 @@ public class Politician extends Robot {
     /*
     Simply checks if we should empower at a given distance
      */
-    public static boolean shouldEmpower(int dist) throws GameActionException {
+    public static boolean checkEmpower(int dist) throws GameActionException {
         if (dist > MAX_EMPOWER) {
             return false;
         }

@@ -325,7 +325,6 @@ public abstract class Robot extends Constants {
         for (int i = knownHQCount; --i >= 0;) {
             int id = hqIDs[i];
             if (hqTeams[i] == us && id > 0) {
-                Debug.printBuffer();
                 if (id != myID && id != myMaster) {
                     Comms.readMessage(id);
                 }

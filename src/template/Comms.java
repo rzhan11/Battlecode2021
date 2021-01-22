@@ -230,10 +230,10 @@ public class Comms {
                 readHQInfo(msgInfo, neutral, 300, id);
                 break;
             case NEUTRAL_HQ_400_INFO_MSG:
-                readHQInfo(msgInfo, neutral, 300, id);
+                readHQInfo(msgInfo, neutral, 400, id);
                 break;
             case NEUTRAL_HQ_500_INFO_MSG:
-                readHQInfo(msgInfo, neutral, 300, id);
+                readHQInfo(msgInfo, neutral, 500, id);
                 break;
 
             case XBOUNDS_MSG:
@@ -790,6 +790,8 @@ public class Comms {
     }
 
     public static void writeRich(int round) throws GameActionException {
+        lastRichRound = round;
+
         log("Writing 'Rich' message " + round);
         Message msg = new Message(RICH_MSG, round);
         queueMessage(msg, true);
@@ -798,10 +800,12 @@ public class Comms {
     public static void readRich(int msgInfo) throws GameActionException {
         int round = msgInfo;
 
-        if (shouldReportRichStatus() && myType == RobotType.ENLIGHTENMENT_CENTER) {
-            writeRich(round);
+        if (round > lastRichRound) {
+            if (shouldReportRichStatus() && myType == RobotType.ENLIGHTENMENT_CENTER) {
+                writeRich(round);
+            }
+            lastRichRound = round;
         }
 
-        lastRichRound = round;
     }
 }

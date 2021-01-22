@@ -264,4 +264,75 @@ public class Nav {
         }
         return bestDir;
     }
+
+    // for when we are medium close to targetHQ
+    public static boolean circleHQLeft;
+
+
+    public static Direction tryCircleApproach(MapLocation centerLoc) throws GameActionException {
+        log("Circle to " + centerLoc);
+
+        double curRootDist = Math.sqrt(here.distanceSquaredTo(centerLoc));
+        int curMaxXY = Math.max(Math.abs(here.x - centerLoc.x), Math.abs(here.y - centerLoc.y));
+
+        Direction bestDir = null;
+        double bestSpeed = N_INF;
+        for (int i = 8; --i >= 0;) { // 7->0
+            Direction dir = DIRS[i];
+            if (isDirMoveable[dir2int(dir)]) {
+                MapLocation adjLoc = rc.adjacentLocation(dir);
+                int maxXY = Math.max(Math.abs(adjLoc.x - centerLoc.x), Math.abs(adjLoc.y - centerLoc.y));
+                if (maxXY < curMaxXY) {
+                    double rootDist = Math.sqrt(centerLoc.distanceSquaredTo(adjLoc));
+                    double speed = (curRootDist - rootDist) / (1 + 1 / rc.sensePassability(adjLoc));
+                    if (speed > bestSpeed) {
+                        bestDir = dir;
+                        bestSpeed = speed;
+                    }
+                }
+            }
+        }
+
+        if (bestSpeed > 0) {
+            Actions.doMove(bestDir);
+            return bestDir;
+        } else {
+            return tryCircleLoc(centerLoc);
+        }
+    }
+
+    public static Direction tryCircleLoc(MapLocation centerLoc) throws GameActionException {
+        // try circling hq
+        Direction relativeLeft = getCircleDirLeft(here, centerLoc);
+        Direction relativeRight = getCircleDirRight(here, centerLoc);
+        if (circleHQLeft) {
+            if (isDirMoveable[dir2int(relativeLeft)]) {
+                log("Circle left");
+                Actions.doMove(relativeLeft);
+                return relativeLeft;
+            } else if (isDirMoveable[dir2int(relativeRight)]) {
+                log("Circle right, switched");
+                circleHQLeft = false;
+                Actions.doMove(relativeRight);
+                return relativeRight;
+            } else {
+                log("Tried circle left, stuck");
+                return null;
+            }
+        } else {
+            if (isDirMoveable[dir2int(relativeRight)]) {
+                log("Circle right");
+                Actions.doMove(relativeRight);
+                return relativeRight;
+            } else if (isDirMoveable[dir2int(relativeLeft)]) {
+                log("Circle left, switched");
+                circleHQLeft = true;
+                Actions.doMove(relativeLeft);
+                return relativeLeft;
+            } else {
+                log("Tried circle right, stuck");
+                return null;
+            }
+        }
+    }
 }

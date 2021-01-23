@@ -5,6 +5,7 @@ import battlecode.common.*;
 import static template.Comms.*;
 import static template.Debug.*;
 import static template.HQTracker.*;
+import static template.Map.*;
 import static template.Nav.*;
 import static template.Utils.*;
 
@@ -40,10 +41,18 @@ public class Muckraker extends Robot {
 
     public static boolean useBug;
 
+    public static boolean isRandomExplorer;
+    public static Direction heading;
+
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
         initExploreTask();
         useBug = (random() < 0.5);
+
+        isRandomExplorer = (roundNum < 50 && random() < 0.1);
+        if (isRandomExplorer) {
+            heading = getRandomDirCenter();
+        }
     }
 
     // code run each turn
@@ -81,30 +90,34 @@ public class Muckraker extends Robot {
             return;
         }
 
-        // move towards targetHQ
-        if (targetHQLoc != null) {
-            if (here.isWithinDistanceSquared(targetHQLoc, VERY_CLOSE_ENEMY_HQ_DIST)) {
-                log("Very close to targetHQ");
+        if (isRandomExplorer) {
+            explore(false);
+            return;
+        } else {
+            // move towards targetHQ
+            if (targetHQLoc != null) {
+                if (here.isWithinDistanceSquared(targetHQLoc, VERY_CLOSE_ENEMY_HQ_DIST)) {
+                    log("Very close to targetHQ");
 
-                // read ally messages that are super close
-                // this checks if an ally has already reported the 'surround' status
-                checkLocalSurround();
-                tryCircleLoc(targetHQLoc);
+                    // read ally messages that are super close
+                    // this checks if an ally has already reported the 'surround' status
+                    checkLocalSurround();
+                    tryCircleLoc(targetHQLoc);
 
-                return;
-            } else if (here.isWithinDistanceSquared(targetHQLoc, MEDIUM_CLOSE_ENEMY_HQ_DIST)) {
-                log("Medium close to targetHQ");
-                // try going very close
-                for (int i = DIRS.length; --i >= 0;) {
-                    if (isDirMoveable[i] && targetHQLoc.isWithinDistanceSquared(rc.adjacentLocation(DIRS[i]), VERY_CLOSE_ENEMY_HQ_DIST)) {
-                        tlog("Moving very close");
-                        Actions.doMove(DIRS[i]);
-                        return;
+                    return;
+                } else if (here.isWithinDistanceSquared(targetHQLoc, MEDIUM_CLOSE_ENEMY_HQ_DIST)) {
+                    log("Medium close to targetHQ");
+                    // try going very close
+                    for (int i = DIRS.length; --i >= 0;) {
+                        if (isDirMoveable[i] && targetHQLoc.isWithinDistanceSquared(rc.adjacentLocation(DIRS[i]), VERY_CLOSE_ENEMY_HQ_DIST)) {
+                            tlog("Moving very close");
+                            Actions.doMove(DIRS[i]);
+                            return;
+                        }
                     }
-                }
-                tryCircleLoc(targetHQLoc);
-                return;
-            } else {
+                    tryCircleLoc(targetHQLoc);
+                    return;
+                } else {
 //                if (useBug) {
 //                    log("Bugging to targetHQ");
 //                    moveLog(targetHQLoc);
@@ -112,12 +125,13 @@ public class Muckraker extends Robot {
                     log("Fuzzy to targetHQ");
                     fuzzyTo(targetHQLoc);
 //                }
-                return;
+                    return;
+                }
             }
-        }
 
-        explore(useBug);
-        return;
+            explore(useBug);
+            return;
+        }
     }
 
     public static void updateEnemies() throws GameActionException {

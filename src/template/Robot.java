@@ -539,6 +539,10 @@ public abstract class Robot extends Constants {
             if (defaultExploreTaskDir == Direction.CENTER) {
                 defaultExploreTaskDir = getRandomDir();
             } else {
+//                Direction oldDir = defaultExploreTaskDir;
+//                do {
+//                    defaultExploreTaskDir = getRandomDirCenter();
+//                } while (oldDir == defaultExploreTaskDir);
                 if (random() < 0.25) { // 1/4 chance that we pick center
                     log("Exploring center");
                     defaultExploreTaskDir = Direction.CENTER;

@@ -604,7 +604,7 @@ public class Politician extends Robot {
     }
 
     final public static int POLITICIAN_WANDER_RADIUS = 8;
-    final public static int POLI_MIN_CORNER_DIST = 40;
+    final public static int POLI_MIN_CORNER_DIST = 25;
 
     public static Direction lockedLatticeDir = null;
 

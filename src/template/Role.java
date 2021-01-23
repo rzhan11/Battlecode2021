@@ -219,18 +219,8 @@ public enum Role {
 
         // cap spawn count
         if (MUCK_ROLE.count >= MUCK_CAP) MUCK_ROLE.score = P_INF;
-        if (rc.getInfluence() > 0.1 * GameConstants.ROBOT_INFLUENCE_LIMIT) MUCK_ROLE.score = P_INF;
 
         if (SLAN_ROLE.count >= SLAN_CAP) SLAN_ROLE.score = P_INF;
-        if (checkRichStatus()) SLAN_ROLE.score = P_INF;
-        // check most recent suicide poli
-        if (roundNum - lastSuicideSpawnRound <= SELF_EMPOWER_DELAY && rc.canSenseRobot(lastSuicideID)) {
-            int oldWaitRounds = SELF_EMPOWER_DELAY - (roundNum - lastSuicideSpawnRound);
-            int oldDamage = getDamage(rc.senseRobot(lastSuicideID).conviction, rc.getEmpowerFactor(us, oldWaitRounds));
-            if (oldDamage > RICH_THRESHOLD) {
-                SLAN_ROLE.score = P_INF;
-            }
-        }
 
         log("BUILD SCORES");
         for (Role role: ROLE_ORDER) {

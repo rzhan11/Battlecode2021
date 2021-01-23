@@ -82,9 +82,6 @@ public class EnlightenmentCenter extends Robot {
     // code run each turn
     public static void turn() throws GameActionException {
         //
-        updateRichStatus();
-
-        //
         updateRoleCounts();
         processMessages();
 
@@ -119,34 +116,13 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
-        // must be after updateRichStatus, updateNeutrals
+        // must be after updateNeutrals
         updateRoleScores();
-
-        { // try building suicide politician if needed
-            Direction dir = checkBuildSuicidePolitician();
-            if (dir != null) {
-                return;
-            }
-        }
 
         // spawn muck scouts
         if (scoutCount < EXPLORE_DIRS.length) {
             Direction dir = makeMuckraker(true);
             return;
-        }
-
-        if (rc.getInfluence() >= RICH_THRESHOLD) {
-            double randValue = random();
-//            if (randValue < 0.6) {
-                makeDefendPolitician();
-                return;
-//            } else if (randValue < 0.75) {
-//                makeAttackPolitician();
-//                return;
-//            } else if (randValue < 1.00) {
-//                makeMuckraker(false);
-//                return;
-//            }
         }
 
         if (enemyMuckrakerCount > 0) {
@@ -218,16 +194,6 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
     }
-
-    public static void updateRichStatus() throws GameActionException {
-        if (rc.getInfluence() > RICH_THRESHOLD) {
-            // if i wasn't rich or if its been a while since i reported my rich status
-            if (shouldReportRichStatus()) {
-                writeRich(roundNum);
-            }
-        }
-    }
-
     // for hqs only
     public static Direction[] getExploreDirs() {
         if (XMIN != -1) {
@@ -333,7 +299,7 @@ public class EnlightenmentCenter extends Robot {
         enemyPoliticianDanger = 0;
         for (int i = enemyPoliticianCount; --i >= 0;) {
             // u have to deal conviction + 1 damage to kill
-            enemyPoliticianDanger += Math.max(enemyPoliticians[i].conviction * enemyRatio - GameConstants.EMPOWER_TAX, 0);
+            enemyPoliticianDanger += getDamage(enemyPoliticians[i].conviction, enemyRatio);
         }
     }
 
@@ -571,72 +537,15 @@ public class EnlightenmentCenter extends Robot {
         return buildDir;
     }
 
-    // we must wait this many rounds between self-empowering
-    final public static int SELF_EMPOWER_DELAY = (int) Math.ceil(1 + RobotType.POLITICIAN.initialCooldown); // needs to be 11 + 1, cuz of turn order (i think lol)
-    // if we can make a new suicide politician with a lot more profit than our old suicide poli, then do it
-    final public static double MIN_SELF_EMPOWER_IMPROVEMENT = 1.0;
-
-    public static Direction lastSuicideSpawnDir = null;
-    public static int lastSuicideSpawnRound = -100;
-    public static int lastSuicideID = -1;
-
-    public static Direction checkBuildSuicidePolitician() throws GameActionException {
-        double futureBuff = rc.getEmpowerFactor(us, (int) (1 + RobotType.POLITICIAN.initialCooldown));
-        if (futureBuff >= SELF_EMPOWER_MIN_PROFIT_RATIO) {
-            // makes sure we dont already have a ridiculous amt of influence
-            if (rc.getInfluence() < 0.5 * GameConstants.ROBOT_INFLUENCE_LIMIT) {
-                int futureDamage = getDamage(mySafetyBudget, futureBuff);
-                // ensures we make a min profit of approx 1.2 times
-                if (checkMinSuicideProfit(futureDamage, mySafetyBudget)) {
-                    int oldDamage = 0;
-                    if (roundNum - lastSuicideSpawnRound <= SELF_EMPOWER_DELAY && rc.canSenseRobot(lastSuicideID)) {
-                        int oldWaitRounds = SELF_EMPOWER_DELAY - (roundNum - lastSuicideSpawnRound);
-                        oldDamage = getDamage(rc.senseRobot(lastSuicideID).conviction, rc.getEmpowerFactor(us, oldWaitRounds));
-                    }
-                    if (futureDamage >= oldDamage * MIN_SELF_EMPOWER_IMPROVEMENT) {
-                        // also makes a better profit than old politicians
-                        return makeSuicidePolitician();
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    public static Direction makeSuicidePolitician() throws GameActionException {
-        int cost = (int) Math.min(mySafetyBudget,
-                GameConstants.ROBOT_INFLUENCE_LIMIT / (4 * rc.getEmpowerFactor(us, 11)));
-
-        log("Trying to build a suicide politician");
-        for (Direction dir: CARD_DIRS) {
-            MapLocation adjLoc = rc.adjacentLocation(dir);
-            if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
-                CommManager.setStatus(dir2int(dir), true);
-                Actions.doBuildRobot(RobotType.POLITICIAN, dir, cost);
-                log("Made suicide politician");
-                // saving suicide poli info
-                RobotInfo ri = rc.senseRobotAtLocation(adjLoc);
-                lastSuicideSpawnDir = dir;
-                lastSuicideSpawnRound = roundNum;
-                lastSuicideID = ri.ID;
-                return dir;
-            }
-        }
-        return null;
-    }
-
     public static Direction tryBuild(RobotType rt, Direction bestDir, int cost, Role role) throws GameActionException {
         Direction[] checkDirs = getClosestDirs(bestDir);
         // find direction to build
-        Direction reservedDir = (roundNum - lastSuicideSpawnRound <= SELF_EMPOWER_DELAY) ? lastSuicideSpawnDir : null;
         for (Direction dir: checkDirs) {
-            if (reservedDir == null || getDirSimilarity(dir, reservedDir) > 1) {
-                MapLocation adjLoc = here.add(dir);
-                if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
-                    Actions.doBuildRobot(rt, dir, cost);
-                    addRole(role, rc.senseRobotAtLocation(adjLoc));
-                    return dir;
-                }
+            MapLocation adjLoc = here.add(dir);
+            if (rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc)) {
+                Actions.doBuildRobot(rt, dir, cost);
+                addRole(role, rc.senseRobotAtLocation(adjLoc));
+                return dir;
             }
         }
         return null;

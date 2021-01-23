@@ -141,41 +141,6 @@ public class Politician extends Robot {
 //            Actions.doEmpower(MAX_EMPOWER);
 //        }
 
-        //If next to our HQ, no friendly units, and large empower buff, blow up.
-        //Require a profit of 4
-        if (checkMinSuicideProfit(myDamage, myConviction)) {
-            RobotInfo adjHQ = null;
-            RobotInfo[] adjAllies = rc.senseNearbyRobots(1, us);
-            for (int i = adjAllies.length; --i >= 0;) {
-                RobotInfo ri = adjAllies[i];
-                if (ri.type == RobotType.ENLIGHTENMENT_CENTER && ri.influence < 0.5 * GameConstants.ROBOT_INFLUENCE_LIMIT) {
-                    adjHQ = ri;
-                }
-            }
-
-            // only empower if we contribute significantly to hq's influence
-            if (adjHQ != null && myDamage >= adjHQ.influence) {
-                // find other potential suiciders
-                RobotInfo[] adj2HQ = rc.senseNearbyRobots(adjHQ.location, 1, us);
-                int bestAllyPoli = 0;
-                for (int i = adj2HQ.length; --i >= 0;) {
-                    RobotInfo ri = adj2HQ[i];
-                    if (ri.type == RobotType.POLITICIAN && (getStatusFromFlag(rc.getFlag(ri.ID)) & 8) == 0) { // politicians
-                        bestAllyPoli = Math.max(bestAllyPoli, ri.conviction);
-                    }
-                }
-                bestAllyPoli = getDamage(bestAllyPoli, curAllyBuff);
-                if (myDamage > 0.5 * bestAllyPoli) {
-                    if (curAllyBuff >= adjAllies.length * SELF_EMPOWER_MIN_PROFIT_RATIO) {
-                        rc.empower(1);
-                        return;
-                    } else if (age <= 18) {
-                        return; // Wait a few turns, hopefully the other units move away
-                    }
-                }
-            }
-        }
-
         switch (myRole) {
             case ROLE_ATTACK:
                 doAttackRole();

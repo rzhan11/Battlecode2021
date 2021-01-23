@@ -625,33 +625,8 @@ public abstract class Robot extends Constants {
         }
     }
 
-//    public static boolean buildKillPoliticians(int roundsInFuture) {
-//        double buff = rc.getEmpowerFactor(rc.getTeam(), roundsInFuture);
-//        return buff >= SELF_EMPOWER_MIN_BUFF;
-//    }
-
-    // checks if we have the minimum amt of profit
-    public static boolean checkMinSuicideProfit(int damage, int base) {
-        return damage >= base * SELF_EMPOWER_MIN_PROFIT_RATIO;
-    }
-
     public static int getDamage(int conviction, double buff) {
-        return (int) (conviction * buff - GameConstants.EMPOWER_TAX);
-    }
-
-    final public static int RICH_MEMORY = 25;
-    final public static int RICH_UPDATE_FREQ = 10;
-
-    final public static int RICH_THRESHOLD = 100000; // 1e5
-
-    public static int lastRichRound = -100;
-
-    public static boolean checkRichStatus() {
-        return roundNum - lastRichRound <= RICH_MEMORY;
-    }
-
-    public static boolean shouldReportRichStatus() {
-        return roundNum - lastRichRound >= RICH_UPDATE_FREQ;
+        return (int) Math.max(0, (conviction - GameConstants.EMPOWER_TAX) * buff);
     }
 
     /*

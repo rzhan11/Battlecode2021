@@ -15,8 +15,8 @@ public class HQTracker {
     final public static int DEFAULT_SURROUND = -100;
     final public static int SURROUND_UPDATE_FREQ = 5;
 
-    final public static int IGNORE_MEMORY = 100;
-    final public static int DEFAULT_IGNORE = -100;
+    final public static int IGNORE_MEMORY = 150;
+    final public static int DEFAULT_IGNORE = -1000;
 
 
     public static MapLocation[] hqLocs = new MapLocation[MAX_HQ_COUNT];

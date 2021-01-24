@@ -64,11 +64,15 @@ public class Politician extends Robot {
                 myRole = ROLE_ATTACK;
             }
         } else { // default to attacker role
-            myRole = ROLE_ATTACK;
+            if (rc.getConviction() < 100) {
+                myRole = ROLE_DEFEND;
+            } else {
+                myRole = ROLE_ATTACK;
+            }
         }
 
         // i am a scout
-        if (rc.getInfluence() == 1) {
+        if (rc.getConviction() <= GameConstants.EMPOWER_TAX) {
             myRole = ROLE_EXPLORE;
             isBugScout = (random() < 0.5);
         }
@@ -95,7 +99,7 @@ public class Politician extends Robot {
                 break;
             case ROLE_EXPLORE:
                 if (myConviction > 10) {
-                    if (myConviction > 50) myRole = ROLE_ATTACK;
+                    if (myConviction > 100) myRole = ROLE_ATTACK;
                     else myRole = ROLE_DEFEND;
                 }
                 break;
@@ -124,6 +128,7 @@ public class Politician extends Robot {
 
         updateExploreTask();
         Politician.updateTargetHQ();
+        updateAllySlanderer();
         updateTargetMuckraker();
         updateEnemies();
 
@@ -165,7 +170,7 @@ public class Politician extends Robot {
 
 
             case ROLE_EXPLORE:
-                explore(isBugScout);
+                explore();
                 break;
         }
     }
@@ -258,34 +263,51 @@ public class Politician extends Robot {
         log("targetHQ: " + targetHQIndex + " " + targetHQID + " " + targetHQLoc);
     }
 
-    public static void updateTargetMuckraker() throws GameActionException {
-        closestEnemyMuckraker = null;
-        if (myRole == ROLE_DEFEND) {
-            RobotInfo ri = getClosest(here, enemyMuckrakers, enemyMuckrakerCount);
-            if (ri != null) {
-                closestEnemyMuckraker = ri.location;
-            }
-            log("Closest enemy: " + closestEnemyMuckraker);
-        } else {
-            // role == ROLE_ATTACK
-            int bestDist = P_INF;
-            double minConviction = 0.5 * (myConviction - GameConstants.EMPOWER_TAX);
-            double maxConviction = 4 * (myConviction - GameConstants.EMPOWER_TAX);
-            if (myConviction <= 20) {
-                minConviction = 0;
-            }
-            for (int i = enemyMuckrakerCount; --i >= 0;) {
-                RobotInfo ri = enemyMuckrakers[i];
-                int killAmt = ri.conviction + 1;
-                if (minConviction <= killAmt && killAmt <= maxConviction) {
-                    int dist = here.distanceSquaredTo(ri.location);
-                    if (dist < bestDist) {
-                        closestEnemyMuckraker = ri.location;
-                        bestDist = dist;
-                    }
+    public static int killBonus = 21;
+    public static double minEmpowerScoreRatio = 0.75;
+    public static MapLocation closestAllySlanderer = null;
+
+    public static void updateAllySlanderer() throws GameActionException {
+        int bestDist = P_INF;
+        closestAllySlanderer = null;
+        for (int i = sensedAllies.length; --i >= 0;) {
+            RobotInfo ri = sensedAllies[i];
+            if (ri.type == RobotType.POLITICIAN // checks if it is slanderer
+                    && (getStatusFromFlag(rc.getFlag(ri.ID)) & 8) > 0) {
+                int dist = here.distanceSquaredTo(ri.location);
+                if (dist < bestDist) {
+                    closestAllySlanderer = ri.location;
+                    bestDist = dist;
                 }
             }
         }
+    }
+
+    public static void updateTargetMuckraker() throws GameActionException {
+        closestEnemyMuckraker = null;
+//        if (myRole == ROLE_DEFEND) {
+//            RobotInfo ri = getClosest(here, enemyMuckrakers, enemyMuckrakerCount);
+//            if (ri != null) {
+//                closestEnemyMuckraker = ri.location;
+//            }
+//            log("Closest enemy: " + closestEnemyMuckraker);
+//        } else {
+            // role == ROLE_ATTACK
+        int bestDist = P_INF;
+        double minConviction = minEmpowerScoreRatio * (myConviction - killBonus);
+        double maxConviction = 5 * (myConviction - GameConstants.EMPOWER_TAX);
+        for (int i = enemyMuckrakerCount; --i >= 0;) {
+            RobotInfo ri = enemyMuckrakers[i];
+            int killAmt = ri.conviction + 1;
+            if (minConviction <= killAmt && killAmt <= maxConviction) {
+                int dist = here.distanceSquaredTo(ri.location);
+                if (dist < bestDist) {
+                    closestEnemyMuckraker = ri.location;
+                    bestDist = dist;
+                }
+            }
+        }
+//        }
         log("Closest muck: " + closestEnemyMuckraker);
     }
 
@@ -363,7 +385,7 @@ public class Politician extends Robot {
         }
 
         // if no target
-        explore(true);
+        explore();
         return;
     }
 
@@ -375,8 +397,17 @@ public class Politician extends Robot {
             return;
         }
 
+        if (alertEnemyMuckraker != null && roundNum - alertEnemyMuckrakerRound < WRITE_ENEMY_MUCKRAKER_FREQ) {
+            int dist = here.distanceSquaredTo(alertEnemyMuckraker);
+            if (MAX_EMPOWER < dist && dist < 400) {
+                fuzzyTo(alertEnemyMuckraker);
+                return;
+            }
+        }
+
         // no seen muckrakers
-        makePoliLattice(getCenterLoc(), 4, POLI_MIN_CORNER_DIST);
+//        makePoliLattice(getCenterLoc(), 4, POLI_MIN_CORNER_DIST);
+        wander(8, 9, false);
         return;
     }
 
@@ -432,7 +463,7 @@ public class Politician extends Robot {
             return false;
         }
 
-        boolean hurtsEnemy = false;
+//        boolean hurtsEnemy = false;
 
         RobotInfo[] hitRobots = rc.senseNearbyRobots(dist);
 
@@ -442,13 +473,13 @@ public class Politician extends Robot {
             return false;
         }
 
-        if (myConviction <= 25 && hurtsEnemy && dist <= 1) {
-            log("Hurt condition met");
-            return true;
-        }
+//        if (myConviction <= 25 && hurtsEnemy && dist <= 1) {
+//            log("Hurt condition met");
+//            return true;
+//        }
 
         // best score must be at least better than some threshold
-        double threshold = 0.5 * (myConviction - GameConstants.EMPOWER_TAX);
+        double threshold = minEmpowerScoreRatio * myConviction;
         log("Score/Threshold: " + totalScore + " / " + threshold);
         if (totalScore >= threshold) {
             return true;
@@ -492,7 +523,7 @@ public class Politician extends Robot {
 
 
         // best score must be at least better than some threshold
-        double threshold = 0.5 * myConviction;
+        double threshold = 0.75 * myConviction;
         log("My score " + bestScore + " vs " + threshold);
         if (bestScore >= threshold) {
             return bestDist;
@@ -541,7 +572,7 @@ public class Politician extends Robot {
         } else if (ri.team == them) {
             // bonus for killing enemies
             if (buffedDmg > ri.conviction) {
-                score += 11; // 1 + GameConstants.EMPOWER_TAX;
+                score += killBonus; // 1 + 2 * GameConstants.EMPOWER_TAX;
             }
             switch (ri.type) {
                 case ENLIGHTENMENT_CENTER:
@@ -558,10 +589,15 @@ public class Politician extends Robot {
                     } else {
                         score += buffedDmg;
                     }
+                    // be more likely to empower if enemy muck is close to base/ally slanderer
+                    boolean urgent = closestAllySlanderer != null
+                            || (myMasterLoc != null && myMasterLoc.isWithinDistanceSquared(ri.location, 30));
+                    if (urgent) {
+                        score *= 2;
+                    }
                     break;
                 case POLITICIAN:
                     if (buffedDmg > ri.conviction) {
-                        // todo increase desperation if close to ally slanderers/base
                         score += Math.min(buffedDmg, ri.influence + ri.conviction);
                     } else {
                         score += buffedDmg;
@@ -590,6 +626,10 @@ public class Politician extends Robot {
 //            log("kill hungry");
             score += 1e6;
         }
+
+//        if (myID == 10950 && roundNum == 118) {
+//            log(origDmg + " " + buffedDmg + " " + score + " " + ri.getID());
+//        }
         return score;
     }
 

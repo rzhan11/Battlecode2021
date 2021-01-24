@@ -419,7 +419,7 @@ public abstract class Robot extends Constants {
         printBuffer();
     }
 
-
+    public static boolean onlyDefaultExplore;
     public static boolean rotateLeftExplore;
     public static boolean tripleRotateExplore;
     public static int lastExploreTaskChangeRound = -1;
@@ -433,6 +433,8 @@ public abstract class Robot extends Constants {
     public static Symmetry symmetryTaskType;
     // default explore
     public static Direction defaultExploreTaskDir;
+
+
 
     /*
     Exploration code
@@ -448,6 +450,8 @@ public abstract class Robot extends Constants {
         // symmetry
 
         // default
+        onlyDefaultExplore = randBoolean();
+
         defaultExploreTaskDir = getRandomDirCenter(); // randomize exploreDir
         rotateLeftExplore = randBoolean(); // randomize whether we turn left or right
         tripleRotateExplore = randBoolean(); // randomize whether we do a single rotate or a triple rotate
@@ -465,65 +469,67 @@ public abstract class Robot extends Constants {
             }
         }
 
-        // check if boundsTask needs to be changed
-        if (boundsTaskDir != null) {
-            // check if we still need to go to bounds task dir
-            int dx = boundsTaskDir.dx;
-            int dy = boundsTaskDir.dy;
-            log("orig " + dx + " " + dy + " " +boundsTaskDir);
-            if (dx == -1 && XMIN != -1) dx = 0;
-            if (dx == 1 && XMAX != -1) dx = 0;
-            if (dy == -1 && YMIN != -1) dy = 0;
-            if (dy == 1 && YMAX != -1) dy = 0;
 
-            if (dx == 0 && dy == 0) {
-                log("Reset boundsTask");
-                boundsTaskDir = null;
-                // do not return, we need new task
-            } else { // check if direction has changed
-                Direction newDir = getDir(dx, dy);
-                if (!newDir.equals(boundsTaskDir)) {
-                    log("Adjusted boundsTaskDir " + newDir);
-                    boundsTaskDir = newDir;
-                    lastExploreTaskChangeRound = roundNum;
+        if (!onlyDefaultExplore) {
+            // check if boundsTask needs to be changed
+            if (boundsTaskDir != null) {
+                // check if we still need to go to bounds task dir
+                int dx = boundsTaskDir.dx;
+                int dy = boundsTaskDir.dy;
+                log("orig " + dx + " " + dy + " " +boundsTaskDir);
+                if (dx == -1 && XMIN != -1) dx = 0;
+                if (dx == 1 && XMAX != -1) dx = 0;
+                if (dy == -1 && YMIN != -1) dy = 0;
+                if (dy == 1 && YMAX != -1) dy = 0;
+
+                if (dx == 0 && dy == 0) {
+                    log("Reset boundsTask");
+                    boundsTaskDir = null;
+                    // do not return, we need new task
+                } else { // check if direction has changed
+                    Direction newDir = getDir(dx, dy);
+                    if (!newDir.equals(boundsTaskDir)) {
+                        log("Adjusted boundsTaskDir " + newDir);
+                        boundsTaskDir = newDir;
+                        lastExploreTaskChangeRound = roundNum;
+                    }
+                    return;
                 }
-                return;
             }
-        }
-        // assign new boundsTask if needed
-        if (boundsTaskDir == null && !isMapKnown()) {
-            log("Getting new boundsTask");
-            boundsTaskDir = getNewBoundsTaskDir();
-            lastExploreTaskChangeRound = roundNum;
-            return;
-        }
-
-        // check if we need to reset symmetryTask
-        if (symmetryTaskLoc != null) {
-            // if we know this symmetry is invalid
-            if ((symmetryTaskType == Symmetry.H && notHSymmetry)
-                    || (symmetryTaskType == Symmetry.V && notVSymmetry)
-                    || (symmetryTaskType == Symmetry.R && notRSymmetry)) {
-                symmetryTaskLoc = null;
-                symmetryTaskType = null;
-                // do not return, we need new task
-            } else if (rc.canSenseLocation(symmetryTaskLoc) // if we can sense this hq loc
-                    || inArray(hqLocs, symmetryTaskLoc, knownHQCount) // or if this hq has been found
-                    || roundNum - lastExploreTaskChangeRound > 100) {
-                symmetryTaskLoc = null;
-                symmetryTaskType = null;
-                // do not return, we need new task
-            } else { // keeping this task
-                return;
-            }
-        }
-
-        if (symmetryTaskLoc == null) {
-            if (symHQCount > 0) {
-                symmetryTaskLoc = symHQLocs[0];
-                symmetryTaskType = symHQType[0];
+            // assign new boundsTask if needed
+            if (boundsTaskDir == null && !isMapKnown()) {
+                log("Getting new boundsTask");
+                boundsTaskDir = getNewBoundsTaskDir();
                 lastExploreTaskChangeRound = roundNum;
                 return;
+            }
+
+            // check if we need to reset symmetryTask
+            if (symmetryTaskLoc != null) {
+                // if we know this symmetry is invalid
+                if ((symmetryTaskType == Symmetry.H && notHSymmetry)
+                        || (symmetryTaskType == Symmetry.V && notVSymmetry)
+                        || (symmetryTaskType == Symmetry.R && notRSymmetry)) {
+                    symmetryTaskLoc = null;
+                    symmetryTaskType = null;
+                    // do not return, we need new task
+                } else if (rc.canSenseLocation(symmetryTaskLoc) // if we can sense this hq loc
+                        || inArray(hqLocs, symmetryTaskLoc, knownHQCount) // or if this hq has been found
+                        || roundNum - lastExploreTaskChangeRound > 100) {
+                    symmetryTaskLoc = null;
+                    symmetryTaskType = null;
+                    // do not return, we need new task
+                } else { // keeping this task
+                    return;
+                }
+            }
+            if (symmetryTaskLoc == null) {
+                if (symHQCount > 0) {
+                    symmetryTaskLoc = symHQLocs[0];
+                    symmetryTaskType = symHQType[0];
+                    lastExploreTaskChangeRound = roundNum;
+                    return;
+                }
             }
         }
 
@@ -566,7 +572,7 @@ public abstract class Robot extends Constants {
     Does the next "exploration" task
     Priority: Master, Map Bounds, Map Symmetry (by HQs), Default (go to directions)
      */
-    public static void explore(boolean useBug) throws GameActionException {
+    public static void explore() throws GameActionException {
         // do master task
         if (masterTaskDir != null) {
             // purposely uses spawnLoc
@@ -583,6 +589,7 @@ public abstract class Robot extends Constants {
 
         MapLocation mapCenter = new MapLocation(isMapXKnown() ? (XMIN + XMAX) / 2 : spawnLoc.x,
                 isMapYKnown() ? (YMIN + YMAX) / 2 : spawnLoc.y);
+
 
         // go to dir
         if (boundsTaskDir != null) {
@@ -607,6 +614,8 @@ public abstract class Robot extends Constants {
         }
 
 
+
+
         // do the default explore task
         {
             log("Default explore task " + defaultExploreTaskDir);
@@ -614,13 +623,13 @@ public abstract class Robot extends Constants {
             MapLocation navLoc = getExploreNavLoc(senseLoc);
             drawLine(here, navLoc, BROWN);
             drawDot(senseLoc, BROWN);
-            if (useBug) {
-                tlog("Bugging: " + navLoc);
-                moveLog(navLoc);
-            } else {
-                tlog("Fuzzy: " + navLoc);
-                fuzzyTo(navLoc);
-            }
+//            if (useBug) {
+//                tlog("Bugging: " + navLoc);
+//                moveLog(navLoc);
+//            } else {
+            tlog("Fuzzy: " + navLoc);
+            fuzzyTo(navLoc);
+//            }
             return;
         }
     }

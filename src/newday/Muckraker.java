@@ -41,17 +41,22 @@ public class Muckraker extends Robot {
 
     public static boolean useBug;
 
-    public static boolean isRandomExplorer;
-    public static Direction heading;
+
+    public static boolean hqAttacker;
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
         initExploreTask();
         useBug = (random() < 0.5);
 
-        isRandomExplorer = (roundNum < 50 && random() < 0.25);
-        if (isRandomExplorer) {
-            heading = getRandomDirCenter();
+        if (rc.getConviction() <= 10) {
+            if (roundNum < 50) {
+                hqAttacker = false;
+            } else {
+                hqAttacker = (random() < 0.75);
+            }
+        } else {
+            hqAttacker = true;
         }
     }
 
@@ -60,6 +65,7 @@ public class Muckraker extends Robot {
         updateDetectedLocs();
         updateExploreTask();
         updateEnemies();
+//        updateAllyMuckraker();
 
         if (!rc.isReady()) {
             return;
@@ -70,12 +76,6 @@ public class Muckraker extends Robot {
             Actions.doExpose(bestExposeLoc);
             return;
         }
-
-        //if early game and on a diagonal from our HQ, don't move
-        // commented out since rushes are not a big worry
-//        if (myMasterLoc!=null && here.distanceSquaredTo(myMasterLoc) == 2 && roundNum<350) {
-//            return;
-//        }
 
         // move towards sensed enemy slanderers / previously seen enemies
         if (closestEnemySlanderer != null) {
@@ -90,10 +90,7 @@ public class Muckraker extends Robot {
             return;
         }
 
-        if (isRandomExplorer) {
-            explore(false);
-            return;
-        } else {
+        if (hqAttacker) {
             // move towards targetHQ
             if (targetHQLoc != null) {
                 if (here.isWithinDistanceSquared(targetHQLoc, VERY_CLOSE_ENEMY_HQ_DIST)) {
@@ -123,14 +120,35 @@ public class Muckraker extends Robot {
 //                    moveLog(targetHQLoc);
 //                } else {
                     log("Fuzzy to targetHQ");
+                    drawLine(here, targetHQLoc, RED);
                     fuzzyTo(targetHQLoc);
 //                }
                     return;
                 }
             }
 
-            explore(useBug);
+            explore();
             return;
+        } else {
+            explore();
+            return;
+        }
+    }
+
+    public static MapLocation closestAllyMuckraker;
+
+    public static void updateAllyMuckraker() throws GameActionException {
+        int bestDist = P_INF;
+        closestAllyMuckraker = null;
+        for (int i = sensedAllies.length; --i >= 0;) {
+            RobotInfo ri = sensedAllies[i];
+            if (ri.type == RobotType.MUCKRAKER) {
+                int dist = here.distanceSquaredTo(ri.location);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    closestAllyMuckraker = ri.location;
+                }
+            }
         }
     }
 
@@ -198,19 +216,19 @@ public class Muckraker extends Robot {
             }
         }
         // if we can see it
-        if (targetHQIndex != -1) {
-            if (here.distanceSquaredTo(targetHQLoc) <= 2) {
-                log("Resetting targetHQ, seen");
-                hqIgnoreRounds[targetHQIndex] = roundNum; // ignoring the current target
-                resetTargetHQ();
-            }
-        }
+//        if (targetHQIndex != -1) {
+//            if (here.distanceSquaredTo(targetHQLoc) <= 8) {
+//                log("Resetting targetHQ, seen");
+//                hqIgnoreRounds[targetHQIndex] = roundNum; // ignoring the current target
+//                resetTargetHQ();
+//            }
+//        }
 
         if (targetHQIndex == -1) {
             int bestDist = P_INF;
             for (int i = knownHQCount; --i >= 0;) {
                 // new targets must be enemy/unknown team and not surrounded
-                if (hqTeams[i] == them || hqTeams[i] == null) {
+                if (hqTeams[i] == them) {// || hqTeams[i] == null) {
                     if (!checkHQSurroundStatus(i) && !checkHQIgnoreStatus(i)) {
                         int dist = here.distanceSquaredTo(hqLocs[i]);
                         if (dist < bestDist) {

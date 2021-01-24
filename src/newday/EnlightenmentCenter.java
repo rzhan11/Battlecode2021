@@ -100,7 +100,7 @@ public class EnlightenmentCenter extends Robot {
 
         // bidding
         if (rc.getTeamVotes() < GameConstants.GAME_MAX_NUMBER_OF_ROUNDS / 2) {
-            if (roundNum > 250 && mySafetyBudget > 100) {
+            if (roundNum > 100 && mySafetyBudget > 100) {
                 tryBid();
                 // recalculate max budget AFTER making bets
                 updateMaxBudget();
@@ -135,18 +135,18 @@ public class EnlightenmentCenter extends Robot {
 //            return;
 //        }
 
-        if (DEFENSE_POLI_ROLE.count >= 8) {
-            if (EXPLORE_POLI_ROLE.count < 4) {
-                log("Explore poli");
-                makeExplorePolitician();
-                return;
-            }
+//        if (DEFENSE_POLI_ROLE.count >= 8) {
+//            if (EXPLORE_POLI_ROLE.count < 2) {
+//                log("Explore poli");
+//                makeExplorePolitician();
+//                return;
+//            }
 //            if (MUCK_ROLE.count < 5) {
 //                log("muck spam");
 //                makeMuckraker(true);
 //                return;
 //            }
-        }
+//        }
 
         // no visible enemy muckrakers
         if (DEFENSE_POLI_ROLE.score < SLAN_ROLE.score) {
@@ -208,13 +208,13 @@ public class EnlightenmentCenter extends Robot {
                 makeSlanderer();
                 return;
             case 2:
-                makeMuckraker(true);
+                makeExplorePolitician();
                 return;
             case 3:
-                makeDefendPolitician();
+                makeExplorePolitician();
                 return;
             case 4:
-                makeMuckraker(true);
+                makeDefendPolitician();
                 return;
             case 5:
                 makeSlanderer();
@@ -226,7 +226,7 @@ public class EnlightenmentCenter extends Robot {
                 makeSlanderer();
                 return;
             case 8:
-                makeMuckraker(true);
+                makeExplorePolitician();
                 return;
             case 9:
                 makeSlanderer();
@@ -333,6 +333,7 @@ public class EnlightenmentCenter extends Robot {
         for (int i = enemyMuckrakerCount; --i >= 0;) {
             // u have to deal conviction + 1 damage to kill
             tempSum += 1 + enemyMuckrakers[i].conviction;
+//            tempSum = Math.max(tempSum, 1 + enemyMuckrakers[i].conviction);
         }
         enemyMuckrakerDanger = (int) Math.min(GameConstants.ROBOT_INFLUENCE_LIMIT, tempSum);
 

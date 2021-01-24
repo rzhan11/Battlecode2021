@@ -30,14 +30,14 @@ public class Slanderer extends Robot {
 
     public static boolean[] bannedLatticeDirs;
 
-    public static int MIN_SCARY_DIST = 7;
+    public static int MIN_SCARY_DIST = 10;
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
 
         // init default hide loc
-        Direction masterDir = (myMasterLoc != null) ? here.directionTo(myMasterLoc) : Direction.NORTH;
-        prevHideLoc = addDir(spawnLoc, masterDir, MAX_MAP_SIZE);
+//        Direction masterDir = (myMasterLoc != null) ? here.directionTo(myMasterLoc) : Direction.NORTH;
+//        prevHideLoc = addDir(spawnLoc, masterDir, MAX_MAP_SIZE);
     }
 
     // code run each turn
@@ -84,6 +84,11 @@ public class Slanderer extends Robot {
         } else if (prevHideLoc != null) {
             log("Hide prevHideLoc " + prevHideLoc);
             scaryLoc = prevHideLoc;
+        }
+
+        // if the scary location is very far away (20+), ignore
+        if (scaryLoc != null && here.distanceSquaredTo(scaryLoc) >= 400) {
+            scaryLoc = null;
         }
 
 

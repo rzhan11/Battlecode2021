@@ -15,7 +15,7 @@ public class Muckraker extends Robot {
     // final constants
 
     final public static int CHASE_MEMORY = 10;
-    final public static int SWITCH_TARGET_ROUNDS = 50;
+    final public static int SWITCH_TARGET_ROUNDS = 30;
 
     // max distance from an hq, such that we can kill all slanderers spawned by it
     // try to block the enemy hq from spawning slanderers
@@ -49,7 +49,7 @@ public class Muckraker extends Robot {
         initExploreTask();
         useBug = (random() < 0.5);
 
-        isRandomExplorer = (roundNum < 50 && random() < 0.1);
+        isRandomExplorer = (roundNum < 50 && random() < 0.25);
         if (isRandomExplorer) {
             heading = getRandomDirCenter();
         }
@@ -195,6 +195,14 @@ public class Muckraker extends Robot {
                         resetTargetHQ();
                     }
                 }
+            }
+        }
+        // if we can see it
+        if (targetHQIndex != -1) {
+            if (here.distanceSquaredTo(targetHQLoc) <= 2) {
+                log("Resetting targetHQ, seen");
+                hqIgnoreRounds[targetHQIndex] = roundNum; // ignoring the current target
+                resetTargetHQ();
             }
         }
 

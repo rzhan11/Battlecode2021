@@ -57,10 +57,12 @@ public class HQTracker {
                         isKnown = true;
                         if (hqIDs[j] != ri.ID) {
                             // we have found new information, save and report
-                            saveHQInfo(j, ri.ID, ri.getTeam(), ri.influence);
+                            saveHQInfo(j, ri.ID, ri.team, ri.influence);
                             if (myType != RobotType.ENLIGHTENMENT_CENTER) {
                                 reportHQ(j);
                             }
+                        } else if(hqTeams[j] == Team.NEUTRAL) {
+                            saveHQInfo(j, ri.ID, ri.team, ri.influence);
                         }
                         break;
                     }

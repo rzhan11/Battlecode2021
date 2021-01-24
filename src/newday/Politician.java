@@ -44,6 +44,8 @@ public class Politician extends Robot {
     public static int targetHQIndex = -1;
     public static MapLocation targetHQLoc = null;
     public static int targetHQID = -1;
+    public static int targetHQMinDist;
+    public static int targetHQCloserRound;
 
     // scout variables
     public static boolean isBugScout; // true = bug, false = fuzzy
@@ -70,6 +72,8 @@ public class Politician extends Robot {
             myRole = ROLE_EXPLORE;
             isBugScout = (random() < 0.5);
         }
+
+        resetTargetHQ();
 
         initExploreTask();
     }
@@ -131,6 +135,14 @@ public class Politician extends Robot {
             return;
         }
 
+        log("Checking!");
+        int dist = getBestEmpower();
+        if (dist != -1) {
+            log("Want to empower!");
+            Actions.doEmpower(dist);
+            return;
+        }
+
 //        if (curAllyBuff >= 5 && myDamage >= 1000 && empowerRangeEnemies.length >= 8) {
 //            log("[BIG BUFF EMPOWER]");
 //            Actions.doEmpower(MAX_EMPOWER);
@@ -178,29 +190,33 @@ public class Politician extends Robot {
         return bestIndex;
     }
 
+    public static void resetTargetHQ() {
+        targetHQIndex = -1;
+        targetHQLoc = null;
+        targetHQID = -1;
+        targetHQMinDist = P_INF;
+        targetHQCloserRound = -1;
+    }
+
     public static void updateTargetHQ() throws GameActionException {
         int bestNeutralIndex = getBestNeutralTarget();
         if (targetHQIndex != -1) {
-            // reset if the target hq has changed to our team
             if (hqTeams[targetHQIndex] == us) {
-                targetHQIndex = -1;
-                targetHQLoc = null;
-                targetHQID = -1;
+                // reset if the target hq has changed to our team
+                resetTargetHQ();
             } else if (targetHQID > 0 && !rc.canGetFlag(targetHQID)) {
                 // reset if target hq is dead
-                targetHQIndex = -1;
-                targetHQLoc = null;
-                targetHQID = -1;
+                resetTargetHQ();
             } else if (hqTeams[targetHQIndex] == neutral && myDamage <= hqInfluence[targetHQIndex]) {
                 // reset if cannot kill anymore
-                targetHQIndex = -1;
-                targetHQLoc = null;
-                targetHQID = -1;
+                resetTargetHQ();
             } else if (hqTeams[targetHQIndex] != neutral && bestNeutralIndex != -1) {
                 // reset if we can use new target
-                targetHQIndex = -1;
-                targetHQLoc = null;
-                targetHQID = -1;
+                resetTargetHQ();
+            } else if (roundNum - targetHQCloserRound > 25) {
+                // reset if we haven't gotten closer in a while
+                hqIgnoreRounds[targetHQIndex] = roundNum; // ignoring the current target
+                resetTargetHQ();
             }
         }
 
@@ -211,11 +227,13 @@ public class Politician extends Robot {
                 int bestDist = P_INF;
                 for (int i = knownHQCount; --i >= 0;) {
                     if (hqTeams[i] == them) {
-                        if (hqIDs[i] > 0) {
-                            int dist = here.distanceSquaredTo(hqLocs[i]);
-                            if (dist < bestDist) {
-                                targetHQIndex = i;
-                                bestDist = dist;
+                        if (!checkHQIgnoreStatus(i)) {
+                            if (hqIDs[i] > 0) {
+                                int dist = here.distanceSquaredTo(hqLocs[i]);
+                                if (dist < bestDist) {
+                                    targetHQIndex = i;
+                                    bestDist = dist;
+                                }
                             }
                         }
                     }
@@ -225,6 +243,16 @@ public class Politician extends Robot {
             if (targetHQIndex != -1) {
                 targetHQLoc = hqLocs[targetHQIndex];
                 targetHQID = hqIDs[targetHQIndex];
+                targetHQMinDist = here.distanceSquaredTo(targetHQLoc);
+                targetHQCloserRound = roundNum;
+            }
+        }
+
+        if (targetHQIndex != -1) {
+            int curDist = here.distanceSquaredTo(targetHQLoc);
+            if (curDist < targetHQMinDist) {
+                targetHQMinDist = curDist;
+                targetHQCloserRound = roundNum;
             }
         }
         log("targetHQ: " + targetHQIndex + " " + targetHQID + " " + targetHQLoc);
@@ -407,22 +435,8 @@ public class Politician extends Robot {
         boolean hurtsEnemy = false;
 
         RobotInfo[] hitRobots = rc.senseNearbyRobots(dist);
-        int numHit = hitRobots.length;
 
-        double totalScore = 0.0;
-        int dmg = myDamage / numHit;
-        if (dmg > 0) {
-            for (int i = hitRobots.length; --i >= 0;) {
-                RobotInfo ri = hitRobots[i];
-                if (here.isWithinDistanceSquared(ri.location, dist)) {
-                    if (ri.team == them) {
-                        hurtsEnemy = true;
-                    }
-                    double score = getEmpowerScore(ri, dmg);
-                    totalScore += score;
-                }
-            }
-        }
+        double totalScore = getEmpowerScoreForArray(hitRobots);
 
         if (totalScore <= 0) {
             return false;
@@ -446,46 +460,28 @@ public class Politician extends Robot {
     /*
     Get best empower that hits at least 'dist' away
      */
-    /*public static int getBestEmpower(int dist) throws GameActionException {
-        if (dist > MAX_EMPOWER) {
-            return -1;
-        }
-
+    public static int getBestEmpower() throws GameActionException {
 //        log("get best empower " + dist);
 
-        int[] possDists = ALL_EMPOWER_DISTS[dist];
-        RobotInfo[] hitRobots = rc.senseNearbyRobots(MAX_EMPOWER);
-        int[] numHit = new int[possDists.length];
+        RobotInfo[][] empowerRobots = new RobotInfo[][]{
+            rc.senseNearbyRobots(1),
+            rc.senseNearbyRobots(2),
+            rc.senseNearbyRobots(4),
+            rc.senseNearbyRobots(5),
+            rc.senseNearbyRobots(8),
+            rc.senseNearbyRobots(9),
+        };
 
-        for (RobotInfo ri: hitRobots) {
-            for (int i = possDists.length; --i >= 0;) {
-                if (here.isWithinDistanceSquared(ri.location, possDists[i])) {
-                    numHit[i]++;
-                } else {
-                    break;
-                }
-            }
-        }
-
-//        Arrays.sort(hitRobots, new RobotCompare());
-
-        double[] scores = new double[possDists.length];
-        for (int i = possDists.length; --i >= 0;) {
-            for (int j = hitRobots.length; --j >= 0;) {
-                RobotInfo ri = hitRobots[j];
-                if (here.isWithinDistanceSquared(ri.location, possDists[i])) {
-                    int dmg = myDamage / numHit[i];
-                    double score = getEmpowerScore(ri, dmg);
-                    scores[i] += score;
-                }
-            }
+        double[] scores = new double[EMPOWER_DISTS.length];
+        for (int i = EMPOWER_DISTS.length; --i >= 0;) {
+            scores[i] = getEmpowerScoreForArray(empowerRobots[i]);
         }
 
         int bestDist = -1;
         double bestScore = N_INF;
         for (int i = scores.length; --i >= 0;) {
             if (scores[i] > bestScore) {
-                bestDist = possDists[i];
+                bestDist = EMPOWER_DISTS[i];
                 bestScore = scores[i];
             }
         }
@@ -496,50 +492,79 @@ public class Politician extends Robot {
 
 
         // best score must be at least better than some threshold
-        double threshold = 0.5 * (myConviction - GameConstants.EMPOWER_TAX);
+        double threshold = 0.5 * myConviction;
         log("My score " + bestScore + " vs " + threshold);
         if (bestScore >= threshold) {
             return bestDist;
         } else {
             return -1;
         }
-    }*/
+    }
 
-    public static double getEmpowerScore(RobotInfo ri, int dmg) {
+    public static int origDmg;
+    public static int buffedDmg;
+
+    public static double getEmpowerScoreForArray(RobotInfo[] robots) throws GameActionException {
+        int len = robots.length;
+        if (len == 0) return 0.0;
+
+        origDmg = (rc.getConviction() - GameConstants.EMPOWER_TAX) / len;
+        if (origDmg == 0) return 0.0;
+
+        buffedDmg = (int) (origDmg * curAllyBuff);
+
+        double total = 0.0;
+        for (int i = len; --i >= 0;) {
+            total += getEmpowerScore(robots[i]);
+        }
+        return total;
+    }
+
+    /*
+    Make sure you set origDmg and buffedDmg before calling this method
+     */
+    public static double getEmpowerScore(RobotInfo ri) throws GameActionException {
         double score = 0;
+
         if (ri.team == us) {
             switch (ri.type) {
                 case ENLIGHTENMENT_CENTER:
-                    score += dmg;
+                    score += 0.25 * origDmg;
                     break;
                 case POLITICIAN:
-                    score += Math.min(dmg, ri.influence - ri.conviction);
+                    score += Math.min(buffedDmg, ri.influence - ri.conviction);
                     break;
-                default:
-                    // don't increase if it is a muckraker
+                case MUCKRAKER:
+                    score += Math.min(buffedDmg, Math.ceil(ri.influence * 0.7) - ri.conviction);
                     break;
             }
         } else if (ri.team == them) {
+            // bonus for killing enemies
+            if (buffedDmg > ri.conviction) {
+                score += 11; // 1 + GameConstants.EMPOWER_TAX;
+            }
             switch (ri.type) {
                 case ENLIGHTENMENT_CENTER:
-                    if (dmg > ri.conviction) {
-                        score += 2 * dmg;
+                    // kills
+                    if (buffedDmg > ri.conviction) {
+                        score += ri.conviction + (buffedDmg - ri.conviction) / curAllyBuff;
                     } else {
-                        score += dmg;
+                        score += buffedDmg;
                     }
                     break;
                 case MUCKRAKER:
-                    if (dmg > ri.conviction) {
-                        score += 2 * ri.conviction;
+                    if (buffedDmg > ri.conviction) {
+                        score += ri.conviction;
                     } else {
-                        score += dmg;
+                        score += buffedDmg;
                     }
                     break;
                 case POLITICIAN:
-                    if (dmg > ri.conviction) {
-                        score += 2 * Math.min(dmg - ri.conviction, ri.influence + ri.conviction);
+                    if (buffedDmg > ri.conviction) {
+                        // todo increase desperation if close to ally slanderers/base
+                        score += Math.min(buffedDmg, ri.influence + ri.conviction);
                     } else {
-                        score += dmg;
+                        score += buffedDmg;
                     }
                     break;
                 default:
@@ -547,11 +572,11 @@ public class Politician extends Robot {
                     break;
             }
         } else {
-            // neutral hq
-            if (dmg > ri.conviction) {
-                score += 10 * dmg;
+            // kills
+            if (buffedDmg > ri.conviction) {
+                score += 10 * (ri.conviction + (buffedDmg - ri.conviction) / curAllyBuff);
             } else {
-                score += 0.5 * dmg;
+                score += 0.1 * buffedDmg;
             }
         }
 
@@ -561,7 +586,7 @@ public class Politician extends Robot {
 //            log("extreme aggro");
             score += 1e6;
         }
-        if (ri.ID == killHungryTarget && dmg > ri.conviction) {
+        if (ri.ID == killHungryTarget && buffedDmg > ri.conviction) {
 //            log("kill hungry");
             score += 1e6;
         }

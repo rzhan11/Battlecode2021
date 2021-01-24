@@ -7,11 +7,11 @@ import static newday.Robot.*;
 import static newday.EnlightenmentCenter.*;
 
 public enum Role {
-    MUCK_ROLE         (150, 1.0, "MUCK"),
+    MUCK_ROLE         (150, 2.0, "MUCK"),
     DEFENSE_POLI_ROLE (150, 1.0, "DEF_POLI"),
     ATTACK_POLI_ROLE  (150, 0.1, "ATK_POLI"),
     EXPLORE_POLI_ROLE ( 50, 1.0, "EXP_POLI"),
-    SLAN_ROLE         (100, 1.0, "SLAN");
+    SLAN_ROLE         (100, 1.5, "SLAN");
 
     final public String name;
 
@@ -204,6 +204,8 @@ public enum Role {
         }
     }
 
+    final public static int MUCK_SCARE_ROUNDS = 10;
+
     public static void updateRoleScores() throws GameActionException {
         // calc scores
         for (Role role: ROLE_ORDER) {
@@ -221,6 +223,7 @@ public enum Role {
         if (MUCK_ROLE.count >= MUCK_CAP) MUCK_ROLE.score = P_INF;
 
         if (SLAN_ROLE.count >= SLAN_CAP) SLAN_ROLE.score = P_INF;
+        if (roundNum - lastSeenMuckrakerRound <= MUCK_SCARE_ROUNDS) SLAN_ROLE.score = P_INF;
 
         log("BUILD SCORES");
         for (Role role: ROLE_ORDER) {

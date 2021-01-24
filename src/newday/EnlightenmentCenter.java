@@ -32,6 +32,7 @@ public class EnlightenmentCenter extends Robot {
 
     public static int enemyMuckrakerDanger = 0;
     public static MapLocation closestEnemyMuckraker;
+    public static int lastSeenMuckrakerRound = -100;
 
     public static int lastBid = 1;
     public static int lastTurnsVotes = 0;
@@ -52,6 +53,8 @@ public class EnlightenmentCenter extends Robot {
 
     public static int targetNeutralHQIndex;
 
+    public static int movesMade = 1;
+
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
         Comms.writeXBounds();
@@ -65,13 +68,13 @@ public class EnlightenmentCenter extends Robot {
         int dx = getWallXDist(here.x);
         int dy = getWallYDist(here.y);
 
-        if (dx <= Slanderer.MIN_WALL_DIST && dy <= Slanderer.MIN_WALL_DIST) {
-            DEFENSE_POLI_ROLE.ratio *= CORNER_DEFENSE_POLI_MULTIPLIER;
-            log("Corner multiplier " + DEFENSE_POLI_ROLE.ratio);
-        } else if (dx <= Slanderer.MIN_WALL_DIST || dy <= Slanderer.MIN_WALL_DIST) {
-            DEFENSE_POLI_ROLE.ratio *= EDGE_DEFENSE_POLI_MULTIPLIER;
-            log("Edge multiplier " + DEFENSE_POLI_ROLE.ratio);
-        }
+//        if (dx <= Slanderer.MIN_WALL_DIST && dy <= Slanderer.MIN_WALL_DIST) {
+//            DEFENSE_POLI_ROLE.ratio *= CORNER_DEFENSE_POLI_MULTIPLIER;
+//            log("Corner multiplier " + DEFENSE_POLI_ROLE.ratio);
+//        } else if (dx <= Slanderer.MIN_WALL_DIST || dy <= Slanderer.MIN_WALL_DIST) {
+//            DEFENSE_POLI_ROLE.ratio *= EDGE_DEFENSE_POLI_MULTIPLIER;
+//            log("Edge multiplier " + DEFENSE_POLI_ROLE.ratio);
+//        }
 
         // poli
         hqAttackDelays = new int[MAX_HQ_COUNT];
@@ -95,12 +98,6 @@ public class EnlightenmentCenter extends Robot {
         // after updateEnemies
         updateMaxBudget();
 
-        // make a slanderer on the first turn
-        if (roundNum == 1) {
-            makeSlanderer();
-            return;
-        }
-
         // bidding
         if (rc.getTeamVotes() < GameConstants.GAME_MAX_NUMBER_OF_ROUNDS / 2) {
             if (roundNum > 250 && mySafetyBudget > 100) {
@@ -116,32 +113,39 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
 
-        // must be after updateNeutrals
+        // make a slanderer on the first turn
+        if (spawnRound == 1 && movesMade <= MAX_EARLY_GAME_ROUND) {
+            doEarlyGame();
+            movesMade++;
+            return;
+        }
+
+        // must be after updateNeutrals, updateEnemies
         updateRoleScores();
 
         // spawn muck scouts
-        if (scoutCount < EXPLORE_DIRS.length) {
-            Direction dir = makeMuckraker(true);
-            return;
-        }
+//        if (scoutCount < EXPLORE_DIRS.length) {
+//            Direction dir = makeMuckraker(true);
+//            return;
+//        }
 
-        if (enemyMuckrakerCount > 0) {
-            log("Emergency defense");
-            Direction dir = makeDefendPolitician();
-            return;
-        }
+//        if (enemyMuckrakerCount > 0) {
+//            log("Emergency defense");
+//            Direction dir = makeDefendPolitician();
+//            return;
+//        }
 
-        if (DEFENSE_POLI_ROLE.count >= 4 && SLAN_ROLE.count >= 4) {
+        if (DEFENSE_POLI_ROLE.count >= 8) {
             if (EXPLORE_POLI_ROLE.count < 4) {
                 log("Explore poli");
                 makeExplorePolitician();
                 return;
             }
-            if (MUCK_ROLE.count < 5) {
-                log("muck spam");
-                makeMuckraker(true);
-                return;
-            }
+//            if (MUCK_ROLE.count < 5) {
+//                log("muck spam");
+//                makeMuckraker(true);
+//                return;
+//            }
         }
 
         // no visible enemy muckrakers
@@ -194,6 +198,43 @@ public class EnlightenmentCenter extends Robot {
             return;
         }
     }
+
+
+    public static int MAX_EARLY_GAME_ROUND = 9;
+
+    public static void doEarlyGame() throws GameActionException {
+        switch(movesMade) {
+            case 1:
+                makeSlanderer();
+                return;
+            case 2:
+                makeMuckraker(true);
+                return;
+            case 3:
+                makeDefendPolitician();
+                return;
+            case 4:
+                makeMuckraker(true);
+                return;
+            case 5:
+                makeSlanderer();
+                return;
+            case 6:
+                makeDefendPolitician();
+                return;
+            case 7:
+                makeSlanderer();
+                return;
+            case 8:
+                makeMuckraker(true);
+                return;
+            case 9:
+                makeSlanderer();
+                return;
+        }
+
+    }
+
     // for hqs only
     public static Direction[] getExploreDirs() {
         if (XMIN != -1) {
@@ -281,6 +322,7 @@ public class EnlightenmentCenter extends Robot {
         RobotInfo ri = getClosest(here, enemyMuckrakers, enemyMuckrakerCount);
         if (ri != null) {
             closestEnemyMuckraker = ri.location;
+            lastSeenMuckrakerRound = roundNum;
         } else {
             closestEnemyMuckraker = null;
         }
@@ -365,7 +407,7 @@ public class EnlightenmentCenter extends Robot {
     public static int lastBigMuckrakerRound = -100;
     final public static int BIG_MUCK_FREQ = 50;
 
-    final public static int MAX_BIG_MUCK_COST = 10000;;
+    final public static int MAX_BIG_MUCK_COST = 1000;;
     final public static int MIN_BIG_MUCK_BUDGET = 400;
     final public static double BIG_MUCK_BUDGET_RATIO = 0.25;
 
@@ -381,12 +423,12 @@ public class EnlightenmentCenter extends Robot {
         // make increasingly expensive muckers over time
         // if we can afford it, 50% chance we make an "expensive" muckraker
         if (!cheap) {
-            if (mySafetyBudget > 100) {
+            if (mySafetyBudget > 200) {
                 cost = (int) Math.min(Math.ceil(1.0 * mySafetyBudget / 100), 10);
             }
 
             // if our empower factor is somewhat low
-            if (roundNum - lastBigMuckrakerRound > BIG_MUCK_FREQ && rc.getEmpowerFactor(us, 0) < 4) {
+            if (roundNum - lastBigMuckrakerRound > BIG_MUCK_FREQ) {
                 if (mySafetyBudget >= MIN_BIG_MUCK_BUDGET) { // we can build it
                     tlog("[BIG MUCK]");
                     cost = (int) Math.min(mySafetyBudget * BIG_MUCK_BUDGET_RATIO, MAX_BIG_MUCK_COST);
@@ -466,6 +508,9 @@ public class EnlightenmentCenter extends Robot {
         log("Trying to build defensive politician");
 
         int minCost = (int) Math.max(GameConstants.EMPOWER_TAX + 8, 0.01 * mySafetyBudget);
+        if (mySafetyBudget > 100 && random() < 0.2) {
+            minCost = 60;
+        }
 
 
         int cost = GameConstants.EMPOWER_TAX + enemyMuckrakerDanger;

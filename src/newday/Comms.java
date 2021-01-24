@@ -47,7 +47,6 @@ public class Comms {
     final public static int TYPE_MASK = ((1 << TYPE_BITS) - 1) << TYPE_OFFSET;
     final public static int STATUS_MASK = ((1 << STATUS_BITS) - 1) << STATUS_OFFSET;
 
-    // todo update this when changing TYPE_OFFSET
     final public static int IGNORE_UNIT2UNIT_MASK = 0b11100000000000000000;
 
     final public static int MAX_STATUS = (1 << STATUS_BITS) - 1;

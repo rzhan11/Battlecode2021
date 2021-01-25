@@ -444,6 +444,10 @@ public abstract class Robot extends Constants {
      */
 
     public static void initExploreTask() throws GameActionException {
+        initExploreTask(random() < 0.5);
+    }
+
+    public static void initExploreTask(boolean onlyDefault) throws GameActionException {
         // master
         if (myMaster > 0) {
             int status = Comms.getStatusFromFlag(rc.getFlag(myMaster));
@@ -454,7 +458,8 @@ public abstract class Robot extends Constants {
         // symmetry
 
         // default
-        onlyDefaultExplore = randBoolean();
+
+        onlyDefaultExplore = onlyDefault;
 
         defaultExploreTaskDir = getRandomDirCenter(); // randomize exploreDir
         rotateLeftExplore = randBoolean(); // randomize whether we turn left or right

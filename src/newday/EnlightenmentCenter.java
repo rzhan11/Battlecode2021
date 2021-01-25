@@ -63,7 +63,7 @@ public class EnlightenmentCenter extends Robot {
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
-        logi("v.newday.25.1432");
+        logi("v.newday.25.1610");
 
         Comms.writeXBounds();
         Comms.writeYBounds();
@@ -123,9 +123,6 @@ public class EnlightenmentCenter extends Robot {
         if (!rc.isReady()) {
             return;
         }
-//        //TODO TESTING REMOVE THIS
-//        makeMuckraker(true);
-//        if (true) return;
 
         // make a slanderer on the first turn
         if (spawnRound == 1 && movesMade <= MAX_EARLY_GAME_ROUND) {
@@ -461,13 +458,9 @@ public class EnlightenmentCenter extends Robot {
         }
     }
 
-    public static int lastBigMuckrakerRound = -100;
-    final public static int BIG_MUCK_FREQ = 20;
-    final public static int BIG_MUCK_COST = 143;
-
-    public static int lastMedMuckrakerRound = -100;
-    final public static int MED_MUCK_FREQ = 20;
-    final public static int MED_MUCK_COST = 33;
+    final public static int[] MUCK_COSTS = new int[] {13, 33, 143, 503};
+    final public static int[] MUCK_FREQS = new int[] {25, 25, 50, 75};
+    public static int[] lastMuckTypeRound = new int[] {50, 100, 100, 200};
 
     public static Direction makeMuckraker(boolean cheap) throws GameActionException {
         log("Trying to build muckraker");
@@ -478,17 +471,15 @@ public class EnlightenmentCenter extends Robot {
 
         int cost = 1;
 
+        int muckType = -1;
         // make increasingly expensive muckers over time
         if (!cheap && roundNum > 50) {
-            // if our empower factor is somewhat low
-            if (roundNum - lastBigMuckrakerRound > BIG_MUCK_FREQ
-                    && BIG_MUCK_COST < 0.33 * mySafetyBudget) {
-                cost = BIG_MUCK_COST;
-            }
-            if (cost == 1) {
-                if (roundNum - lastMedMuckrakerRound > MED_MUCK_FREQ
-                        && MED_MUCK_COST < 0.5 * mySafetyBudget) {
-                    cost = MED_MUCK_COST;
+            for (int i = MUCK_COSTS.length; --i >= 0;) {
+                if (roundNum - lastMuckTypeRound[i] > MUCK_FREQS[i]
+                        && MUCK_COSTS[i] < 0.5 * mySafetyBudget) {
+                    cost = MUCK_COSTS[i];
+                    muckType = i;
+                    break;
                 }
             }
         }
@@ -503,10 +494,8 @@ public class EnlightenmentCenter extends Robot {
 
         Direction buildDir = tryBuild(RobotType.MUCKRAKER, scoutDir, cost, MUCK_ROLE);
         if (buildDir != null) {
-            if (cost == BIG_MUCK_COST) {
-                lastBigMuckrakerRound = roundNum;
-            } else if (cost == MED_MUCK_COST) {
-                lastMedMuckrakerRound = roundNum;
+            if (muckType != -1) {
+                lastMuckTypeRound[muckType] = roundNum;
             }
             scoutCount++;
         }
@@ -571,9 +560,12 @@ public class EnlightenmentCenter extends Robot {
     public static Direction makeDefendPolitician() throws GameActionException {
         log("Trying to build defensive politician");
 
-        int minCost = (int) Math.max(GameConstants.EMPOWER_TAX + 8, 0.01 * mySafetyBudget);
+        int minCost = GameConstants.EMPOWER_TAX + 8;
         if (mySafetyBudget > 100 && random() < 0.1) {
             minCost = 60;
+        }
+        if (mySafetyBudget > 1000 && random() < 0.05) {
+            minCost = 250;
         }
 
 

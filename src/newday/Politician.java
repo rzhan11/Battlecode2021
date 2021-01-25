@@ -290,7 +290,7 @@ public class Politician extends Robot {
     }
 
     public static int killBonus = 21;
-    public static double minEmpowerScoreRatio = 0.75;
+    public static double minEmpowerScoreRatio = 0.6;
     public static MapLocation closestAllySlanderer = null;
 
     public static void updateAllySlanderer() throws GameActionException {
@@ -593,10 +593,10 @@ public class Politician extends Robot {
                     score += 0.25 * origDmg;
                     break;
                 case POLITICIAN:
-                    score += Math.min(buffedDmg, ri.influence - ri.conviction);
+                    score += 0.5 * Math.min(buffedDmg, ri.influence - ri.conviction);
                     break;
                 case MUCKRAKER:
-                    score += Math.min(buffedDmg, Math.ceil(ri.influence * 0.7) - ri.conviction);
+                    score += 0.5 * Math.min(buffedDmg, Math.ceil(ri.influence * 0.7) - ri.conviction);
                     break;
             }
         } else if (ri.team == them) {
@@ -615,9 +615,9 @@ public class Politician extends Robot {
                     break;
                 case MUCKRAKER:
                     if (buffedDmg > ri.conviction) {
-                        score += ri.conviction;
+                        score += RobotType.MUCKRAKER.getInfluenceCostForConviction(ri.conviction);
                     } else {
-                        score += buffedDmg;
+                        score += RobotType.MUCKRAKER.getInfluenceCostForConviction(ri.conviction);;
                     }
                     // be more likely to empower if enemy muck is close to base/ally slanderer
                     boolean urgent = closestAllySlanderer != null

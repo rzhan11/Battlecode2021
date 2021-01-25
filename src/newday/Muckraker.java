@@ -38,7 +38,7 @@ public class Muckraker extends Robot {
     public static int minDistToTargetHQ = P_INF;
     public static int lastCloserRound = -1;
 
-    public static boolean useBug;
+//    public static boolean useBug;
 
 
     public static boolean hqAttacker;
@@ -48,8 +48,14 @@ public class Muckraker extends Robot {
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
-        initExploreTask();
-        useBug = (random() < 0.5);
+        if (rc.getConviction() < 5) {
+            initExploreTask();
+        } else {
+            initExploreTask(random() < 0.25);
+        }
+
+
+//        useBug = (random() < 0.5);
 
         if (rc.getConviction() < 5) {
             if (roundNum < 50) {
@@ -152,9 +158,7 @@ public class Muckraker extends Robot {
         if (curEnemyBuff > 1.0000001) {
             lastBuffRound = roundNum;
         }
-        log("buff " + lastBuffRound + " "+ curEnemyBuff);
-        if (roundNum - lastBuffRound > 100) {
-            log("[CONSIDER]");
+        if (roundNum - lastBuffRound > 150) {
             lastBuffRound = roundNum;
             // convert more and more mucks to attackers over time
             if (!hqAttacker) {

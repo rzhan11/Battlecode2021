@@ -17,7 +17,7 @@ public class Muckraker extends Robot {
     final public static int CHASE_MEMORY = 10;
     final public static int SWITCH_TARGET_ROUNDS = 30;
 
-    // max distance from an hq, such that we can kill all slanderers spawned by it
+    // max distance from an hq, sucalh that we can kill all slanderers spawned by it
     // try to block the enemy hq from spawning slanderers
     final public static int VERY_CLOSE_ENEMY_HQ_DIST = 2;
     final public static int MEDIUM_CLOSE_ENEMY_HQ_DIST = 8;
@@ -49,11 +49,11 @@ public class Muckraker extends Robot {
         initExploreTask();
         useBug = (random() < 0.5);
 
-        if (rc.getConviction() <= 10) {
+        if (rc.getConviction() < 5) {
             if (roundNum < 50) {
                 hqAttacker = false;
             } else {
-                hqAttacker = (random() < 0.75);
+                hqAttacker = (random() < 0.25);
             }
         } else {
             hqAttacker = true;
@@ -65,7 +65,7 @@ public class Muckraker extends Robot {
         updateDetectedLocs();
         updateExploreTask();
         updateEnemies();
-//        updateAllyMuckraker();
+        updateAllyMuckraker();
 
         if (!rc.isReady()) {
             return;
@@ -82,13 +82,18 @@ public class Muckraker extends Robot {
             drawLine(here, closestEnemySlanderer, PINK);
             log("Chasing slanderer " + closestEnemySlanderer);
             // use fuzzy
-            fuzzyTo(closestEnemySlanderer);
+            smartMove(closestEnemySlanderer);
             return;
         } else if (lastSeenSlanderer != null) {
             log("Memory chase " + lastSeenSlanderer);
-            fuzzyTo(lastSeenSlanderer);
+            smartMove(lastSeenSlanderer);
             return;
         }
+
+//        if (closestAllyMuckraker != null && here.isWithinDistanceSquared(closestAllyMuckraker, 2)) {
+//            fuzzyAway(closestAllyMuckraker);
+//            return;
+//        }
 
         if (hqAttacker) {
             // move towards targetHQ
@@ -121,7 +126,7 @@ public class Muckraker extends Robot {
 //                } else {
                     log("Fuzzy to targetHQ");
                     drawLine(here, targetHQLoc, RED);
-                    fuzzyTo(targetHQLoc);
+                    smartMove(targetHQLoc);
 //                }
                     return;
                 }
@@ -188,6 +193,12 @@ public class Muckraker extends Robot {
                 resetTargetHQ();
             }
         }
+        if (targetHQIndex != -1) {
+            if (checkHQIgnoreStatus(targetHQIndex)) {
+                log("Resetting targetHQ, ignored");
+                resetTargetHQ();
+            }
+        }
         if (targetHQIndex != -1) { // reset if its been too long since we got closer
             if (roundNum - lastCloserRound >= SWITCH_TARGET_ROUNDS
                     && here.distanceSquaredTo(targetHQLoc) > MEDIUM_CLOSE_ENEMY_HQ_DIST) {
@@ -216,13 +227,13 @@ public class Muckraker extends Robot {
             }
         }
         // if we can see it
-//        if (targetHQIndex != -1) {
-//            if (here.distanceSquaredTo(targetHQLoc) <= 8) {
-//                log("Resetting targetHQ, seen");
-//                hqIgnoreRounds[targetHQIndex] = roundNum; // ignoring the current target
-//                resetTargetHQ();
-//            }
-//        }
+        if (targetHQIndex != -1) {
+            if (here.distanceSquaredTo(targetHQLoc) <= 8) {
+                log("Resetting targetHQ, seen");
+                hqIgnoreRounds[targetHQIndex] = roundNum; // ignoring the current target
+                resetTargetHQ();
+            }
+        }
 
         if (targetHQIndex == -1) {
             int bestDist = P_INF;

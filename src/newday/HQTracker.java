@@ -161,6 +161,7 @@ public class HQTracker {
             chainMessages(hqBroadcasts[index], infoMsg);
         } else {
 //            tlog("Solo");
+            hqBroadcasts[index].type = HQ_LOC_SOLO_MSG;
             hqBroadcasts[index].next = null;
             // do not alter prev of infoMsg, allows for backtracking
         }
@@ -192,7 +193,6 @@ public class HQTracker {
     }
 
     public static boolean checkHQIgnoreStatus(int index) {
-        log("ignore " + roundNum + " " + hqIgnoreRounds[index] + " " + IGNORE_MEMORY);
         return (roundNum - hqIgnoreRounds[index] <= IGNORE_MEMORY);
     }
 }

@@ -50,6 +50,8 @@ public class Politician extends Robot {
     // scout variables
     public static boolean isBugScout; // true = bug, false = fuzzy
 
+    public static boolean isChaser;
+
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
@@ -80,6 +82,8 @@ public class Politician extends Robot {
         resetTargetHQ();
 
         initExploreTask();
+
+        isChaser = randBoolean();
     }
 
     // code run each turn
@@ -109,6 +113,8 @@ public class Politician extends Robot {
         switch(myRole) {
             case ROLE_ATTACK:
                 log("[ROLE_ATTACK]");
+                Debug.SILENCE_INDICATORS = false;
+                drawDot(here, BLACK);
                 break;
             case ROLE_DEFEND:
                 log("[ROLE_DEFEND]");
@@ -136,6 +142,13 @@ public class Politician extends Robot {
             updateSymmetryByPassability();
         }
 
+        if (age % 20 == 0) {
+            isChaser = (random() < 0.5);
+        }
+
+        if (myRole == ROLE_ATTACK && targetHQIndex != -1) {
+            drawLine(here, targetHQLoc, GREEN);
+        }
         if (!rc.isReady()) {
             return;
         }
@@ -222,6 +235,14 @@ public class Politician extends Robot {
                 // reset if we haven't gotten closer in a while
                 hqIgnoreRounds[targetHQIndex] = roundNum; // ignoring the current target
                 resetTargetHQ();
+            }
+            if (bestNeutralIndex != -1) {
+                // reset if we have found a new hq much closer
+                double bestNeutralDist = Math.sqrt(here.distanceSquaredTo(hqLocs[bestNeutralIndex]));
+                double targetDist = Math.sqrt(here.distanceSquaredTo(targetHQLoc));
+                if (bestNeutralDist < targetDist - 5) { // if this is substantially closer
+                    resetTargetHQ();
+                }
             }
         }
 
@@ -365,7 +386,7 @@ public class Politician extends Robot {
                 }
             } else {
                 log("Moving closer");
-                Direction dir = fuzzyTo(targetHQLoc);
+                Direction dir = smartMove(targetHQLoc);
                 return;
             }
         }
@@ -380,7 +401,7 @@ public class Politician extends Robot {
 
         // target any enemies
         if (extremeAggression && closestEnemy != null) {
-            tryAttackChase(closestEnemy, false); // just assume it is muckraker
+            tryAttackChase(closestEnemy); // just assume it is muckraker
             return;
         }
 
@@ -393,27 +414,31 @@ public class Politician extends Robot {
         // attack closest muckraker
         if (closestEnemyMuckraker != null) {
             killHungryTarget = rc.senseRobotAtLocation(closestEnemyMuckraker).ID;
-            tryAttackChase(closestEnemyMuckraker, false);
+            tryAttackChase(closestEnemyMuckraker);
             return;
         }
 
-        if (alertEnemyMuckraker != null && roundNum - alertEnemyMuckrakerRound < WRITE_ENEMY_MUCKRAKER_FREQ) {
-            int dist = here.distanceSquaredTo(alertEnemyMuckraker);
-            if (MAX_EMPOWER < dist && dist < 400) {
-                fuzzyTo(alertEnemyMuckraker);
-                return;
+        // no sensed muckrakers
+        if (isChaser) {
+            if (alertEnemyMuckraker != null && roundNum - alertEnemyMuckrakerRound < WRITE_ENEMY_MUCKRAKER_FREQ) {
+                int dist = here.distanceSquaredTo(alertEnemyMuckraker);
+                if (MAX_EMPOWER < dist) {
+                    fuzzyTo(alertEnemyMuckraker);
+                    return;
+                }
             }
-        }
 
-        // no seen muckrakers
-//        makePoliLattice(getCenterLoc(), 4, POLI_MIN_CORNER_DIST);
-        wander(8, 9, false);
+            wander(8, 9, false);
+        } else {
+            wander(30, 9, true);
+//            makePoliLattice(getCenterLoc(), 4, POLI_MIN_CORNER_DIST);
+        }
         return;
     }
 
-    public static void tryAttackChase(MapLocation targetLoc, boolean useBug) throws GameActionException {
+    public static void tryAttackChase(MapLocation targetLoc) throws GameActionException {
         if (tryAttack(targetLoc) == -1) {
-            tryChase(targetLoc, useBug);
+            tryChase(targetLoc);
         }
     }
 
@@ -439,17 +464,13 @@ public class Politician extends Robot {
         return -1;
     }
 
-    public static Direction tryChase(MapLocation targetLoc, boolean useBug) throws GameActionException {
+    public static Direction tryChase(MapLocation targetLoc) throws GameActionException {
         log("Trying chasing");
         if (targetLoc != null) {
             // have not exploded, try chasing instead
             drawLine(here, targetLoc, PINK);
             tlog("Chasing " + targetLoc);
-            if (useBug) {
-                return moveLog(targetLoc);
-            } else {
-                return fuzzyTo(targetLoc);
-            }
+            smartMove(targetLoc);
         }
         tlog("Could not chase");
         return null;
@@ -548,6 +569,10 @@ public class Politician extends Robot {
         for (int i = len; --i >= 0;) {
             total += getEmpowerScore(robots[i]);
         }
+
+        if (isStuck) {
+            total *= 10;
+        }
         return total;
     }
 
@@ -610,7 +635,7 @@ public class Politician extends Robot {
         } else {
             // kills
             if (buffedDmg > ri.conviction) {
-                score += 10 * (ri.conviction + (buffedDmg - ri.conviction) / curAllyBuff);
+                score += 2 * (ri.conviction + (buffedDmg - ri.conviction) / curAllyBuff);
             } else {
                 score += 0.1 * buffedDmg;
             }

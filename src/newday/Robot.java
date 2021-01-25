@@ -133,6 +133,7 @@ public abstract class Robot extends Constants {
     public static RobotInfo[] adjAllies;
 
     public static boolean[] isDirMoveable = new boolean[8];
+    public static boolean isStuck;
 
     public static int myMaster = -1;
     public static MapLocation myMasterLoc = null;
@@ -434,6 +435,8 @@ public abstract class Robot extends Constants {
     // default explore
     public static Direction defaultExploreTaskDir;
 
+    public static int numStuckTaskRounds;
+
 
 
     /*
@@ -445,6 +448,7 @@ public abstract class Robot extends Constants {
         if (myMaster > 0) {
             int status = Comms.getStatusFromFlag(rc.getFlag(myMaster));
             masterTaskDir = DIRS[status % 8];
+            numStuckTaskRounds = 0;
         }
         // bounds
         // symmetry
@@ -458,6 +462,19 @@ public abstract class Robot extends Constants {
     }
 
     public static void updateExploreTask() {
+        if (numStuckTaskRounds > 5) {
+            // reset all tasks
+            masterTaskDir = null;
+            boundsTaskDir = null;
+            symmetryTaskLoc = null;
+            Direction newDir = getRandomDirCenter();
+            while (newDir == defaultExploreTaskDir) {
+                 newDir = getRandomDirCenter();
+            }
+            defaultExploreTaskDir = newDir;
+            numStuckTaskRounds = 0;
+        }
+
         // update if masterTaskDir is done
         if (masterTaskDir != null) {
             MapLocation senseLoc = getFarthestLoc(spawnLoc, masterTaskDir);
@@ -492,6 +509,7 @@ public abstract class Robot extends Constants {
                         log("Adjusted boundsTaskDir " + newDir);
                         boundsTaskDir = newDir;
                         lastExploreTaskChangeRound = roundNum;
+                        numStuckTaskRounds = 0;
                     }
                     return;
                 }
@@ -501,6 +519,7 @@ public abstract class Robot extends Constants {
                 log("Getting new boundsTask");
                 boundsTaskDir = getNewBoundsTaskDir();
                 lastExploreTaskChangeRound = roundNum;
+                numStuckTaskRounds = 0;
                 return;
             }
 
@@ -528,6 +547,7 @@ public abstract class Robot extends Constants {
                     symmetryTaskLoc = symHQLocs[0];
                     symmetryTaskType = symHQType[0];
                     lastExploreTaskChangeRound = roundNum;
+                    numStuckTaskRounds = 0;
                     return;
                 }
             }
@@ -539,8 +559,10 @@ public abstract class Robot extends Constants {
         MapLocation mapCenter = new MapLocation(isMapXKnown() ? (XMIN + XMAX) / 2 : spawnLoc.x,
                 isMapYKnown() ? (YMIN + YMAX) / 2 : spawnLoc.y);
         MapLocation senseLoc = convertToKnownBounds(addDir(mapCenter, defaultExploreTaskDir, MAX_MAP_SIZE));
-        if (rc.canSenseLocation(senseLoc) || roundNum - lastExploreTaskChangeRound > 150) {
+        if (rc.canSenseLocation(senseLoc)
+                || roundNum - lastExploreTaskChangeRound > 150) {
             lastExploreTaskChangeRound = roundNum;
+            numStuckTaskRounds = 0;
 
             if (defaultExploreTaskDir == Direction.CENTER) {
                 defaultExploreTaskDir = getRandomDir();
@@ -573,6 +595,8 @@ public abstract class Robot extends Constants {
     Priority: Master, Map Bounds, Map Symmetry (by HQs), Default (go to directions)
      */
     public static void explore() throws GameActionException {
+        numStuckTaskRounds++;
+
         // do master task
         if (masterTaskDir != null) {
             // purposely uses spawnLoc
@@ -582,7 +606,10 @@ public abstract class Robot extends Constants {
             drawLine(here, navLoc, WHITE);
             drawDot(senseLoc, WHITE);
             // use fuzzy for this one
-            fuzzyTo(navLoc);
+            Direction dir = smartMove(navLoc);
+            if (dir != null) {
+                numStuckTaskRounds = 0;
+            }
 //            moveLog(navLoc);
             return;
         }
@@ -598,7 +625,10 @@ public abstract class Robot extends Constants {
             MapLocation navLoc = getExploreNavLoc(senseLoc);
             drawLine(here, navLoc, GRAY);
             drawDot(senseLoc, GRAY);
-            fuzzyTo(navLoc);
+            Direction dir = smartMove(navLoc);
+            if (dir != null) {
+                numStuckTaskRounds = 0;
+            }
 //            moveLog(navLoc);
             return;
         }
@@ -608,7 +638,10 @@ public abstract class Robot extends Constants {
         if (symmetryTaskLoc != null) {
             log("Symmetry task " + symmetryTaskLoc + " " + symmetryTaskType);
             drawLine(here, symmetryTaskLoc, BLACK);
-            fuzzyTo(symmetryTaskLoc);
+            Direction dir = smartMove(symmetryTaskLoc);
+            if (dir != null) {
+                numStuckTaskRounds = 0;
+            }
 //            moveLog(symmetryTaskLoc);
             return;
         }
@@ -623,13 +656,10 @@ public abstract class Robot extends Constants {
             MapLocation navLoc = getExploreNavLoc(senseLoc);
             drawLine(here, navLoc, BROWN);
             drawDot(senseLoc, BROWN);
-//            if (useBug) {
-//                tlog("Bugging: " + navLoc);
-//                moveLog(navLoc);
-//            } else {
-            tlog("Fuzzy: " + navLoc);
-            fuzzyTo(navLoc);
-//            }
+            Direction dir = smartMove(navLoc);
+            if (dir != null) {
+                numStuckTaskRounds = 0;
+            }
             return;
         }
     }

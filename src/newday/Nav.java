@@ -12,6 +12,28 @@ import static newday.Utils.*;
 
 public class Nav {
 
+    public static MapLocation smartMoveTargetLoc = new MapLocation(0, 0);
+    public static int attemptsSinceLastMove;
+
+    public static Direction smartMove(MapLocation loc) throws GameActionException {
+        if (!smartMoveTargetLoc.equals(loc)) {
+            smartMoveTargetLoc = loc;
+            attemptsSinceLastMove = 0;
+        }
+
+        if (attemptsSinceLastMove >= 3) {
+            return moveLog(loc);
+        } else {
+            Direction dir = fuzzyTo(loc);
+            if (dir == null) {
+                attemptsSinceLastMove++;
+            } else {
+                attemptsSinceLastMove = 0;
+            }
+            return dir;
+        }
+    }
+
     public static Direction moveLog(MapLocation loc) throws GameActionException {
         Direction move = path(loc);
         if (move == null) {
@@ -35,6 +57,14 @@ public class Nav {
             for (int i = DIRS.length; --i >= 0;) {
                 MapLocation adjLoc = rc.adjacentLocation(DIRS[i]);
                 isDirMoveable[i] = rc.onTheMap(adjLoc) && !rc.isLocationOccupied(adjLoc);
+            }
+        }
+
+        isStuck = true;
+        for (int i = DIRS.length; --i >= 0;) {
+            if (isDirMoveable[i]) {
+                isStuck = false;
+                break;
             }
         }
     }

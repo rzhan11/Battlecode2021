@@ -17,6 +17,7 @@ scripts/log
 scripts/log.txt
 
 src/*_nolog
+src/puremuck
 
 src/*.zip
 src/template.zip

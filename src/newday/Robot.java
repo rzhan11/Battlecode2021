@@ -203,7 +203,7 @@ public abstract class Robot extends Constants {
                 } else {
                     teamName = hqTeams[i].toString();
                 }
-//                tlog(hqLocs[i] + " " + hqIDs[i] + " " + teamName + " " + hqSurroundRounds[i] + " " + hqReportSurroundRounds[i]);
+//                tlog(hqLocs[i] + " " + hqIDs[i] + " " + teamName + " " + hqSurroundRounds[i] + " " + hqReportSurroundRounds[i] + " " + hqIgnoreRounds[i]);
                 tlog(hqLocs[i] + " " + hqIDs[i] + " " + teamName + " " + hqInfluence[i]);
             }
             log("Print cost " + (curByte - Clock.getBytecodesLeft()));
@@ -559,8 +559,19 @@ public abstract class Robot extends Constants {
         MapLocation mapCenter = new MapLocation(isMapXKnown() ? (XMIN + XMAX) / 2 : spawnLoc.x,
                 isMapYKnown() ? (YMIN + YMAX) / 2 : spawnLoc.y);
         MapLocation senseLoc = convertToKnownBounds(addDir(mapCenter, defaultExploreTaskDir, MAX_MAP_SIZE));
+
+        // loop thru ally hqs and check
+        boolean hasCornerAllyHQ = false;
+        for (int i = knownHQCount; --i >= 0;) {
+            if (hqTeams[i] == us && rc.canSenseLocation(hqLocs[i]) && hqLocs[i].isWithinDistanceSquared(senseLoc, 40)) {
+                hasCornerAllyHQ = true;
+                break;
+            }
+        }
+
         if (rc.canSenseLocation(senseLoc)
-                || roundNum - lastExploreTaskChangeRound > 150) {
+                || roundNum - lastExploreTaskChangeRound > 150
+                || hasCornerAllyHQ) {
             lastExploreTaskChangeRound = roundNum;
             numStuckTaskRounds = 0;
 

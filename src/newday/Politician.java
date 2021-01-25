@@ -146,8 +146,10 @@ public class Politician extends Robot {
             isChaser = (random() < 0.5);
         }
 
-        if (myRole == ROLE_ATTACK && targetHQIndex != -1) {
-            drawLine(here, targetHQLoc, GREEN);
+        if (myRole == ROLE_ATTACK) {
+            if (targetHQIndex != -1) {
+                drawLine(here, targetHQLoc, (us == Team.A) ? RED : CYAN);
+            }
         }
         if (!rc.isReady()) {
             return;
@@ -236,6 +238,9 @@ public class Politician extends Robot {
                 hqIgnoreRounds[targetHQIndex] = roundNum; // ignoring the current target
                 resetTargetHQ();
             }
+        }
+
+        if (targetHQIndex != -1) {
             if (bestNeutralIndex != -1) {
                 // reset if we have found a new hq much closer
                 double bestNeutralDist = Math.sqrt(here.distanceSquaredTo(hqLocs[bestNeutralIndex]));

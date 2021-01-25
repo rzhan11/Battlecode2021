@@ -7,28 +7,38 @@ import static newday.Slanderer.*;
 import static newday.Bug.*;
 import static newday.Debug.*;
 import static newday.Map.*;
-import static newday.Robot.*;
-import static newday.Utils.*;
 
 public class Nav {
 
     public static MapLocation smartMoveTargetLoc = new MapLocation(0, 0);
-    public static int attemptsSinceLastMove;
+    public static int failedFuzzyAttempts;
+    public static int couldFuzzy;
 
     public static Direction smartMove(MapLocation loc) throws GameActionException {
         if (!smartMoveTargetLoc.equals(loc)) {
             smartMoveTargetLoc = loc;
-            attemptsSinceLastMove = 0;
+            failedFuzzyAttempts = 0;
         }
 
-        if (attemptsSinceLastMove >= 3) {
+        if (failedFuzzyAttempts >= 3) {
+            // check front
+
+            if (checkMoveApprox(here.directionTo(loc))) {
+                couldFuzzy++;
+            }
+            if (couldFuzzy >= 5) {
+                failedFuzzyAttempts = 0;
+                couldFuzzy = 0;
+                return fuzzyTo(loc);
+            }
+
             return moveLog(loc);
         } else {
             Direction dir = fuzzyTo(loc);
             if (dir == null) {
-                attemptsSinceLastMove++;
+                failedFuzzyAttempts++;
             } else {
-                attemptsSinceLastMove = 0;
+                failedFuzzyAttempts = 0;
             }
             return dir;
         }
@@ -126,7 +136,11 @@ public class Nav {
         return null;
     }
 
-
+    public static boolean checkMoveApprox(Direction dir) throws GameActionException {
+        return isDirMoveable[dir2int(dir)]
+                || isDirMoveable[dir2int(dir.rotateLeft())]
+                || isDirMoveable[dir2int(dir.rotateRight())];
+    }
 
 
     public static boolean wanderLeft;

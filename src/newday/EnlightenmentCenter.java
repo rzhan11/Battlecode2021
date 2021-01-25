@@ -63,6 +63,8 @@ public class EnlightenmentCenter extends Robot {
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
+        logi("v.newday.25.1432");
+
         Comms.writeXBounds();
         Comms.writeYBounds();
 
@@ -121,6 +123,9 @@ public class EnlightenmentCenter extends Robot {
         if (!rc.isReady()) {
             return;
         }
+//        //TODO TESTING REMOVE THIS
+//        makeMuckraker(true);
+//        if (true) return;
 
         // make a slanderer on the first turn
         if (spawnRound == 1 && movesMade <= MAX_EARLY_GAME_ROUND) {
@@ -530,7 +535,7 @@ public class EnlightenmentCenter extends Robot {
         }
 
         // check for min cost
-        double minValue = mySlanTotalValue / 5.0;
+        double minValue = mySlanTotalValue / 10.0;
         double value = cost * GameConstants.EMBEZZLE_NUM_ROUNDS;
 
         // todo testing

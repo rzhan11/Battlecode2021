@@ -5,7 +5,6 @@ import battlecode.common.*;
 import static newday.Comms.*;
 import static newday.Debug.*;
 import static newday.HQTracker.*;
-import static newday.Map.*;
 import static newday.Nav.*;
 import static newday.Utils.*;
 
@@ -43,6 +42,9 @@ public class Muckraker extends Robot {
 
 
     public static boolean hqAttacker;
+    public static boolean doSwarm;
+
+    public static int lastBuffRound = 0;
 
     // things to do on turn 1 of existence
     public static void firstTurnSetup() throws GameActionException {
@@ -58,14 +60,20 @@ public class Muckraker extends Robot {
         } else {
             hqAttacker = true;
         }
+        doSwarm = false;
     }
 
     // code run each turn
     public static void turn() throws GameActionException {
+        updateAttackBehavior();
+
         updateDetectedLocs();
         updateExploreTask();
-        updateEnemies();
+        Muckraker.updateTargetHQ();
+        updateEnemySlanderers();
         updateAllyMuckraker();
+
+        log("[ATTACK] " + hqAttacker + " " + doSwarm);
 
         if (!rc.isReady()) {
             return;
@@ -140,6 +148,24 @@ public class Muckraker extends Robot {
         }
     }
 
+    private static void updateAttackBehavior() {
+        if (curEnemyBuff > 1.0000001) {
+            lastBuffRound = roundNum;
+        }
+        log("buff " + lastBuffRound + " "+ curEnemyBuff);
+        if (roundNum - lastBuffRound > 100) {
+            log("[CONSIDER]");
+            lastBuffRound = roundNum;
+            // convert more and more mucks to attackers over time
+            if (!hqAttacker) {
+                hqAttacker = (random() < 0.5);
+            }
+        }
+        if (roundNum % 50 == 0) {
+            doSwarm = (random() < 0.5);
+        }
+    }
+
     public static MapLocation closestAllyMuckraker;
 
     public static void updateAllyMuckraker() throws GameActionException {
@@ -157,11 +183,6 @@ public class Muckraker extends Robot {
         }
     }
 
-    public static void updateEnemies() throws GameActionException {
-        Muckraker.updateTargetHQ();
-        updateEnemySlanderers();
-    }
-
     public static void resetTargetHQ() throws GameActionException {
         targetHQIndex = -1;
         targetHQLoc = null;
@@ -171,6 +192,11 @@ public class Muckraker extends Robot {
     }
 
     public static void updateTargetHQ() throws GameActionException {
+        if (!hqAttacker) {
+            return;
+        }
+
+
         // update closest dist
         if (targetHQIndex != -1) {
             int dist = here.distanceSquaredTo(targetHQLoc);
@@ -228,7 +254,7 @@ public class Muckraker extends Robot {
         }
         // if we can see it
         if (targetHQIndex != -1) {
-            if (here.distanceSquaredTo(targetHQLoc) <= 8) {
+            if (!doSwarm && here.distanceSquaredTo(targetHQLoc) <= 8) {
                 log("Resetting targetHQ, seen");
                 hqIgnoreRounds[targetHQIndex] = roundNum; // ignoring the current target
                 resetTargetHQ();

@@ -7,7 +7,7 @@ import static wander_defense.Robot.*;
 public class Debug {
 
     public static boolean SILENCE_LOGS = false;
-    final public static boolean SILENCE_INDICATORS = false;
+    final public static boolean SILENCE_INDICATORS = true;
 
     // Robot.endTurn and Robot.printMyInfo
     final public static boolean NO_TURN_LOGS = false;
